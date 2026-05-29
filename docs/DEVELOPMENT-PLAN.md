@@ -88,7 +88,7 @@ Phase 8: Visual Polish & QA (runs last, touches everything)
 
 ### 1c. Supabase Setup & Public Group Route
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Complete 
 **Effort:** Small  
 **Dependencies:** 1a  
 **Deliverables:**
@@ -107,7 +107,7 @@ Phase 8: Visual Polish & QA (runs last, touches everything)
 
 ### 1d. Host PIN Write Protection
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Complete  
 **Effort:** Medium  
 **Dependencies:** 1c  
 **Deliverables:**
