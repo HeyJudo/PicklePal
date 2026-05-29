@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+@theme inline {
+  /* PicklePal Sport Palette */
+  --color-court-green: #2D8B4E;
+  --color-court-green-light: #3DA863;
+  --color-court-green-dark: #1E6B3A;
+  --color-sky-blue: #2196F3;
+  --color-sky-blue-light: #64B5F6;
+  --color-sky-blue-dark: #1565C0;
+  --color-ball-yellow: #F5C518;
+  --color-ball-yellow-light: #FFD54F;
+  --color-hype-orange: #FF6B35;
+  --color-hype-red: #E53935;
+
+  /* Neutral surfaces */
+  --color-surface: #FFFFFF;
+  --color-surface-muted: #F8FAFC;
+  --color-surface-elevated: #FFFFFF;
+  --color-border: #E2E8F0;
+  --color-border-muted: #F1F5F9;
+
+  /* Text */
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94A3B8;
+  --color-text-inverse: #FFFFFF;
+
+  /* Fonts */
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
