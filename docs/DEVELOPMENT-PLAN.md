@@ -40,7 +40,7 @@ Phase 8: Visual Polish & QA (runs last, touches everything)
 
 ### 1a. Next.js + TypeScript + Tailwind Scaffold
 
-**Status:** � In progress  
+**Status:** ✅ Complete 
 **Effort:** Small  
 **Dependencies:** None  
 **Deliverables:**
@@ -69,7 +69,7 @@ Phase 8: Visual Polish & QA (runs last, touches everything)
 
 ### 1b. App Shell & Navigation
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Complete  
 **Effort:** Small  
 **Dependencies:** 1a  
 **Deliverables:**
