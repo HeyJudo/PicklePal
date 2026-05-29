@@ -1,10 +1,35 @@
-export default function HomePage() {
+import { notFound } from "next/navigation";
+import { createServerClient, type Group } from "@/lib/supabase";
+
+interface HomePageProps {
+  readonly params: Promise<{ slug: string }>;
+}
+
+async function getGroup(slug: string): Promise<Group | null> {
+  const supabase = createServerClient();
+  const { data } = await supabase
+    .from("groups")
+    .select("*")
+    .eq("slug", slug)
+    .single();
+
+  return data;
+}
+
+export default async function HomePage({ params }: HomePageProps) {
+  const { slug } = await params;
+  const group = await getGroup(slug);
+
+  if (!group) {
+    notFound();
+  }
+
   return (
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-bold text-text-primary">Home</h1>
         <p className="text-text-secondary mt-1">
-          Welcome to your pickleball crew dashboard.
+          Welcome to {group.name} dashboard.
         </p>
       </header>
 
