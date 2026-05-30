@@ -195,23 +195,44 @@ export function LiveScoring({
 
       {/* Rally Winner Buttons */}
       {!state.isComplete && (
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => handleRallyWinner("A")}
-            className="rounded-xl bg-primary/10 border-2 border-primary px-4 py-6 text-center transition-all active:scale-95 cursor-pointer hover:bg-primary/20"
-          >
-            <span className="text-lg font-bold text-primary">
-              Team A Won Rally
-            </span>
-          </button>
-          <button
-            onClick={() => handleRallyWinner("B")}
-            className="rounded-xl bg-sky-blue/10 border-2 border-sky-blue px-4 py-6 text-center transition-all active:scale-95 cursor-pointer hover:bg-sky-blue/20"
-          >
-            <span className="text-lg font-bold text-sky-blue">
-              Team B Won Rally
-            </span>
-          </button>
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => handleRallyWinner("A")}
+              className="rounded-xl bg-primary/10 border-2 border-primary px-4 py-6 text-center transition-all active:scale-95 cursor-pointer hover:bg-primary/20"
+            >
+              <span className="text-lg font-bold text-primary">
+                Team A Won Rally
+              </span>
+            </button>
+            <button
+              onClick={() => handleRallyWinner("B")}
+              className="rounded-xl bg-sky-blue/10 border-2 border-sky-blue px-4 py-6 text-center transition-all active:scale-95 cursor-pointer hover:bg-sky-blue/20"
+            >
+              <span className="text-lg font-bold text-sky-blue">
+                Team B Won Rally
+              </span>
+            </button>
+          </div>
+          {/* Fault buttons — tapping "Team X Fault" = other team won */}
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => handleRallyWinner("B")}
+              className="rounded-lg border border-border px-3 py-2 text-center transition-all active:scale-95 cursor-pointer hover:bg-hype-red/5 hover:border-hype-red/30"
+            >
+              <span className="text-sm font-medium text-text-secondary">
+                Team A Fault
+              </span>
+            </button>
+            <button
+              onClick={() => handleRallyWinner("A")}
+              className="rounded-lg border border-border px-3 py-2 text-center transition-all active:scale-95 cursor-pointer hover:bg-hype-red/5 hover:border-hype-red/30"
+            >
+              <span className="text-sm font-medium text-text-secondary">
+                Team B Fault
+              </span>
+            </button>
+          </div>
         </div>
       )}
 
