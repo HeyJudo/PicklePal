@@ -78,6 +78,17 @@ This applies to all server actions that query Supabase. A future fix: use `supab
 - Remember to handle rollback on errors
 - Don't forget to close connections in finally blocks
 
+### PIN Gate Pattern: Gate the Action, Not the Visibility
+Write-action buttons (End Game Day, Start Session, correct scores) should always be **visible** to all users. The PIN prompt triggers only when clicked and the user isn't authenticated. Hiding buttons behind `{isHost && ...}` creates confusion — users don't know the feature exists. Pattern:
+```tsx
+// ✅ Good: always show, gate on click
+<button onClick={handleAction}>End Game Day</button>
+// In handleAction: if (!isHost) { showPinPrompt(); return; }
+
+// ❌ Bad: hide entirely
+{isHost && <button onClick={handleAction}>End Game Day</button>}
+```
+
 ---
 
 ## Architecture Decisions

@@ -1,7 +1,8 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useHostAuth } from "@/hooks/useHostAuth";
+import { verifyHostPin } from "../actions";
 import { endSession } from "./actions";
 import { MatchQueue } from "./MatchQueue";
 import type { Matchup } from "@/lib/matchmaking";
@@ -34,11 +35,17 @@ export function ActiveSession({
   onSessionEnded,
   onMatchConfirmed,
 }: ActiveSessionProps) {
-  const { isHost } = useHostAuth(groupSlug);
+  const { isHost, grantAccess } = useHostAuth(groupSlug);
   const [isPending, startTransition] = useTransition();
+  const [showPinInput, setShowPinInput] = useState(false);
+  const [pin, setPin] = useState("");
+  const [pinError, setPinError] = useState("");
 
   const handleEndSession = () => {
-    if (!isHost) return;
+    if (!isHost) {
+      setShowPinInput(true);
+      return;
+    }
 
     startTransition(async () => {
       const result = await endSession(session.id);
@@ -46,6 +53,25 @@ export function ActiveSession({
         onSessionEnded();
       }
     });
+  };
+
+  const handlePinSubmit = async () => {
+    setPinError("");
+    const result = await verifyHostPin(groupSlug, pin);
+    if (result.success) {
+      grantAccess();
+      setShowPinInput(false);
+      setPin("");
+      // Now execute the end session action
+      startTransition(async () => {
+        const endResult = await endSession(session.id);
+        if (endResult.success) {
+          onSessionEnded();
+        }
+      });
+    } else {
+      setPinError(result.error ?? "Verification failed");
+    }
   };
 
   const startedAt = new Date(session.started_at);
@@ -87,8 +113,46 @@ export function ActiveSession({
         onMatchSelected={onMatchConfirmed}
       />
 
-      {/* End Session */}
-      {isHost && (
+      {/* PIN Prompt */}
+      {showPinInput && (
+        <div className="rounded-xl border border-border bg-surface p-5 space-y-3">
+          <h3 className="text-sm font-semibold text-text-primary">
+            Enter Host PIN to end session
+          </h3>
+          <input
+            type="password"
+            inputMode="numeric"
+            value={pin}
+            onChange={(e) => setPin(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
+            placeholder="Enter PIN"
+            className="w-full rounded-lg border border-border bg-surface-muted px-4 py-2.5 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary"
+            autoFocus
+          />
+          {pinError && <p className="text-sm text-red-500">{pinError}</p>}
+          <div className="flex gap-3">
+            <button
+              onClick={handlePinSubmit}
+              className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors cursor-pointer"
+            >
+              Verify & End
+            </button>
+            <button
+              onClick={() => {
+                setShowPinInput(false);
+                setPin("");
+                setPinError("");
+              }}
+              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-muted transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* End Session — always visible */}
+      {!showPinInput && (
         <button
           onClick={handleEndSession}
           disabled={isPending}
