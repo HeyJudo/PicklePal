@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { PlayerStats, DuoStats } from "@/lib/stats";
+import type { PlayerStats, DuoStats, MatchSummary } from "@/lib/stats";
 
 interface PlayerProfileProps {
   readonly stats: PlayerStats;
