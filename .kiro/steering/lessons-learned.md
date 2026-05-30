@@ -102,6 +102,9 @@ PostgreSQL UUID type only accepts hex characters (0-9, a-f). When creating reada
 'p0000000-0000-0000-0000-000000000001'  -- invalid!
 ```
 
+### html2canvas Requires Inline Styles for Reliable Export
+When rendering HTML to canvas/PNG via html2canvas, use **inline `style={{}}` props** instead of Tailwind utility classes. html2canvas doesn't reliably resolve Tailwind's generated CSS classes, especially for custom theme tokens. The `OverlayContent` component in `src/components/share/OverlayRenderer.tsx` demonstrates this pattern — Tailwind is used for the surrounding UI (preview container, buttons) but the exportable content uses pure inline styles.
+
 ### PIN Gate Pattern: Gate the Action, Not the Visibility
 Write-action buttons (End Game Day, Start Session, correct scores) should always be **visible** to all users. The PIN prompt triggers only when clicked and the user isn't authenticated. Hiding buttons behind `{isHost && ...}` creates confusion — users don't know the feature exists. Pattern:
 ```tsx

@@ -565,23 +565,70 @@ Create players → Start session → Generate match → Score live → Save → 
 
 ## Phase 7: Share Cards
 
-### 7a. Recap Card Layout & Rendering
+> **Revised approach:** Single transparent PNG overlay (Strava sticker-style) that users download and place on their own photos in Instagram Stories. No photo upload/composite in-app — just a clean transparent PNG with stats that works as a sticker layer.
 
-**Status:** 🔲 Not started  
+### 7a. Overlay Renderer & Canvas Export
+
+**Status:** ✅ Completed  
 **Effort:** Large | **Dependencies:** 5d  
-- 9:16 ratio, HTML → Canvas → PNG, all awards displayed
+**Deliverables:**
+- Transparent PNG overlay component (1080×1920, 9:16 ratio)
+- html2canvas (or Canvas API) export with transparent background
+- Overlay content:
+  - PicklePal branding (top center, small)
+  - Green-to-blue gradient accent line
+  - Session title (editable, max 20 characters)
+  - Date
+  - Match count · Player count
+  - MVP name with trophy icon
+  - "picklepal.app" footer (subtle)
+- Floating text style: white text with drop shadows, no solid background
+- Sport font (condensed bold for title, clean sans for stats)
 
-### 7b. Download & Share
+**Acceptance Criteria:**
+- [ ] Renders a transparent PNG at 1080×1920
+- [ ] Session title is editable (inline text input, max 20 chars)
+- [ ] All session data (matches, players, MVP) populated from awards
+- [ ] Text is legible with drop shadows (works on any photo background)
+- [ ] No solid background — fully transparent canvas
+- [ ] Preview visible in-app before download
+
+---
+
+### 7b. Download & Integration with Recap Flow
 
 **Status:** 🔲 Not started  
 **Effort:** Small | **Dependencies:** 7a  
-- Download PNG, Web Share API, fallback copy link
+**Deliverables:**
+- "Download Overlay" button shown after the recap ceremony (post End Game Day)
+- Downloads transparent PNG to device camera roll / downloads folder
+- Web Share API fallback for mobile (share as file)
+- Also accessible later from session detail page (`/sessions/[id]`)
 
-### 7c. Public Recap Page
+**Acceptance Criteria:**
+- [ ] Download button appears after recap slideshow completes
+- [ ] PNG saves correctly on iOS Safari, Android Chrome, desktop browsers
+- [ ] File named sensibly (e.g., "picklepal-game-day-2.png")
+- [ ] Accessible from session detail page for later download
+- [ ] Works offline if session data is cached locally
+
+---
+
+### 7c. Public Recap Page (Optional/Stretch)
 
 **Status:** 🔲 Not started  
 **Effort:** Small | **Dependencies:** 7a, 5d  
-- Public URL with OG meta tags for link previews
+**Deliverables:**
+- Public URL at `/g/[slug]/sessions/[id]/recap`
+- OG meta tags for link preview (title, description, image)
+- Server-rendered preview of the overlay on a default gradient background
+- Share link copies to clipboard
+
+**Acceptance Criteria:**
+- [ ] URL is publicly accessible (no PIN required)
+- [ ] OG image shows session stats in link previews
+- [ ] Page displays session awards and overlay preview
+- [ ] "Download Overlay" button available on this page too
 
 ---
 

@@ -7,6 +7,7 @@ import { PositionConfirmation } from "./PositionConfirmation";
 import { LiveScoring } from "./LiveScoring";
 import { MatchResult } from "./MatchResult";
 import { GameDayRecap } from "./GameDayRecap";
+import { OverlayRenderer } from "@/components/share";
 import { endSession, getSessionRecap } from "./actions";
 import type { MatchStartConfig } from "./PositionConfirmation";
 import type { CompletedMatchData } from "./MatchResult";
@@ -25,7 +26,7 @@ import {
 } from "@/lib/engine";
 import type { MatchHistory, DoublesMatchState, SinglesMatchState } from "@/lib/engine";
 
-type LiveStep = "idle" | "active" | "positions" | "scoring" | "result" | "recap";
+type LiveStep = "idle" | "active" | "positions" | "scoring" | "result" | "recap" | "overlay";
 
 interface SessionData {
   readonly id: string;
@@ -115,6 +116,10 @@ export function LivePageClient({
   };
 
   const handleRecapDone = () => {
+    setStep("overlay");
+  };
+
+  const handleOverlayDone = () => {
     setActiveSession(null);
     setCurrentMatchup(null);
     setMatchConfig(null);
@@ -318,6 +323,39 @@ export function LivePageClient({
           groupSlug={groupSlug}
           onDone={handleRecapDone}
         />
+      )}
+
+      {/* Step: Overlay download */}
+      {step === "overlay" && recapData && activeSession && (
+        <div className="fixed inset-0 z-[100] bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center px-4">
+          <div className="mb-6 text-center">
+            <h2 className="text-xl font-bold text-white">Share Your Day</h2>
+            <p className="text-sm text-white/60 mt-1">
+              Download the overlay and add it to your photo
+            </p>
+          </div>
+
+          <OverlayRenderer
+            data={{
+              sessionTitle: activeSession.title ?? "Game Day",
+              date: new Date(activeSession.started_at).toLocaleDateString(undefined, {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              }),
+              matchCount: recapData.gamesPlayed,
+              playerCount: recapData.playerCount,
+              mvpName: recapData.awards.mvp?.displayName ?? null,
+            }}
+          />
+
+          <button
+            onClick={handleOverlayDone}
+            className="mt-6 text-sm text-white/50 hover:text-white/80 transition-colors cursor-pointer"
+          >
+            Skip & Finish
+          </button>
+        </div>
       )}
     </div>
   );
