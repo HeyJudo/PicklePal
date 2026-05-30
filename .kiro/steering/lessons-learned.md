@@ -87,6 +87,9 @@ When a UI callback represents a state change (e.g., ending a session, cancelling
 ### Rally Events Are Reconstructed by Replay, Not Stored During Scoring
 The `LiveScoring` component only tracks `MatchHistory` (rally winners + current state). When saving to DB, `buildRallyEvents()` in `LivePageClient` replays the match from the initial input to capture server state, scores, and side-outs at each rally. This avoids duplicating engine logic in the UI and guarantees saved events are consistent with the engine's rules. Pattern: UI stores minimal data (rally winners), reconstruct full event data at save time.
 
+### Shared Action Files: Read Before Overwriting
+`src/app/g/[slug]/actions.ts` is a shared server actions file imported by multiple components (PIN modal, live session, start form). When adding new server actions, always **read the existing file first** or append to it — never overwrite with `fs_write`. Multiple features share the same `actions.ts` at each route level. Use `git show HEAD:<path>` to recover if accidentally overwritten.
+
 ### PIN Gate Pattern: Gate the Action, Not the Visibility
 Write-action buttons (End Game Day, Start Session, correct scores) should always be **visible** to all users. The PIN prompt triggers only when clicked and the user isn't authenticated. Hiding buttons behind `{isHost && ...}` creates confusion — users don't know the feature exists. Pattern:
 ```tsx

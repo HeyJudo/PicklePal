@@ -29,6 +29,7 @@ Phase 1: Project Foundation
         │     └─> Phase 4: Game Day Loop (combines 2 + 3)
         │           └─> ★ FIRST CHECKPOINT ★
         │                 └─> Phase 5: Stats & History
+        │                       ├─> Phase 6B: Home Dashboard (sporty group landing page)
         │                       └─> Phase 7: Share Cards
         └─> Phase 6: Offline-Resilient Scoring (can start after Phase 4)
 Phase 8: Visual Polish & QA (runs last, touches everything)
@@ -460,6 +461,105 @@ Create players → Start session → Generate match → Score live → Save → 
 **Status:** ✅ Complete  
 **Effort:** Medium | **Dependencies:** 6a, 6b  
 - Rebuild match state from local events on reload, handle offline reload
+
+---
+
+## Phase 6B: Home Dashboard
+
+> The group landing page — a sporty, at-a-glance dashboard that surfaces the most important data.  
+> Contextual: shows active Game Day status when a session is live, otherwise shows group stats.
+
+### 6B-a. Data Fetching & Server Actions
+
+**Status:** ✅ Completed  
+**Effort:** Small | **Dependencies:** 5a, 5d  
+**Deliverables:**
+- Server action to fetch dashboard data in one round-trip:
+  - Active session status (if any)
+  - Current #1 player (from leaderboard)
+  - Hottest Duo (from duo stats)
+  - Latest MVP of the Day (from most recent completed session awards)
+  - Recent match results (last 5 matches)
+  - Leaderboard top 5 preview
+- Types for dashboard response
+
+**Acceptance Criteria:**
+- [ ] Single server action returns all dashboard data
+- [ ] Handles empty state (no matches yet, no sessions)
+- [ ] Handles active session state vs. idle state
+
+---
+
+### 6B-b. Hero Section & Active Session Banner
+
+**Status:** 🔲 Not started  
+**Effort:** Medium | **Dependencies:** 6B-a  
+**Deliverables:**
+- Sporty hero section with group name and tagline
+- Active Game Day banner (when session is live):
+  - Current match score or "Match in progress"
+  - Quick-link to `/live`
+  - Pulsing live indicator
+- Idle state: "Start a Game Day" CTA for host
+
+**Acceptance Criteria:**
+- [ ] Hero feels sporty and energetic (bold typography, sport palette)
+- [ ] Active session banner is prominent and links to Live
+- [ ] Idle state shows inviting CTA
+- [ ] Responsive on mobile (375px+)
+
+---
+
+### 6B-c. Stats Highlight Cards
+
+**Status:** 🔲 Not started  
+**Effort:** Medium | **Dependencies:** 6B-a  
+**Deliverables:**
+- #1 Player card (rank badge, name, win rate, games played)
+- Hottest Duo card (two player names, duo win rate)
+- Latest MVP card (player name, session date, MVP score)
+- Card design: sporty with subtle gradients, player colors, trophy/medal icons
+
+**Acceptance Criteria:**
+- [ ] Cards are visually distinct and scannable
+- [ ] Empty states handled gracefully (e.g., "Play 3+ games to unlock")
+- [ ] Player colors used as accent
+- [ ] No emoji icons — use SVG (Lucide)
+
+---
+
+### 6B-d. Leaderboard Preview & Recent Matches
+
+**Status:** 🔲 Not started  
+**Effort:** Medium | **Dependencies:** 6B-a  
+**Deliverables:**
+- Compact leaderboard (top 5) with "View Full Board →" link
+- Recent matches list (last 5) with scores, players, time ago
+- Match cards: winner highlighted, score prominent
+
+**Acceptance Criteria:**
+- [ ] Leaderboard preview matches full leaderboard styling
+- [ ] Recent matches show enough context (who played, score, when)
+- [ ] "View all" links navigate to respective pages
+- [ ] Responsive grid layout (stacks on mobile, side-by-side on tablet+)
+
+---
+
+### 6B-e. Polish & Empty States
+
+**Status:** 🔲 Not started  
+**Effort:** Small | **Dependencies:** 6B-b, 6B-c, 6B-d  
+**Deliverables:**
+- Empty state for brand-new group (no matches, no sessions)
+- Loading skeleton for dashboard
+- Smooth transitions and micro-interactions
+- High-contrast outdoor readability check
+
+**Acceptance Criteria:**
+- [ ] New group sees welcoming onboarding-style empty state
+- [ ] Loading state doesn't flash or jump
+- [ ] Passes contrast check for outdoor use
+- [ ] Desktop layout uses available width well
 
 ---
 
