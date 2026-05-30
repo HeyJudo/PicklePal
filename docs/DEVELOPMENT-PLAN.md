@@ -296,7 +296,7 @@ Phase 8: Visual Polish & QA (runs last, touches everything)
 
 ### 4a. Start Session & Player Selection
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Completed  
 **Effort:** Medium  
 **Dependencies:** 2a, 1d  
 **Deliverables:**
@@ -312,7 +312,7 @@ Phase 8: Visual Polish & QA (runs last, touches everything)
 
 ### 4b. Matchup Generation & Bench Queue
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Completed 
 **Effort:** Medium  
 **Dependencies:** 4a  
 **Deliverables:**
