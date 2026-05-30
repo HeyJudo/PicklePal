@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   createMatchHistory,
   recordRally,
@@ -16,6 +16,8 @@ import type {
 } from "@/lib/engine";
 import {
   appendOfflineRallyEvent,
+  getOfflineRallyEvents,
+  getSyncDisplay,
   removeLastOfflineRallyEvent,
 } from "@/lib/offline";
 import type { MatchStartConfig } from "./PositionConfirmation";
@@ -65,6 +67,25 @@ export function LiveScoring({
       winBy,
     });
   });
+  const [pendingRallyCount, setPendingRallyCount] = useState(() =>
+    getOfflineRallyEvents(sessionId, matchLocalId).length,
+  );
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator === "undefined" ? true : navigator.onLine,
+  );
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   const playerMap = new Map(players.map((p) => [p.id, p]));
   const getPlayerName = (id: string) =>
@@ -84,7 +105,7 @@ export function LiveScoring({
         : (history.currentState as SinglesMatchState).serverState;
       const { history: newHistory, result } = recordRally(history, winner);
       setHistory(newHistory);
-      appendOfflineRallyEvent({
+      const nextQueue = appendOfflineRallyEvent({
         sessionId,
         matchLocalId,
         sequenceNumber: result.sequenceNumber,
@@ -98,6 +119,7 @@ export function LiveScoring({
         sideOutOccurred: result.sideOutOccurred,
         createdAt: new Date().toISOString(),
       });
+      setPendingRallyCount(nextQueue.length);
 
       // Check if match just completed
       if (newHistory.currentState.isComplete) {
@@ -111,6 +133,7 @@ export function LiveScoring({
   const handleUndo = useCallback(() => {
     if (canUndo(history)) {
       removeLastOfflineRallyEvent(sessionId, matchLocalId);
+      setPendingRallyCount((count) => Math.max(0, count - 1));
     }
     setHistory(undoRally(history));
   }, [history, matchLocalId, sessionId]);
@@ -132,9 +155,24 @@ export function LiveScoring({
   const scoreCall = isDoubles
     ? `${state.teamAScore}-${state.teamBScore}-${serverNumber}`
     : `${state.teamAScore}-${state.teamBScore}`;
+  const syncDisplay = getSyncDisplay({
+    pendingCount: pendingRallyCount,
+    isOnline,
+    isSyncing: false,
+    retryAttempt: 0,
+    hasError: false,
+  });
 
   return (
     <div className="space-y-4">
+      <div
+        className={`rounded-lg border px-3 py-2 text-xs font-medium ${getSyncToneClass(
+          syncDisplay.tone,
+        )}`}
+      >
+        {syncDisplay.label}
+      </div>
+
       {/* Score Display */}
       <div className="rounded-xl border border-border bg-surface p-4">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
@@ -291,4 +329,18 @@ export function LiveScoring({
       </div>
     </div>
   );
+}
+
+function getSyncToneClass(tone: "success" | "pending" | "warning" | "error") {
+  switch (tone) {
+    case "success":
+      return "border-green-200 bg-green-50 text-green-700";
+    case "warning":
+      return "border-amber-200 bg-amber-50 text-amber-700";
+    case "error":
+      return "border-red-200 bg-red-50 text-red-700";
+    case "pending":
+    default:
+      return "border-sky-blue/30 bg-sky-blue/10 text-sky-blue";
+  }
 }

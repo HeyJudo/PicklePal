@@ -451,7 +451,7 @@ Create players → Start session → Generate match → Score live → Save → 
 
 ### 6b. Sync Status & Retry
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Complete  
 **Effort:** Medium | **Dependencies:** 6a  
 - Visual sync indicator, background sync, retry with backoff
 
