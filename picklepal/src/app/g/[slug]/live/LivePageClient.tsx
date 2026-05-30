@@ -4,8 +4,10 @@ import { useState } from "react";
 import { StartSessionForm } from "./StartSessionForm";
 import { ActiveSession } from "./ActiveSession";
 import { PositionConfirmation } from "./PositionConfirmation";
+import { LiveScoring } from "./LiveScoring";
 import type { MatchStartConfig } from "./PositionConfirmation";
 import type { Matchup } from "@/lib/matchmaking";
+import type { MatchHistory } from "@/lib/engine";
 
 type LiveStep = "idle" | "active" | "positions" | "scoring";
 
@@ -71,12 +73,20 @@ export function LivePageClient({
   const handlePositionsConfirmed = (config: MatchStartConfig) => {
     setMatchConfig(config);
     setStep("scoring");
-    // Phase 4d will render the live scoring screen here
-    console.log("Match starting with config:", config);
+  };
+
+  const handleMatchComplete = (completedHistory: MatchHistory) => {
+    // Phase 4e will save the match to DB here
+    console.log("Match complete:", completedHistory);
+    // For now, go back to queue for next match
+    setMatchConfig(null);
+    setCurrentMatchup(null);
+    setStep("active");
   };
 
   const handleBackToQueue = () => {
     setCurrentMatchup(null);
+    setMatchConfig(null);
     setStep("active");
   };
 
@@ -136,22 +146,15 @@ export function LivePageClient({
         />
       )}
 
-      {/* Step: Scoring (Phase 4d placeholder) */}
-      {step === "scoring" && matchConfig && (
-        <div className="rounded-xl border border-border bg-surface-muted p-8 text-center space-y-2">
-          <p className="text-text-primary font-semibold">
-            Match in progress...
-          </p>
-          <p className="text-text-muted text-sm">
-            Live court scoring will be built in Phase 4d.
-          </p>
-          <button
-            onClick={handleBackToQueue}
-            className="mt-4 rounded-lg border border-border px-4 py-2 text-sm text-text-secondary hover:bg-surface cursor-pointer"
-          >
-            ← Back to queue
-          </button>
-        </div>
+      {/* Step: Scoring */}
+      {step === "scoring" && matchConfig && activeSession && (
+        <LiveScoring
+          config={matchConfig}
+          players={players}
+          targetScore={activeSession.target_score}
+          winBy={activeSession.win_by}
+          onMatchComplete={handleMatchComplete}
+        />
       )}
     </div>
   );
