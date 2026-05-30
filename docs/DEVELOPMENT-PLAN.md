@@ -512,7 +512,7 @@ Create players → Start session → Generate match → Score live → Save → 
 
 ### 6B-c. Stats Highlight Cards
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Completed  
 **Effort:** Medium | **Dependencies:** 6B-a  
 **Deliverables:**
 - #1 Player card (rank badge, name, win rate, games played)

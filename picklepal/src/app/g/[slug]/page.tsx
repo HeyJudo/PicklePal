@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createServerClient, type Group } from "@/lib/supabase";
 import { getDashboardData } from "./actions";
 import { HeroSection } from "./dashboard/HeroSection";
+import { StatsHighlights } from "./dashboard/StatsHighlights";
 
 interface HomePageProps {
   readonly params: Promise<{ slug: string }>;
@@ -36,6 +37,12 @@ export default async function HomePage({ params }: HomePageProps) {
         activeSession={dashboard?.activeSession ?? null}
         totalGamesPlayed={dashboard?.totalGamesPlayed ?? 0}
         totalSessions={dashboard?.totalSessions ?? 0}
+      />
+
+      <StatsHighlights
+        topPlayer={dashboard?.topPlayer ?? null}
+        hottestDuo={dashboard?.hottestDuo ?? null}
+        latestMvp={dashboard?.latestMvp ?? null}
       />
     </div>
   );
