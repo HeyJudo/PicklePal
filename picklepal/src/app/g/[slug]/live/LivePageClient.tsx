@@ -52,6 +52,7 @@ export function LivePageClient({
   );
   const [currentMatchup, setCurrentMatchup] = useState<Matchup | null>(null);
   const [matchConfig, setMatchConfig] = useState<MatchStartConfig | null>(null);
+  const [matchLocalId, setMatchLocalId] = useState<string | null>(null);
   const [completedMatch, setCompletedMatch] = useState<CompletedMatchData | null>(null);
   const [recapData, setRecapData] = useState<{
     gamesPlayed: number;
@@ -93,6 +94,7 @@ export function LivePageClient({
     setActiveSession(null);
     setCurrentMatchup(null);
     setMatchConfig(null);
+    setMatchLocalId(null);
     setCompletedMatch(null);
     setStep("idle");
     window.location.reload();
@@ -102,6 +104,7 @@ export function LivePageClient({
     setActiveSession(null);
     setCurrentMatchup(null);
     setMatchConfig(null);
+    setMatchLocalId(null);
     setCompletedMatch(null);
     setRecapData(null);
     setStep("idle");
@@ -115,6 +118,7 @@ export function LivePageClient({
 
   const handlePositionsConfirmed = (config: MatchStartConfig) => {
     setMatchConfig(config);
+    setMatchLocalId(createLocalMatchId());
     setStep("scoring");
   };
 
@@ -149,6 +153,7 @@ export function LivePageClient({
 
   const handleNextMatch = () => {
     setMatchConfig(null);
+    setMatchLocalId(null);
     setCurrentMatchup(null);
     setCompletedMatch(null);
     setStep("active");
@@ -157,6 +162,7 @@ export function LivePageClient({
   const handleBackToQueue = () => {
     setCurrentMatchup(null);
     setMatchConfig(null);
+    setMatchLocalId(null);
     setStep("active");
   };
 
@@ -217,9 +223,11 @@ export function LivePageClient({
       )}
 
       {/* Step: Scoring */}
-      {step === "scoring" && matchConfig && activeSession && (
+      {step === "scoring" && matchConfig && activeSession && matchLocalId && (
         <LiveScoring
           config={matchConfig}
+          sessionId={activeSession.id}
+          matchLocalId={matchLocalId}
           players={players}
           targetScore={activeSession.target_score}
           winBy={activeSession.win_by}
@@ -232,6 +240,7 @@ export function LivePageClient({
         <MatchResult
           matchData={completedMatch}
           sessionId={activeSession.id}
+          matchLocalId={matchLocalId}
           players={players}
           targetScore={activeSession.target_score}
           winBy={activeSession.win_by}
@@ -254,6 +263,14 @@ export function LivePageClient({
 }
 
 // ─── Helper: Build Rally Events from History ─────────────────────────────────
+
+function createLocalMatchId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
 
 function buildRallyEvents(history: MatchHistory) {
   let replayState = createMatch(history.initialInput);

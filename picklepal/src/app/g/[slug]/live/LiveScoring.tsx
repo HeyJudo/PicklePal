@@ -14,6 +14,10 @@ import type {
   SinglesMatchState,
   Team,
 } from "@/lib/engine";
+import {
+  appendOfflineRallyEvent,
+  removeLastOfflineRallyEvent,
+} from "@/lib/offline";
 import type { MatchStartConfig } from "./PositionConfirmation";
 
 interface Player {
@@ -24,6 +28,8 @@ interface Player {
 
 interface LiveScoringProps {
   readonly config: MatchStartConfig;
+  readonly sessionId: string;
+  readonly matchLocalId: string;
   readonly players: readonly Player[];
   readonly targetScore: number;
   readonly winBy: number;
@@ -32,6 +38,8 @@ interface LiveScoringProps {
 
 export function LiveScoring({
   config,
+  sessionId,
+  matchLocalId,
   players,
   targetScore,
   winBy,
@@ -71,8 +79,25 @@ export function LiveScoring({
     (winner: Team) => {
       if (state.isComplete) return;
 
-      const { history: newHistory } = recordRally(history, winner);
+      const serverState = isDoublesState(history.currentState)
+        ? (history.currentState as DoublesMatchState).serverState
+        : (history.currentState as SinglesMatchState).serverState;
+      const { history: newHistory, result } = recordRally(history, winner);
       setHistory(newHistory);
+      appendOfflineRallyEvent({
+        sessionId,
+        matchLocalId,
+        sequenceNumber: result.sequenceNumber,
+        rallyWinnerTeam: winner,
+        resultingTeamAScore: result.newState.teamAScore,
+        resultingTeamBScore: result.newState.teamBScore,
+        serverPlayerId: serverState.serverPlayerId,
+        serverNumber: isDoublesState(history.currentState)
+          ? (serverState as DoublesMatchState["serverState"]).serverNumber
+          : null,
+        sideOutOccurred: result.sideOutOccurred,
+        createdAt: new Date().toISOString(),
+      });
 
       // Check if match just completed
       if (newHistory.currentState.isComplete) {
@@ -80,12 +105,15 @@ export function LiveScoring({
         setTimeout(() => onMatchComplete(newHistory), 600);
       }
     },
-    [history, state.isComplete, onMatchComplete],
+    [history, matchLocalId, onMatchComplete, sessionId, state.isComplete],
   );
 
   const handleUndo = useCallback(() => {
+    if (canUndo(history)) {
+      removeLastOfflineRallyEvent(sessionId, matchLocalId);
+    }
     setHistory(undoRally(history));
-  }, [history]);
+  }, [history, matchLocalId, sessionId]);
 
   // Get server info
   const servingTeam = isDoubles

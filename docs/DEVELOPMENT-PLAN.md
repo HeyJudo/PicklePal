@@ -445,7 +445,7 @@ Create players → Start session → Generate match → Score live → Save → 
 
 ### 6a. Local Rally Event Queue
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Complete  
 **Effort:** Medium | **Dependencies:** 4d  
 - Rally events saved locally first, scoring continues without network
 

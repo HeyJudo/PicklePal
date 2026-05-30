@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { saveCompletedMatch } from "./actions";
+import { clearOfflineRallyQueue } from "@/lib/offline";
 
 interface Player {
   readonly id: string;
@@ -34,6 +35,7 @@ export interface CompletedMatchData {
 interface MatchResultProps {
   readonly matchData: CompletedMatchData;
   readonly sessionId: string;
+  readonly matchLocalId: string | null;
   readonly players: readonly Player[];
   readonly targetScore: number;
   readonly winBy: number;
@@ -44,6 +46,7 @@ interface MatchResultProps {
 export function MatchResult({
   matchData,
   sessionId,
+  matchLocalId,
   players,
   targetScore,
   winBy,
@@ -84,6 +87,9 @@ export function MatchResult({
       });
 
       if (result.success) {
+        if (matchLocalId) {
+          clearOfflineRallyQueue(sessionId, matchLocalId);
+        }
         setSaved(true);
       } else {
         setError(result.error ?? "Failed to save match");
