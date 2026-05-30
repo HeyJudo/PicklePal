@@ -1,4 +1,14 @@
-export default function HistoryPage() {
+import { getMatchHistory } from "./actions";
+import { MatchHistory } from "./MatchHistory";
+
+interface HistoryPageProps {
+  readonly params: Promise<{ slug: string }>;
+}
+
+export default async function HistoryPage({ params }: HistoryPageProps) {
+  const { slug } = await params;
+  const { sessionGroups, error } = await getMatchHistory(slug);
+
   return (
     <div className="space-y-6">
       <header>
@@ -8,12 +18,13 @@ export default function HistoryPage() {
         </p>
       </header>
 
-      <div className="rounded-xl border border-border bg-surface-muted p-8 text-center">
-        <p className="text-text-muted text-sm">
-          Chronological match history with scores and player details will appear
-          here.
-        </p>
-      </div>
+      {error ? (
+        <div className="rounded-xl border border-hype-red/20 bg-hype-red/5 p-6 text-center">
+          <p className="text-hype-red text-sm font-medium">{error}</p>
+        </div>
+      ) : (
+        <MatchHistory sessionGroups={sessionGroups} />
+      )}
     </div>
   );
 }
