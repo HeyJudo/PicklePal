@@ -78,6 +78,9 @@ This applies to all server actions that query Supabase. A future fix: use `supab
 - Remember to handle rollback on errors
 - Don't forget to close connections in finally blocks
 
+### Rally Events Are Reconstructed by Replay, Not Stored During Scoring
+The `LiveScoring` component only tracks `MatchHistory` (rally winners + current state). When saving to DB, `buildRallyEvents()` in `LivePageClient` replays the match from the initial input to capture server state, scores, and side-outs at each rally. This avoids duplicating engine logic in the UI and guarantees saved events are consistent with the engine's rules. Pattern: UI stores minimal data (rally winners), reconstruct full event data at save time.
+
 ### PIN Gate Pattern: Gate the Action, Not the Visibility
 Write-action buttons (End Game Day, Start Session, correct scores) should always be **visible** to all users. The PIN prompt triggers only when clicked and the user isn't authenticated. Hiding buttons behind `{isHost && ...}` creates confusion — users don't know the feature exists. Pattern:
 ```tsx

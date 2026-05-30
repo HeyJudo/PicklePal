@@ -177,3 +177,92 @@ export async function getGroupPlayers(groupSlug: string) {
 
   return players ?? [];
 }
+
+// ─── Save Completed Match ────────────────────────────────────────────────────
+
+interface SaveMatchInput {
+  readonly sessionId: string;
+  readonly matchType: MatchType;
+  readonly teamAPlayerIds: readonly string[];
+  readonly teamBPlayerIds: readonly string[];
+  readonly teamAScore: number;
+  readonly teamBScore: number;
+  readonly winningTeam: string;
+  readonly losingTeam: string;
+  readonly startingServerPlayerId: string;
+  readonly targetScore: number;
+  readonly winBy: number;
+  readonly rallyEvents: readonly RallyEventInput[];
+}
+
+interface RallyEventInput {
+  readonly sequenceNumber: number;
+  readonly rallyWinnerTeam: string;
+  readonly resultingTeamAScore: number;
+  readonly resultingTeamBScore: number;
+  readonly serverPlayerId: string;
+  readonly serverNumber: number | null;
+  readonly sideOutOccurred: boolean;
+}
+
+export async function saveCompletedMatch(
+  input: SaveMatchInput,
+): Promise<ActionResult<{ matchId: string }>> {
+  const supabase = createServerClient();
+
+  // Create match record
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: match, error: matchError } = await (supabase as any)
+    .from("matches")
+    .insert({
+      session_id: input.sessionId,
+      match_type: input.matchType,
+      status: "completed",
+      team_a_player_ids: input.teamAPlayerIds,
+      team_b_player_ids: input.teamBPlayerIds,
+      team_a_score: input.teamAScore,
+      team_b_score: input.teamBScore,
+      winning_team: input.winningTeam,
+      losing_team: input.losingTeam,
+      starting_server_player_id: input.startingServerPlayerId,
+      target_score: input.targetScore,
+      win_by: input.winBy,
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (matchError || !match) {
+    return {
+      success: false,
+      error: matchError?.message ?? "Failed to save match",
+    };
+  }
+
+  // Save rally events
+  if (input.rallyEvents.length > 0) {
+    const rallyRows = input.rallyEvents.map((event) => ({
+      match_id: match.id,
+      sequence_number: event.sequenceNumber,
+      rally_winner_team: event.rallyWinnerTeam,
+      resulting_team_a_score: event.resultingTeamAScore,
+      resulting_team_b_score: event.resultingTeamBScore,
+      server_player_id: event.serverPlayerId,
+      server_number: event.serverNumber,
+      side_out_occurred: event.sideOutOccurred,
+    }));
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: rallyError } = await (supabase as any)
+      .from("rally_events")
+      .insert(rallyRows);
+
+    if (rallyError) {
+      // Match saved but rally events failed — log but don't fail
+      console.error("Failed to save rally events:", rallyError);
+    }
+  }
+
+  return { success: true, data: { matchId: match.id } };
+}

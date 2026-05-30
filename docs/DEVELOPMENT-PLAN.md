@@ -329,7 +329,7 @@ Phase 8: Visual Polish & QA (runs last, touches everything)
 
 ### 4c. Position Confirmation & Server Selection
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Completed  
 **Effort:** Small  
 **Dependencies:** 4b  
 **Deliverables:**
@@ -346,7 +346,7 @@ Phase 8: Visual Polish & QA (runs last, touches everything)
 
 ### 4d. Live Court Scoring Screen
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Completed   
 **Effort:** Large  
 **Dependencies:** 4c, 3b, 3c  
 **Deliverables:**
@@ -365,7 +365,7 @@ Phase 8: Visual Polish & QA (runs last, touches everything)
 
 ### 4e. Match Completion & Result Screen
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Completed   
 **Effort:** Medium  
 **Dependencies:** 4d  
 **Deliverables:**

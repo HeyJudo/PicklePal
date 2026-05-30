@@ -5,11 +5,18 @@ import { StartSessionForm } from "./StartSessionForm";
 import { ActiveSession } from "./ActiveSession";
 import { PositionConfirmation } from "./PositionConfirmation";
 import { LiveScoring } from "./LiveScoring";
+import { MatchResult } from "./MatchResult";
 import type { MatchStartConfig } from "./PositionConfirmation";
+import type { CompletedMatchData } from "./MatchResult";
 import type { Matchup } from "@/lib/matchmaking";
-import type { MatchHistory } from "@/lib/engine";
+import {
+  createMatch,
+  processRally,
+  isDoublesState,
+} from "@/lib/engine";
+import type { MatchHistory, DoublesMatchState, SinglesMatchState } from "@/lib/engine";
 
-type LiveStep = "idle" | "active" | "positions" | "scoring";
+type LiveStep = "idle" | "active" | "positions" | "scoring" | "result";
 
 interface SessionData {
   readonly id: string;
@@ -43,6 +50,7 @@ export function LivePageClient({
   );
   const [currentMatchup, setCurrentMatchup] = useState<Matchup | null>(null);
   const [matchConfig, setMatchConfig] = useState<MatchStartConfig | null>(null);
+  const [completedMatch, setCompletedMatch] = useState<CompletedMatchData | null>(null);
   const [step, setStep] = useState<LiveStep>(initialSession ? "active" : "idle");
 
   const handleSessionStarted = (sessionId: string) => {
@@ -62,6 +70,7 @@ export function LivePageClient({
     setActiveSession(null);
     setCurrentMatchup(null);
     setMatchConfig(null);
+    setCompletedMatch(null);
     setStep("idle");
   };
 
@@ -76,11 +85,38 @@ export function LivePageClient({
   };
 
   const handleMatchComplete = (completedHistory: MatchHistory) => {
-    // Phase 4e will save the match to DB here
-    console.log("Match complete:", completedHistory);
-    // For now, go back to queue for next match
+    // Build rally events by replaying the match
+    const rallyEvents = buildRallyEvents(completedHistory);
+    const state = completedHistory.currentState;
+    const input = completedHistory.initialInput;
+
+    const teamAIds =
+      input.matchType === "doubles"
+        ? [...input.teamAPlayerIds]
+        : [input.teamAPlayerId];
+    const teamBIds =
+      input.matchType === "doubles"
+        ? [...input.teamBPlayerIds]
+        : [input.teamBPlayerId];
+
+    setCompletedMatch({
+      matchType: input.matchType,
+      teamAPlayerIds: teamAIds,
+      teamBPlayerIds: teamBIds,
+      teamAScore: state.teamAScore,
+      teamBScore: state.teamBScore,
+      winner: state.winner!,
+      startingServerPlayerId: input.startingServerPlayerId,
+      totalRallies: completedHistory.rallyWinners.length,
+      rallyEvents,
+    });
+    setStep("result");
+  };
+
+  const handleNextMatch = () => {
     setMatchConfig(null);
     setCurrentMatchup(null);
+    setCompletedMatch(null);
     setStep("active");
   };
 
@@ -156,6 +192,52 @@ export function LivePageClient({
           onMatchComplete={handleMatchComplete}
         />
       )}
+
+      {/* Step: Result */}
+      {step === "result" && completedMatch && activeSession && (
+        <MatchResult
+          matchData={completedMatch}
+          sessionId={activeSession.id}
+          players={players}
+          targetScore={activeSession.target_score}
+          winBy={activeSession.win_by}
+          onNextMatch={handleNextMatch}
+          onEndSession={handleSessionEnded}
+        />
+      )}
     </div>
   );
+}
+
+// ─── Helper: Build Rally Events from History ─────────────────────────────────
+
+function buildRallyEvents(history: MatchHistory) {
+  let replayState = createMatch(history.initialInput);
+  const events = [];
+
+  for (let i = 0; i < history.rallyWinners.length; i++) {
+    const isDoubles = isDoublesState(replayState);
+    const serverPlayerId = isDoubles
+      ? (replayState as DoublesMatchState).serverState.serverPlayerId
+      : (replayState as SinglesMatchState).serverState.serverPlayerId;
+    const serverNumber = isDoubles
+      ? (replayState as DoublesMatchState).serverState.serverNumber
+      : null;
+
+    const result = processRally(replayState, history.rallyWinners[i], i + 1);
+
+    events.push({
+      sequenceNumber: i + 1,
+      rallyWinnerTeam: history.rallyWinners[i],
+      resultingTeamAScore: result.newState.teamAScore,
+      resultingTeamBScore: result.newState.teamBScore,
+      serverPlayerId,
+      serverNumber,
+      sideOutOccurred: result.sideOutOccurred,
+    });
+
+    replayState = result.newState;
+  }
+
+  return events;
 }
