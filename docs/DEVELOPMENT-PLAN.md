@@ -492,7 +492,7 @@ Create players → Start session → Generate match → Score live → Save → 
 
 ### 6B-b. Hero Section & Active Session Banner
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Completed  
 **Effort:** Medium | **Dependencies:** 6B-a  
 **Deliverables:**
 - Sporty hero section with group name and tagline
