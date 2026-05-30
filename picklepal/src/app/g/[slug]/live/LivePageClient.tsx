@@ -72,6 +72,8 @@ export function LivePageClient({
     setMatchConfig(null);
     setCompletedMatch(null);
     setStep("idle");
+    // Reload to show fresh state (session is now completed)
+    window.location.reload();
   };
 
   const handleMatchConfirmed = (matchup: Matchup) => {
