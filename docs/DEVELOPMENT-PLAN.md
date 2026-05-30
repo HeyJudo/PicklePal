@@ -457,7 +457,7 @@ Create players → Start session → Generate match → Score live → Save → 
 
 ### 6c. Recovery After Reload
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Complete  
 **Effort:** Medium | **Dependencies:** 6a, 6b  
 - Rebuild match state from local events on reload, handle offline reload
 

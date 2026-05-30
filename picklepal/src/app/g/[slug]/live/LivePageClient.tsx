@@ -12,6 +12,13 @@ import type { MatchStartConfig } from "./PositionConfirmation";
 import type { CompletedMatchData } from "./MatchResult";
 import type { Matchup } from "@/lib/matchmaking";
 import {
+  clearRecoverableMatch,
+  getRecoverableMatch,
+  rebuildHistoryFromRecovery,
+  saveRecoverableMatch,
+} from "@/lib/offline";
+import type { RecoverableMatch } from "@/lib/offline";
+import {
   createMatch,
   processRally,
   isDoublesState,
@@ -53,6 +60,11 @@ export function LivePageClient({
   const [currentMatchup, setCurrentMatchup] = useState<Matchup | null>(null);
   const [matchConfig, setMatchConfig] = useState<MatchStartConfig | null>(null);
   const [matchLocalId, setMatchLocalId] = useState<string | null>(null);
+  const [recoveredHistory, setRecoveredHistory] = useState<MatchHistory | null>(null);
+  const [recoverableMatch, setRecoverableMatch] =
+    useState<RecoverableMatch | null>(() =>
+      initialSession ? getRecoverableMatch(initialSession.id) : null,
+    );
   const [completedMatch, setCompletedMatch] = useState<CompletedMatchData | null>(null);
   const [recapData, setRecapData] = useState<{
     gamesPlayed: number;
@@ -95,6 +107,8 @@ export function LivePageClient({
     setCurrentMatchup(null);
     setMatchConfig(null);
     setMatchLocalId(null);
+    setRecoveredHistory(null);
+    setRecoverableMatch(null);
     setCompletedMatch(null);
     setStep("idle");
     window.location.reload();
@@ -105,6 +119,8 @@ export function LivePageClient({
     setCurrentMatchup(null);
     setMatchConfig(null);
     setMatchLocalId(null);
+    setRecoveredHistory(null);
+    setRecoverableMatch(null);
     setCompletedMatch(null);
     setRecapData(null);
     setStep("idle");
@@ -117,43 +133,33 @@ export function LivePageClient({
   };
 
   const handlePositionsConfirmed = (config: MatchStartConfig) => {
+    if (!activeSession) return;
+
+    const nextMatchLocalId = createLocalMatchId();
     setMatchConfig(config);
-    setMatchLocalId(createLocalMatchId());
+    setMatchLocalId(nextMatchLocalId);
+    setRecoveredHistory(null);
+    saveRecoverableMatch({
+      sessionId: activeSession.id,
+      matchLocalId: nextMatchLocalId,
+      config,
+      targetScore: activeSession.target_score,
+      winBy: activeSession.win_by,
+      createdAt: new Date().toISOString(),
+    });
     setStep("scoring");
   };
 
   const handleMatchComplete = (completedHistory: MatchHistory) => {
-    // Build rally events by replaying the match
-    const rallyEvents = buildRallyEvents(completedHistory);
-    const state = completedHistory.currentState;
-    const input = completedHistory.initialInput;
-
-    const teamAIds =
-      input.matchType === "doubles"
-        ? [...input.teamAPlayerIds]
-        : [input.teamAPlayerId];
-    const teamBIds =
-      input.matchType === "doubles"
-        ? [...input.teamBPlayerIds]
-        : [input.teamBPlayerId];
-
-    setCompletedMatch({
-      matchType: input.matchType,
-      teamAPlayerIds: teamAIds,
-      teamBPlayerIds: teamBIds,
-      teamAScore: state.teamAScore,
-      teamBScore: state.teamBScore,
-      winner: state.winner!,
-      startingServerPlayerId: input.startingServerPlayerId,
-      totalRallies: completedHistory.rallyWinners.length,
-      rallyEvents,
-    });
+    setCompletedMatch(buildCompletedMatchData(completedHistory));
     setStep("result");
   };
 
   const handleNextMatch = () => {
     setMatchConfig(null);
     setMatchLocalId(null);
+    setRecoveredHistory(null);
+    setRecoverableMatch(null);
     setCurrentMatchup(null);
     setCompletedMatch(null);
     setStep("active");
@@ -163,7 +169,35 @@ export function LivePageClient({
     setCurrentMatchup(null);
     setMatchConfig(null);
     setMatchLocalId(null);
+    setRecoveredHistory(null);
     setStep("active");
+  };
+
+  const handleResumeRecoveredMatch = () => {
+    if (!recoverableMatch) return;
+
+    const history = rebuildHistoryFromRecovery(recoverableMatch);
+    setMatchConfig(recoverableMatch.config);
+    setMatchLocalId(recoverableMatch.matchLocalId);
+    setRecoveredHistory(history);
+    setRecoverableMatch(null);
+
+    if (history.currentState.isComplete) {
+      setCompletedMatch(buildCompletedMatchData(history));
+      setStep("result");
+    } else {
+      setStep("scoring");
+    }
+  };
+
+  const handleDiscardRecoveredMatch = () => {
+    if (!recoverableMatch) return;
+
+    clearRecoverableMatch(
+      recoverableMatch.sessionId,
+      recoverableMatch.matchLocalId,
+    );
+    setRecoverableMatch(null);
   };
 
   const matchType =
@@ -179,6 +213,32 @@ export function LivePageClient({
             : "Start a Game Day session and score matches in real time."}
         </p>
       </header>
+
+      {recoverableMatch && step === "active" && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-semibold text-amber-800">
+            Unsaved match found
+          </p>
+          <p className="mt-1 text-sm text-amber-700">
+            Resume the local match saved on this device, or discard it and keep
+            building the queue.
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button
+              onClick={handleResumeRecoveredMatch}
+              className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary/90"
+            >
+              Resume
+            </button>
+            <button
+              onClick={handleDiscardRecoveredMatch}
+              className="rounded-lg border border-amber-300 px-3 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100"
+            >
+              Discard
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Step: No session */}
       {step === "idle" && !activeSession && (
@@ -228,6 +288,7 @@ export function LivePageClient({
           config={matchConfig}
           sessionId={activeSession.id}
           matchLocalId={matchLocalId}
+          initialHistory={recoveredHistory ?? undefined}
           players={players}
           targetScore={activeSession.target_score}
           winBy={activeSession.win_by}
@@ -270,6 +331,33 @@ function createLocalMatchId(): string {
   }
 
   return `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function buildCompletedMatchData(history: MatchHistory): CompletedMatchData {
+  const rallyEvents = buildRallyEvents(history);
+  const state = history.currentState;
+  const input = history.initialInput;
+
+  const teamAIds =
+    input.matchType === "doubles"
+      ? [...input.teamAPlayerIds]
+      : [input.teamAPlayerId];
+  const teamBIds =
+    input.matchType === "doubles"
+      ? [...input.teamBPlayerIds]
+      : [input.teamBPlayerId];
+
+  return {
+    matchType: input.matchType,
+    teamAPlayerIds: teamAIds,
+    teamBPlayerIds: teamBIds,
+    teamAScore: state.teamAScore,
+    teamBScore: state.teamBScore,
+    winner: state.winner!,
+    startingServerPlayerId: input.startingServerPlayerId,
+    totalRallies: history.rallyWinners.length,
+    rallyEvents,
+  };
 }
 
 function buildRallyEvents(history: MatchHistory) {

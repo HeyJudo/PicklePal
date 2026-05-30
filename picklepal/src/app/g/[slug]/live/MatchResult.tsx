@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { saveCompletedMatch } from "./actions";
 import {
-  clearOfflineRallyQueue,
+  clearRecoverableMatch,
   formatSyncErrorMessage,
   getOfflineRallyEvents,
   getRetryDelayMs,
@@ -125,7 +125,7 @@ export function MatchResult({
 
       if (result.success) {
         if (matchLocalId) {
-          clearOfflineRallyQueue(sessionId, matchLocalId);
+          clearRecoverableMatch(sessionId, matchLocalId);
         }
         setPendingRallyCount(0);
         setRetryAttempt(0);

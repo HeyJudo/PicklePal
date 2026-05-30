@@ -1,4 +1,10 @@
 export {
+  clearRecoverableMatch,
+  getRecoverableMatch,
+  rebuildHistoryFromRecovery,
+  saveRecoverableMatch,
+} from "./recovery";
+export {
   appendOfflineRallyEvent,
   clearOfflineRallyQueue,
   getOfflineRallyEvents,
@@ -12,4 +18,9 @@ export {
 } from "./syncStatus";
 
 export type { OfflineRallyEvent, OfflineRallyQueueOptions } from "./rallyQueue";
+export type {
+  RecoverableMatch,
+  RecoverableMatchConfig,
+  RecoveryOptions,
+} from "./recovery";
 export type { SyncDisplay, SyncDisplayInput, SyncTone } from "./syncStatus";

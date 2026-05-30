@@ -32,6 +32,7 @@ interface LiveScoringProps {
   readonly config: MatchStartConfig;
   readonly sessionId: string;
   readonly matchLocalId: string;
+  readonly initialHistory?: MatchHistory;
   readonly players: readonly Player[];
   readonly targetScore: number;
   readonly winBy: number;
@@ -42,12 +43,15 @@ export function LiveScoring({
   config,
   sessionId,
   matchLocalId,
+  initialHistory,
   players,
   targetScore,
   winBy,
   onMatchComplete,
 }: LiveScoringProps) {
   const [history, setHistory] = useState<MatchHistory>(() => {
+    if (initialHistory) return initialHistory;
+
     if (config.matchType === "doubles") {
       return createMatchHistory({
         matchType: "doubles",
