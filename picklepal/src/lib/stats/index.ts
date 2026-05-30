@@ -2,6 +2,7 @@ export { computeLeaderboard } from "./leaderboard";
 export { computePlayerStats } from "./playerStats";
 export { computeDuoStats } from "./duoStats";
 export { computeSessionSummary } from "./sessionSummary";
+export { computeSessionAwards } from "./awards";
 export type {
   LeaderboardEntry,
   PlayerStats,
@@ -9,3 +10,9 @@ export type {
   DuoStats,
   SessionSummary,
 } from "./types";
+export type {
+  SessionAwards,
+  MvpAward,
+  HottestDuoAward,
+  BestMatchAward,
+} from "./awards";

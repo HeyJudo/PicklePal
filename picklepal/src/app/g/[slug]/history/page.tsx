@@ -23,7 +23,7 @@ export default async function HistoryPage({ params }: HistoryPageProps) {
           <p className="text-hype-red text-sm font-medium">{error}</p>
         </div>
       ) : (
-        <MatchHistory sessionGroups={sessionGroups} />
+        <MatchHistory sessionGroups={sessionGroups} groupSlug={slug} />
       )}
     </div>
   );
