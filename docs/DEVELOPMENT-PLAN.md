@@ -129,7 +129,7 @@ Phase 8: Visual Polish & QA (runs last, touches everything)
 
 ### 2a. Core Tables & RLS
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Complete
 **Effort:** Medium  
 **Dependencies:** 1c  
 **Deliverables:**
@@ -145,9 +145,9 @@ Phase 8: Visual Polish & QA (runs last, touches everything)
 
 ---
 
-### 2b. Seed Data & Demo Group
+### 2b. Seed Data & Demo Group 
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Complete 
 **Effort:** Small  
 **Dependencies:** 2a  
 **Deliverables:**
@@ -163,7 +163,7 @@ Phase 8: Visual Polish & QA (runs last, touches everything)
 
 ### 2c. Derived Stats Functions
 
-**Status:** 🔲 Not started  
+**Status:** 🔲✅ Complete  
 **Effort:** Medium  
 **Dependencies:** 2a  
 **Deliverables:**
@@ -182,7 +182,7 @@ Phase 8: Visual Polish & QA (runs last, touches everything)
 
 ### 2d. Match Correction & Deletion
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Complete  
 **Effort:** Small  
 **Dependencies:** 2a, 1d  
 **Deliverables:**
@@ -204,7 +204,7 @@ Phase 8: Visual Polish & QA (runs last, touches everything)
 
 ### 3a. Core Types & State Machine
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Complete  
 **Effort:** Medium  
 **Dependencies:** None (pure TS, can start alongside Phase 2)  
 **Deliverables:**
@@ -221,7 +221,7 @@ Phase 8: Visual Polish & QA (runs last, touches everything)
 
 ### 3b. Doubles Scoring Logic
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Complete  
 **Effort:** Large  
 **Dependencies:** 3a  
 **Deliverables:**
@@ -243,7 +243,7 @@ Phase 8: Visual Polish & QA (runs last, touches everything)
 
 ### 3c. Singles Scoring Logic
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Completed  
 **Effort:** Medium  
 **Dependencies:** 3a  
 **Deliverables:**

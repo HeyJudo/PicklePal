@@ -6,6 +6,15 @@ export {
   getServerCourtSide,
 } from "./engine";
 
+export {
+  createMatchHistory,
+  recordRally,
+  undoRally,
+  undoMultiple,
+  canUndo,
+  undoDepth,
+} from "./undo";
+
 export { isDoublesState, isSinglesState } from "./types";
 
 export type {
@@ -26,3 +35,5 @@ export type {
   CreateSinglesMatchInput,
   CreateMatchInput,
 } from "./types";
+
+export type { MatchHistory } from "./undo";
