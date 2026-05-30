@@ -261,7 +261,7 @@ Phase 8: Visual Polish & QA (runs last, touches everything)
 
 ### 3d. Undo Support
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Completed  
 **Effort:** Small  
 **Dependencies:** 3b, 3c  
 **Deliverables:**
@@ -277,7 +277,7 @@ Phase 8: Visual Polish & QA (runs last, touches everything)
 
 ### 3e. Comprehensive Unit Tests
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Completed  
 **Effort:** Medium  
 **Dependencies:** 3b, 3c, 3d  
 **Deliverables:**

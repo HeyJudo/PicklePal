@@ -58,6 +58,18 @@ The hooks table and Example 5 in README.md document the action type (`runCommand
 
 *Document mistakes that have been made and how to avoid them.*
 
+### Supabase Client Requires `as any` Cast for `.from()` Queries
+The manually-defined `Database` type in `src/lib/supabase/types.ts` doesn't fully satisfy the Supabase client's generic inference, causing `never` type errors on `.from("table")` calls. The established workaround is:
+```typescript
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const { data } = await (supabase as any)
+  .from("sessions")
+  .select("id, title")
+  .eq("group_id", groupId)
+  .single();
+```
+This applies to all server actions that query Supabase. A future fix: use `supabase gen types` to auto-generate proper types.
+
 ### Example: Database Transactions
 - Always wrap multiple database operations in a transaction
 - Remember to handle rollback on errors
