@@ -266,3 +266,75 @@ export async function saveCompletedMatch(
 
   return { success: true, data: { matchId: match.id } };
 }
+
+// ─── Get Session Recap Data ──────────────────────────────────────────────────
+
+import type { Match, Player, Session } from "@/lib/supabase";
+import { computeSessionSummary, computeSessionAwards } from "@/lib/stats";
+import type { SessionAwards } from "@/lib/stats";
+
+export interface RecapResult {
+  readonly success: boolean;
+  readonly data?: {
+    readonly gamesPlayed: number;
+    readonly playerCount: number;
+    readonly durationMinutes: number | null;
+    readonly awards: SessionAwards;
+    readonly playerNames: Record<string, string>;
+  };
+  readonly error?: string;
+}
+
+export async function getSessionRecap(sessionId: string): Promise<RecapResult> {
+  const supabase = createServerClient();
+
+  // Fetch session
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: session, error: sessionError } = await (supabase as any)
+    .from("sessions")
+    .select("*")
+    .eq("id", sessionId)
+    .single();
+
+  if (sessionError || !session) {
+    return { success: false, error: "Session not found" };
+  }
+
+  // Fetch matches
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: matches } = await (supabase as any)
+    .from("matches")
+    .select("*")
+    .eq("session_id", sessionId)
+    .eq("status", "completed");
+
+  const allMatches: Match[] = matches ?? [];
+
+  // Fetch players
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: players } = await (supabase as any)
+    .from("players")
+    .select("*")
+    .eq("group_id", (session as Session).group_id);
+
+  const allPlayers: Player[] = players ?? [];
+  const playerNames: Record<string, string> = {};
+  for (const p of allPlayers) {
+    playerNames[p.id] = p.display_name;
+  }
+
+  // Compute summary and awards
+  const summary = computeSessionSummary(session as Session, allMatches);
+  const awards = computeSessionAwards(allPlayers, allMatches);
+
+  return {
+    success: true,
+    data: {
+      gamesPlayed: summary.gamesPlayed,
+      playerCount: summary.playerCount,
+      durationMinutes: summary.durationMinutes,
+      awards,
+      playerNames,
+    },
+  };
+}

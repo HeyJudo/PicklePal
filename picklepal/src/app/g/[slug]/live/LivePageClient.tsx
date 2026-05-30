@@ -6,7 +6,8 @@ import { ActiveSession } from "./ActiveSession";
 import { PositionConfirmation } from "./PositionConfirmation";
 import { LiveScoring } from "./LiveScoring";
 import { MatchResult } from "./MatchResult";
-import { endSession } from "./actions";
+import { GameDayRecap } from "./GameDayRecap";
+import { endSession, getSessionRecap } from "./actions";
 import type { MatchStartConfig } from "./PositionConfirmation";
 import type { CompletedMatchData } from "./MatchResult";
 import type { Matchup } from "@/lib/matchmaking";
@@ -17,7 +18,7 @@ import {
 } from "@/lib/engine";
 import type { MatchHistory, DoublesMatchState, SinglesMatchState } from "@/lib/engine";
 
-type LiveStep = "idle" | "active" | "positions" | "scoring" | "result";
+type LiveStep = "idle" | "active" | "positions" | "scoring" | "result" | "recap";
 
 interface SessionData {
   readonly id: string;
@@ -52,6 +53,13 @@ export function LivePageClient({
   const [currentMatchup, setCurrentMatchup] = useState<Matchup | null>(null);
   const [matchConfig, setMatchConfig] = useState<MatchStartConfig | null>(null);
   const [completedMatch, setCompletedMatch] = useState<CompletedMatchData | null>(null);
+  const [recapData, setRecapData] = useState<{
+    gamesPlayed: number;
+    playerCount: number;
+    durationMinutes: number | null;
+    awards: import("@/lib/stats").SessionAwards;
+    playerNames: Record<string, string>;
+  } | null>(null);
   const [step, setStep] = useState<LiveStep>(initialSession ? "active" : "idle");
 
   const handleSessionStarted = (sessionId: string) => {
@@ -71,13 +79,32 @@ export function LivePageClient({
     // End the session in the database
     if (activeSession) {
       await endSession(activeSession.id);
+
+      // Fetch recap data for the slideshow
+      const recapResult = await getSessionRecap(activeSession.id);
+      if (recapResult.success && recapResult.data) {
+        setRecapData(recapResult.data);
+        setStep("recap");
+        return;
+      }
     }
+
+    // Fallback: if recap fetch fails, just reload
     setActiveSession(null);
     setCurrentMatchup(null);
     setMatchConfig(null);
     setCompletedMatch(null);
     setStep("idle");
-    // Reload to show fresh state (session is now completed)
+    window.location.reload();
+  };
+
+  const handleRecapDone = () => {
+    setActiveSession(null);
+    setCurrentMatchup(null);
+    setMatchConfig(null);
+    setCompletedMatch(null);
+    setRecapData(null);
+    setStep("idle");
     window.location.reload();
   };
 
@@ -210,6 +237,16 @@ export function LivePageClient({
           winBy={activeSession.win_by}
           onNextMatch={handleNextMatch}
           onEndSession={handleSessionEnded}
+        />
+      )}
+
+      {/* Step: Recap slideshow */}
+      {step === "recap" && recapData && activeSession && (
+        <GameDayRecap
+          data={recapData}
+          sessionId={activeSession.id}
+          groupSlug={groupSlug}
+          onDone={handleRecapDone}
         />
       )}
     </div>
