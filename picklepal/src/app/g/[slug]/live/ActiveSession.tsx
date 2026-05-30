@@ -3,6 +3,14 @@
 import { useTransition } from "react";
 import { useHostAuth } from "@/hooks/useHostAuth";
 import { endSession } from "./actions";
+import { MatchQueue } from "./MatchQueue";
+import type { Matchup } from "@/lib/matchmaking";
+
+interface Player {
+  readonly id: string;
+  readonly display_name: string;
+  readonly color: string | null;
+}
 
 interface ActiveSessionProps {
   readonly groupSlug: string;
@@ -14,13 +22,17 @@ interface ActiveSessionProps {
     readonly win_by: number;
     readonly started_at: string;
   };
+  readonly players: readonly Player[];
   readonly onSessionEnded: () => void;
+  readonly onMatchConfirmed: (matchup: Matchup) => void;
 }
 
 export function ActiveSession({
   groupSlug,
   session,
+  players,
   onSessionEnded,
+  onMatchConfirmed,
 }: ActiveSessionProps) {
   const { isHost } = useHostAuth(groupSlug);
   const [isPending, startTransition] = useTransition();
@@ -42,6 +54,8 @@ export function ActiveSession({
     minute: "2-digit",
   });
 
+  const matchType = session.default_match_type === "singles" ? "singles" : "doubles";
+
   return (
     <div className="space-y-6">
       {/* Session Header */}
@@ -59,19 +73,19 @@ export function ActiveSession({
             </h2>
             <p className="text-sm text-text-muted mt-0.5">
               Started at {timeStr} ·{" "}
-              {session.default_match_type === "doubles" ? "Doubles" : "Singles"}{" "}
+              {matchType === "doubles" ? "Doubles" : "Singles"}{" "}
               · To {session.target_score}, win by {session.win_by}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Placeholder for matchup generation (Phase 4b) */}
-      <div className="rounded-xl border border-border bg-surface-muted p-8 text-center">
-        <p className="text-text-muted text-sm">
-          Matchup generation and the scoring loop will be built in Phase 4b–4e.
-        </p>
-      </div>
+      {/* Match Queue */}
+      <MatchQueue
+        players={players}
+        matchType={matchType}
+        onMatchSelected={onMatchConfirmed}
+      />
 
       {/* End Session */}
       {isHost && (

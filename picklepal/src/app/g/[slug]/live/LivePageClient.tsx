@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { StartSessionForm } from "./StartSessionForm";
 import { ActiveSession } from "./ActiveSession";
+import type { Matchup } from "@/lib/matchmaking";
 
 interface SessionData {
   readonly id: string;
@@ -34,10 +35,9 @@ export function LivePageClient({
   const [activeSession, setActiveSession] = useState<SessionData | null>(
     initialSession,
   );
+  const [activeMatchup, setActiveMatchup] = useState<Matchup | null>(null);
 
   const handleSessionStarted = (sessionId: string) => {
-    // Optimistically show active session
-    // In a real scenario we'd refetch, but for now construct from known data
     setActiveSession({
       id: sessionId,
       title: null,
@@ -47,12 +47,18 @@ export function LivePageClient({
       win_by: 2,
       started_at: new Date().toISOString(),
     });
-    // Force a page refresh to get fresh server data
     window.location.reload();
   };
 
   const handleSessionEnded = () => {
     setActiveSession(null);
+    setActiveMatchup(null);
+  };
+
+  const handleMatchConfirmed = (matchup: Matchup) => {
+    setActiveMatchup(matchup);
+    // Phase 4c/4d will use this to show position confirmation → scoring
+    console.log("Match confirmed:", matchup);
   };
 
   return (
@@ -70,7 +76,9 @@ export function LivePageClient({
         <ActiveSession
           groupSlug={groupSlug}
           session={activeSession}
+          players={players}
           onSessionEnded={handleSessionEnded}
+          onMatchConfirmed={handleMatchConfirmed}
         />
       ) : (
         <>

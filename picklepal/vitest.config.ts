@@ -6,7 +6,7 @@ export default defineConfig({
     globals: true,
     coverage: {
       provider: "v8",
-      include: ["src/lib/engine/**"],
+      include: ["src/lib/engine/**", "src/lib/matchmaking/**"],
       thresholds: {
         statements: 95,
         branches: 95,
