@@ -6,6 +6,7 @@ import { ActiveSession } from "./ActiveSession";
 import { PositionConfirmation } from "./PositionConfirmation";
 import { LiveScoring } from "./LiveScoring";
 import { MatchResult } from "./MatchResult";
+import { endSession } from "./actions";
 import type { MatchStartConfig } from "./PositionConfirmation";
 import type { CompletedMatchData } from "./MatchResult";
 import type { Matchup } from "@/lib/matchmaking";
@@ -66,7 +67,11 @@ export function LivePageClient({
     window.location.reload();
   };
 
-  const handleSessionEnded = () => {
+  const handleSessionEnded = async () => {
+    // End the session in the database
+    if (activeSession) {
+      await endSession(activeSession.id);
+    }
     setActiveSession(null);
     setCurrentMatchup(null);
     setMatchConfig(null);

@@ -76,6 +76,9 @@ This applies to all server actions that query Supabase. A future fix: use `supab
 ### Verify with `next build`, Not Just `tsc --noEmit`
 Local `tsc --noEmit` can pass while `next build` (what Vercel runs) fails. Next.js has its own type-checking pass that catches issues `tsc` misses — particularly unused/missing type imports in `.tsx` files and server/client component boundary violations. Always run `npx next build` as the final verification before pushing, especially after removing or reorganizing imports.
 
+### State-Changing Callbacks Must Call Server Actions Before Resetting Local State
+When a UI callback represents a state change (e.g., ending a session, cancelling a match), it must call the corresponding server action **before** resetting local state or reloading. If the callback is shared across multiple components (e.g., `onSessionEnded` used by both `ActiveSession` and `MatchResult`), the callback itself should own the server call — don't rely on each caller to do it. The `endSession` bug happened because `ActiveSession` called the action before the callback, but `MatchResult` didn't. Pattern: centralize the server action call in the shared callback handler.
+
 ### Example: Database Transactions
 - Always wrap multiple database operations in a transaction
 - Remember to handle rollback on errors
