@@ -63,17 +63,17 @@ export function OverlayRenderer({ data, onDownload }: OverlayRendererProps) {
   }, [title, isExporting, onDownload]);
 
   return (
-    <div className="flex flex-col items-center gap-6">
-      {/* Preview — dark background simulates how it looks on a photo */}
+    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-10 w-full max-w-2xl mx-auto">
+      {/* Left: Preview card (compact) */}
       <div
-        className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl"
-        style={{ width: 270, height: 480 }}
+        className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl flex-shrink-0"
+        style={{ width: 200, height: 356 }}
       >
-        {/* Dark preview background (simulates a photo behind the overlay) */}
+        {/* Dark preview background */}
         <div
           className="absolute inset-0"
           style={{
-            background: "linear-gradient(180deg, #1a2332 0%, #0f1923 50%, #0a1018 100%)",
+            background: "linear-gradient(180deg, #1e293b 0%, #0f172a 100%)",
           }}
         />
 
@@ -81,7 +81,7 @@ export function OverlayRenderer({ data, onDownload }: OverlayRendererProps) {
         <div
           ref={canvasRef}
           className="absolute top-0 left-0 origin-top-left"
-          style={{ width: 540, height: 960, transform: "scale(0.5)" }}
+          style={{ width: 540, height: 960, transform: "scale(0.37)" }}
         >
           <OverlayContent
             title={title}
@@ -93,40 +93,69 @@ export function OverlayRenderer({ data, onDownload }: OverlayRendererProps) {
         </div>
       </div>
 
-      {/* Title editor */}
-      <div className="w-full max-w-xs">
-        <label htmlFor="overlay-title" className="block text-xs font-medium text-white/60 mb-1">
-          Session Title ({title.length}/{MAX_TITLE_LENGTH})
-        </label>
-        <input
-          id="overlay-title"
-          type="text"
-          value={title}
-          onChange={(e) => handleTitleChange(e.target.value)}
-          maxLength={MAX_TITLE_LENGTH}
-          className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-court-green/50 focus:border-court-green"
-          placeholder="Game Day #2"
-        />
+      {/* Right: Controls */}
+      <div className="flex flex-col items-center sm:items-start gap-5 flex-1">
+        {/* Header */}
+        <div className="text-center sm:text-left">
+          <h3 className="text-lg font-bold text-white">Your Overlay</h3>
+          <p className="text-sm text-white/50 mt-0.5">
+            Edit the title, then download as a transparent PNG sticker.
+          </p>
+        </div>
+
+        {/* Title editor */}
+        <div className="w-full max-w-xs">
+          <label htmlFor="overlay-title" className="block text-xs font-medium text-white/50 mb-1.5">
+            Session Title
+          </label>
+          <div className="relative">
+            <input
+              id="overlay-title"
+              type="text"
+              value={title}
+              onChange={(e) => handleTitleChange(e.target.value)}
+              maxLength={MAX_TITLE_LENGTH}
+              className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-court-green/50 focus:border-court-green transition-all"
+              placeholder="Game Day #2"
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-white/30">
+              {title.length}/{MAX_TITLE_LENGTH}
+            </span>
+          </div>
+        </div>
+
+        {/* How it works */}
+        <div className="space-y-2 w-full max-w-xs">
+          <p className="text-[11px] font-medium text-white/40 uppercase tracking-wider">How to use</p>
+          <div className="flex items-start gap-2.5">
+            <span className="flex-shrink-0 w-5 h-5 rounded-full bg-court-green/20 flex items-center justify-center text-[10px] font-bold text-court-green">1</span>
+            <p className="text-xs text-white/50">Download the transparent overlay</p>
+          </div>
+          <div className="flex items-start gap-2.5">
+            <span className="flex-shrink-0 w-5 h-5 rounded-full bg-court-green/20 flex items-center justify-center text-[10px] font-bold text-court-green">2</span>
+            <p className="text-xs text-white/50">Open your photo in IG Stories</p>
+          </div>
+          <div className="flex items-start gap-2.5">
+            <span className="flex-shrink-0 w-5 h-5 rounded-full bg-court-green/20 flex items-center justify-center text-[10px] font-bold text-court-green">3</span>
+            <p className="text-xs text-white/50">Add the PNG as a sticker on top</p>
+          </div>
+        </div>
+
+        {/* Download button */}
+        <button
+          onClick={handleDownload}
+          disabled={isExporting}
+          className="inline-flex items-center gap-2 rounded-lg bg-court-green px-6 py-3 text-sm font-bold text-white shadow-lg shadow-court-green/20 transition-all duration-200 hover:bg-court-green-dark hover:shadow-xl hover:shadow-court-green/30 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer w-full max-w-xs justify-center"
+        >
+          <DownloadIcon className="w-4 h-4" />
+          {isExporting ? "Exporting..." : "Download Overlay"}
+        </button>
       </div>
-
-      {/* Download button */}
-      <button
-        onClick={handleDownload}
-        disabled={isExporting}
-        className="inline-flex items-center gap-2 rounded-lg bg-court-green px-5 py-2.5 text-sm font-bold text-white shadow-md transition-all duration-200 hover:bg-court-green-dark hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-      >
-        <DownloadIcon className="w-4 h-4" />
-        {isExporting ? "Exporting..." : "Download Overlay"}
-      </button>
-
-      <p className="text-xs text-white/40 text-center max-w-xs">
-        Save the transparent PNG, then add it as a sticker on your photo in Instagram Stories.
-      </p>
     </div>
   );
 }
 
-// ─── Overlay Content (exported to PNG — matches the reference design) ────────
+// ─── Overlay Content (exported to PNG) ───────────────────────────────────────
 
 function OverlayContent({
   title,
@@ -155,14 +184,7 @@ function OverlayContent({
       }}
     >
       {/* TOP: PicklePal branding */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
         <span
           style={{
             fontSize: 16,
@@ -174,15 +196,7 @@ function OverlayContent({
         >
           PicklePal
         </span>
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="white"
-          strokeWidth="1.5"
-          style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))" }}
-        >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))" }}>
           <circle cx="12" cy="12" r="9" />
           <circle cx="9" cy="9" r="1.2" fill="white" />
           <circle cx="15" cy="9" r="1.2" fill="white" />
@@ -193,14 +207,7 @@ function OverlayContent({
       </div>
 
       {/* BOTTOM: Stats cluster */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 0,
-        }}
-      >
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
         {/* Gradient accent line */}
         <div
           style={{
@@ -214,15 +221,7 @@ function OverlayContent({
         />
 
         {/* Crossed paddles icon */}
-        <svg
-          width="32"
-          height="32"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="white"
-          strokeWidth="1.2"
-          style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.6))", marginBottom: 12 }}
-        >
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.2" style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.6))", marginBottom: 12 }}>
           <ellipse cx="9" cy="9" rx="4" ry="5.5" transform="rotate(-20 9 9)" />
           <line x1="7" y1="14" x2="5" y2="20" strokeWidth="1.5" strokeLinecap="round" />
           <ellipse cx="15" cy="9" rx="4" ry="5.5" transform="rotate(20 15 9)" />
@@ -260,96 +259,32 @@ function OverlayContent({
         </div>
 
         {/* Stats row */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 16,
-            marginBottom: 20,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 18,
-              fontWeight: 600,
-              color: "white",
-              textShadow: "0 2px 6px rgba(0,0,0,0.6)",
-            }}
-          >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 20 }}>
+          <span style={{ fontSize: 18, fontWeight: 600, color: "white", textShadow: "0 2px 6px rgba(0,0,0,0.6)" }}>
             {matchCount} matches
           </span>
-          <span
-            style={{
-              fontSize: 18,
-              color: "#2D8B4E",
-              textShadow: "0 0 8px rgba(45,139,78,0.6)",
-              fontWeight: 700,
-            }}
-          >
+          <span style={{ fontSize: 18, color: "#2D8B4E", textShadow: "0 0 8px rgba(45,139,78,0.6)", fontWeight: 700 }}>
             ·
           </span>
-          <span
-            style={{
-              fontSize: 18,
-              fontWeight: 600,
-              color: "white",
-              textShadow: "0 2px 6px rgba(0,0,0,0.6)",
-            }}
-          >
+          <span style={{ fontSize: 18, fontWeight: 600, color: "white", textShadow: "0 2px 6px rgba(0,0,0,0.6)" }}>
             {playerCount} players
           </span>
         </div>
 
         {/* MVP */}
         {mvpName && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-              marginBottom: 28,
-            }}
-          >
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#F5C518"
-              strokeWidth="1.5"
-              style={{ filter: "drop-shadow(0 0 6px rgba(245,197,24,0.6))" }}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.996.178-1.768.65-2.08 1.377-.312.728-.076 1.566.548 2.308a5.584 5.584 0 003.53 1.985m0 0h.002M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M18.75 4.236c.996.178 1.768.65 2.08 1.377.312.728.076 1.566-.548 2.308a5.584 5.584 0 01-3.53 1.985m0 0h-.002m.002 0c-1.514 1.238-2.48 3.12-2.48 5.228V4.5m0-.264V2.721"
-              />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 28 }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="1.5" style={{ filter: "drop-shadow(0 0 6px rgba(245,197,24,0.6))" }}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.996.178-1.768.65-2.08 1.377-.312.728-.076 1.566.548 2.308a5.584 5.584 0 003.53 1.985m0 0h.002M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M18.75 4.236c.996.178 1.768.65 2.08 1.377.312.728.076 1.566-.548 2.308a5.584 5.584 0 01-3.53 1.985m0 0h-.002m.002 0c-1.514 1.238-2.48 3.12-2.48 5.228V4.5m0-.264V2.721" />
             </svg>
-            <span
-              style={{
-                fontSize: 22,
-                fontWeight: 700,
-                color: "white",
-                textShadow: "0 2px 8px rgba(0,0,0,0.7)",
-              }}
-            >
+            <span style={{ fontSize: 22, fontWeight: 700, color: "white", textShadow: "0 2px 8px rgba(0,0,0,0.7)" }}>
               MVP: {mvpName}
             </span>
           </div>
         )}
 
         {/* Branding footer */}
-        <div
-          style={{
-            fontSize: 12,
-            color: "rgba(255,255,255,0.35)",
-            textAlign: "center",
-            textShadow: "0 1px 4px rgba(0,0,0,0.4)",
-            letterSpacing: "1px",
-          }}
-        >
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", textAlign: "center", textShadow: "0 1px 4px rgba(0,0,0,0.4)", letterSpacing: "1px" }}>
           picklepal.app
         </div>
       </div>
@@ -361,19 +296,8 @@ function OverlayContent({
 
 function DownloadIcon({ className }: { readonly className?: string }) {
   return (
-    <svg
-      className={className}
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={2}
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"
-      />
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
     </svg>
   );
 }
