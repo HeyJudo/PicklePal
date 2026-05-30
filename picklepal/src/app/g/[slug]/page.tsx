@@ -3,6 +3,8 @@ import { createServerClient, type Group } from "@/lib/supabase";
 import { getDashboardData } from "./actions";
 import { HeroSection } from "./dashboard/HeroSection";
 import { StatsHighlights } from "./dashboard/StatsHighlights";
+import { LeaderboardPreview } from "./dashboard/LeaderboardPreview";
+import { RecentMatches } from "./dashboard/RecentMatches";
 
 interface HomePageProps {
   readonly params: Promise<{ slug: string }>;
@@ -44,6 +46,18 @@ export default async function HomePage({ params }: HomePageProps) {
         hottestDuo={dashboard?.hottestDuo ?? null}
         latestMvp={dashboard?.latestMvp ?? null}
       />
+
+      {/* Leaderboard + Recent Matches: side-by-side on tablet+, stacked on mobile */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <LeaderboardPreview
+          entries={dashboard?.leaderboardPreview ?? []}
+          groupSlug={slug}
+        />
+        <RecentMatches
+          matches={dashboard?.recentMatches ?? []}
+          groupSlug={slug}
+        />
+      </div>
     </div>
   );
 }

@@ -530,7 +530,7 @@ Create players → Start session → Generate match → Score live → Save → 
 
 ### 6B-d. Leaderboard Preview & Recent Matches
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Completed  
 **Effort:** Medium | **Dependencies:** 6B-a  
 **Deliverables:**
 - Compact leaderboard (top 5) with "View Full Board →" link
