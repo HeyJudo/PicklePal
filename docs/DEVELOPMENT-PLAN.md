@@ -547,7 +547,7 @@ Create players → Start session → Generate match → Score live → Save → 
 
 ### 6B-e. Polish & Empty States
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Completed  
 **Effort:** Small | **Dependencies:** 6B-b, 6B-c, 6B-d  
 **Deliverables:**
 - Empty state for brand-new group (no matches, no sessions)

@@ -5,6 +5,7 @@ import { HeroSection } from "./dashboard/HeroSection";
 import { StatsHighlights } from "./dashboard/StatsHighlights";
 import { LeaderboardPreview } from "./dashboard/LeaderboardPreview";
 import { RecentMatches } from "./dashboard/RecentMatches";
+import { EmptyDashboard } from "./dashboard/EmptyDashboard";
 
 interface HomePageProps {
   readonly params: Promise<{ slug: string }>;
@@ -31,30 +32,35 @@ export default async function HomePage({ params }: HomePageProps) {
 
   const { data: dashboard } = await getDashboardData(slug);
 
+  // Show welcoming empty state for brand-new groups with no games
+  if (!dashboard || dashboard.totalGamesPlayed === 0) {
+    return <EmptyDashboard groupName={group.name} groupSlug={slug} />;
+  }
+
   return (
     <div className="space-y-6">
       <HeroSection
         groupName={group.name}
         groupSlug={slug}
-        activeSession={dashboard?.activeSession ?? null}
-        totalGamesPlayed={dashboard?.totalGamesPlayed ?? 0}
-        totalSessions={dashboard?.totalSessions ?? 0}
+        activeSession={dashboard.activeSession}
+        totalGamesPlayed={dashboard.totalGamesPlayed}
+        totalSessions={dashboard.totalSessions}
       />
 
       <StatsHighlights
-        topPlayer={dashboard?.topPlayer ?? null}
-        hottestDuo={dashboard?.hottestDuo ?? null}
-        latestMvp={dashboard?.latestMvp ?? null}
+        topPlayer={dashboard.topPlayer}
+        hottestDuo={dashboard.hottestDuo}
+        latestMvp={dashboard.latestMvp}
       />
 
       {/* Leaderboard + Recent Matches: side-by-side on tablet+, stacked on mobile */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <LeaderboardPreview
-          entries={dashboard?.leaderboardPreview ?? []}
+          entries={dashboard.leaderboardPreview}
           groupSlug={slug}
         />
         <RecentMatches
-          matches={dashboard?.recentMatches ?? []}
+          matches={dashboard.recentMatches}
           groupSlug={slug}
         />
       </div>
