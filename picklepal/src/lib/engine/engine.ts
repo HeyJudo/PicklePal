@@ -81,6 +81,15 @@ function createSinglesMatch(input: CreateSinglesMatchInput): SinglesMatchState {
   const targetScore = input.targetScore ?? DEFAULT_TARGET_SCORE;
   const winBy = input.winBy ?? DEFAULT_WIN_BY;
 
+  if (
+    input.startingServerPlayerId !== input.teamAPlayerId &&
+    input.startingServerPlayerId !== input.teamBPlayerId
+  ) {
+    throw new Error(
+      `Starting server player "${input.startingServerPlayerId}" not found in either team`,
+    );
+  }
+
   const isTeamA = input.startingServerPlayerId === input.teamAPlayerId;
   const startingTeam: Team = isTeamA ? "A" : "B";
 
