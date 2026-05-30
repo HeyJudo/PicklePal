@@ -90,6 +90,18 @@ The `LiveScoring` component only tracks `MatchHistory` (rally winners + current 
 ### Shared Action Files: Read Before Overwriting
 `src/app/g/[slug]/actions.ts` is a shared server actions file imported by multiple components (PIN modal, live session, start form). When adding new server actions, always **read the existing file first** or append to it — never overwrite with `fs_write`. Multiple features share the same `actions.ts` at each route level. Use `git show HEAD:<path>` to recover if accidentally overwritten.
 
+### Fixed UUIDs in Seed Data Must Use Valid Hex Characters Only
+PostgreSQL UUID type only accepts hex characters (0-9, a-f). When creating readable fixed UUIDs for seed scripts, use hex-only prefixes like `a0`, `b0`, `c0`, `d0` — NOT mnemonic letters like `g` (group), `p` (player), `s` (session), `m` (match). Pattern:
+```sql
+-- ✅ Good: hex-only prefixes
+'a0000000-0000-0000-0000-000000000001'  -- group
+'b0000000-0000-0000-0000-000000000001'  -- player
+
+-- ❌ Bad: non-hex letters
+'g0000000-0000-0000-0000-000000000001'  -- invalid!
+'p0000000-0000-0000-0000-000000000001'  -- invalid!
+```
+
 ### PIN Gate Pattern: Gate the Action, Not the Visibility
 Write-action buttons (End Game Day, Start Session, correct scores) should always be **visible** to all users. The PIN prompt triggers only when clicked and the user isn't authenticated. Hiding buttons behind `{isHost && ...}` creates confusion — users don't know the feature exists. Pattern:
 ```tsx
