@@ -58,6 +58,9 @@ The hooks table and Example 5 in README.md document the action type (`runCommand
 
 *Document mistakes that have been made and how to avoid them.*
 
+### Tailwind Custom Color Tokens Must Be Defined Before Use
+The `@theme inline` block in `globals.css` defines available color tokens. Using `bg-primary`, `text-primary`, or `border-primary` in components requires `--color-primary` to exist in the theme. If a component uses a semantic color class (e.g., `bg-secondary`, `bg-accent`) that isn't defined, the element renders transparent/invisible with no build error. Always verify new semantic tokens exist in `globals.css` before using them in components.
+
 ### Supabase Client Requires `as any` Cast for `.from()` Queries
 The manually-defined `Database` type in `src/lib/supabase/types.ts` doesn't fully satisfy the Supabase client's generic inference, causing `never` type errors on `.from("table")` calls. The established workaround is:
 ```typescript

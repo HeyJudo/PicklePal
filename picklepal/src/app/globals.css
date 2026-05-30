@@ -13,6 +13,9 @@
   --color-hype-orange: #FF6B35;
   --color-hype-red: #E53935;
 
+  /* Primary action color */
+  --color-primary: #2D8B4E;
+
   /* Neutral surfaces */
   --color-surface: #FFFFFF;
   --color-surface-muted: #F8FAFC;
