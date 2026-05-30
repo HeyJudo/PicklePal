@@ -383,17 +383,20 @@ Phase 8: Visual Polish & QA (runs last, touches everything)
 
 ### 4f. End Session
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Completed   
 **Effort:** Small  
 **Dependencies:** 4e  
 **Deliverables:**
 - "End Game Day" button (PIN-protected)
 - Session → completed, basic summary
+- Game Day Recap slideshow (Spotify Wrapped-style) on session end
 
 **Acceptance Criteria:**
 - [ ] Session marked completed
 - [ ] No new matches can start
 - [ ] Summary data accessible
+- [ ] Recap slideshow shows after ending (tap-to-advance slides: summary, MVP, Hottest Duo, Best Match)
+- [ ] Skip button available to bypass recap
 
 ---
 
@@ -410,28 +413,31 @@ Create players → Start session → Generate match → Score live → Save → 
 
 ### 5a. Persistent Leaderboard Page
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Completed   
 **Effort:** Medium | **Dependencies:** 2c, 4e  
 - Full leaderboard table with rank, W, L, GP, Win%, +/-
 - Min-games qualifier, tiebreaker logic, responsive layout
 
 ### 5b. Player Stats Pages
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Completed 
 **Effort:** Medium | **Dependencies:** 2c  
 - Player profile, overall record, recent matches, partner stats
 
 ### 5c. Match History Page
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Completed 
 **Effort:** Small | **Dependencies:** 2a  
 - Chronological match list grouped by session, filterable
 
 ### 5d. Session Summaries & Awards
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Completed  
 **Effort:** Medium | **Dependencies:** 2c, 4f  
 - MVP of the Day, Hottest Duo, Best Match calculations and display
+- Session detail page at `/g/[slug]/sessions/[id]` with awards cards
+- Awards computation in `src/lib/stats/awards.ts`
+- Game Day Recap slideshow triggered on "End Game Day" (see 4f)
 
 ---
 
