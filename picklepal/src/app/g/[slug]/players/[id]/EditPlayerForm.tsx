@@ -54,6 +54,10 @@ export function EditPlayerForm({ player, groupSlug }: EditPlayerFormProps) {
     setAvatarPreview(player.avatar_url);
     setPendingFile(null);
     setError("");
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   }, [player]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -121,7 +125,7 @@ export function EditPlayerForm({ player, groupSlug }: EditPlayerFormProps) {
           } = {};
 
           if (displayName.trim() !== player.display_name) {
-            updates.displayName = displayName;
+            updates.displayName = displayName.trim();
           }
           if (selectedColor !== (player.color ?? "#64748B")) {
             updates.color = selectedColor;
@@ -142,8 +146,9 @@ export function EditPlayerForm({ player, groupSlug }: EditPlayerFormProps) {
           setIsOpen(false);
           setPendingFile(null);
           router.refresh();
-        } catch {
-          setError("Something went wrong. Try again.");
+        } catch (err) {
+          console.error("Edit player error:", err);
+          setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
           setIsUploading(false);
         }
       });
