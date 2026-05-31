@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import type { Match, Session } from "@/lib/supabase";
 import type { SessionSummary, SessionAwards, MvpAward, HottestDuoAward, BestMatchAward } from "@/lib/stats";
+import { OverlayRenderer } from "@/components/share";
 
 interface SessionDetailProps {
   readonly session: Session;
@@ -159,6 +161,75 @@ function MatchRow({
   );
 }
 
+// ─── Share Overlay Section ───────────────────────────────────────────────────
+
+function ShareOverlaySection({
+  session,
+  summary,
+  awards,
+}: {
+  readonly session: Session;
+  readonly summary: SessionSummary;
+  readonly awards: SessionAwards;
+}) {
+  const [showOverlay, setShowOverlay] = useState(false);
+
+  if (!showOverlay) {
+    return (
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">
+          Share
+        </h2>
+        <button
+          onClick={() => setShowOverlay(true)}
+          className="w-full rounded-xl border border-border bg-surface p-4 flex items-center gap-3 hover:bg-surface-muted transition-colors cursor-pointer"
+        >
+          <div className="w-10 h-10 rounded-full bg-court-green/10 flex items-center justify-center flex-shrink-0">
+            <svg className="w-5 h-5 text-court-green" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-semibold text-text-primary">Download Overlay</p>
+            <p className="text-xs text-text-muted">Get a transparent PNG sticker for your IG story</p>
+          </div>
+        </button>
+      </section>
+    );
+  }
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">
+          Share
+        </h2>
+        <button
+          onClick={() => setShowOverlay(false)}
+          className="text-xs text-text-muted hover:text-text-secondary transition-colors cursor-pointer"
+        >
+          Collapse
+        </button>
+      </div>
+      <div className="rounded-xl border border-border bg-slate-900 p-6">
+        <OverlayRenderer
+          data={{
+            sessionTitle: session.title ?? "Game Day",
+            date: new Date(session.started_at).toLocaleDateString(undefined, {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            }),
+            matchCount: summary.gamesPlayed,
+            playerCount: summary.playerCount,
+            mvpName: awards.mvp?.displayName ?? null,
+          }}
+        />
+      </div>
+    </section>
+  );
+}
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export function SessionDetail({
@@ -233,6 +304,15 @@ export function SessionDetail({
             )}
           </div>
         </section>
+      )}
+
+      {/* Share Overlay */}
+      {session.status === "completed" && (
+        <ShareOverlaySection
+          session={session}
+          summary={summary}
+          awards={awards}
+        />
       )}
 
       {/* Match list */}

@@ -597,7 +597,7 @@ Create players → Start session → Generate match → Score live → Save → 
 
 ### 7b. Download & Integration with Recap Flow
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Completed  
 **Effort:** Small | **Dependencies:** 7a  
 **Deliverables:**
 - "Download Overlay" button shown after the recap ceremony (post End Game Day)
