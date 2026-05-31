@@ -100,7 +100,8 @@ export function PositionConfirmation({
             <p className="text-xs font-medium text-text-muted uppercase tracking-wide">
               Team A
             </p>
-            {teamA.map((id, idx) => (
+            {/* Team A: reversed visual order (idx 0 = right = bottom, idx 1 = left = top) */}
+            {[...teamA].reverse().map((id, visualIdx) => (
               <div
                 key={id}
                 className="flex flex-col items-center gap-1"
@@ -116,9 +117,9 @@ export function PositionConfirmation({
                 </span>
                 <span className="text-[10px] text-text-muted">
                   {matchType === "doubles"
-                    ? idx === 0
-                      ? "Right"
-                      : "Left"
+                    ? visualIdx === 0
+                      ? "Left"
+                      : "Right"
                     : ""}
                 </span>
               </div>

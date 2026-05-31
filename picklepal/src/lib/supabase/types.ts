@@ -77,6 +77,7 @@ export interface Database {
           default_match_type: string;
           target_score: number;
           win_by: number;
+          track_scorers: boolean;
           started_at: string;
           ended_at: string | null;
           created_at: string;
@@ -90,6 +91,7 @@ export interface Database {
           default_match_type?: string;
           target_score?: number;
           win_by?: number;
+          track_scorers?: boolean;
           started_at?: string;
           ended_at?: string | null;
           created_at?: string;
@@ -103,6 +105,7 @@ export interface Database {
           default_match_type?: string;
           target_score?: number;
           win_by?: number;
+          track_scorers?: boolean;
           ended_at?: string | null;
           updated_at?: string;
         };

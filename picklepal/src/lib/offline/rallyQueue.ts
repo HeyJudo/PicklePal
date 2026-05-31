@@ -12,6 +12,7 @@ export interface OfflineRallyEvent {
   readonly serverPlayerId: string;
   readonly serverNumber: ServerNumber | null;
   readonly sideOutOccurred: boolean;
+  readonly scorerPlayerId: string | null;
   readonly createdAt: string;
 }
 
@@ -124,6 +125,9 @@ function isOfflineRallyEvent(value: unknown): value is OfflineRallyEvent {
       event.serverNumber === 2 ||
       event.serverNumber === null) &&
     typeof event.sideOutOccurred === "boolean" &&
+    (event.scorerPlayerId === null ||
+      event.scorerPlayerId === undefined ||
+      typeof event.scorerPlayerId === "string") &&
     typeof event.createdAt === "string"
   );
 }

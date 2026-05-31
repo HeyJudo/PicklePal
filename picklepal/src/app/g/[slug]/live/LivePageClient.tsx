@@ -37,6 +37,7 @@ interface SessionData {
   readonly default_match_type: string;
   readonly target_score: number;
   readonly win_by: number;
+  readonly track_scorers: boolean;
   readonly started_at: string;
 }
 
@@ -102,6 +103,7 @@ export function LivePageClient({
       default_match_type: "doubles",
       target_score: 11,
       win_by: 2,
+      track_scorers: false,
       started_at: new Date().toISOString(),
     });
     window.location.reload();
@@ -344,6 +346,7 @@ export function LivePageClient({
           players={players}
           targetScore={activeSession.target_score}
           winBy={activeSession.win_by}
+          trackScorers={activeSession.track_scorers}
           onMatchComplete={handleMatchComplete}
         />
       )}

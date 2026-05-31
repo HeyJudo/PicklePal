@@ -128,6 +128,22 @@ The `MatchQueue` component initializes its `MatchmakingState` via `useState(() =
 ```
 This pattern applies to any component that derives initial state from props via `useState` initializer and needs to reset when those props change structurally.
 
+### Court Position Labels Must Account for Team Facing Direction
+In a top-down bird's-eye court view with the net as a vertical center line, the two teams face **opposite directions**. This means "Right" and "Left" are **mirrored** for Team A vs Team B:
+- **Team B** (right side, facing left): Top = Right, Bottom = Left
+- **Team A** (left side, facing right): Top = Left, Bottom = Right
+
+When rendering court positions or labels, always invert the spatial mapping for the team on the left side of the net. The engine's `DoublesPositions` type uses `{ right, left }` — map these to screen positions differently per team:
+```tsx
+// Team A (left side of court, facing right)
+const teamATop = positions.teamA.left;   // their left is screen-top
+const teamABot = positions.teamA.right;  // their right is screen-bottom
+
+// Team B (right side of court, facing left)  
+const teamBTop = positions.teamB.right;  // their right is screen-top
+const teamBBot = positions.teamB.left;   // their left is screen-bottom
+```
+
 ---
 
 ## Architecture Decisions

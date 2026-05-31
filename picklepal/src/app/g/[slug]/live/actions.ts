@@ -18,6 +18,7 @@ interface SessionData {
   readonly default_match_type: string;
   readonly target_score: number;
   readonly win_by: number;
+  readonly track_scorers: boolean;
   readonly started_at: string;
 }
 
@@ -27,6 +28,7 @@ interface StartSessionInput {
   readonly matchType?: MatchType;
   readonly targetScore?: number;
   readonly winBy?: number;
+  readonly trackScorers?: boolean;
   readonly presentPlayerIds: readonly string[];
 }
 
@@ -52,7 +54,7 @@ export async function getActiveSession(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: session, error: sessionError } = await (supabase as any)
     .from("sessions")
-    .select("id, title, status, default_match_type, target_score, win_by, started_at")
+    .select("id, title, status, default_match_type, target_score, win_by, track_scorers, started_at")
     .eq("group_id", group.id)
     .eq("status", "active")
     .maybeSingle();
@@ -117,9 +119,10 @@ export async function startSession(
       default_match_type: matchType,
       target_score: input.targetScore ?? 11,
       win_by: input.winBy ?? 2,
+      track_scorers: input.trackScorers ?? false,
       started_at: new Date().toISOString(),
     })
-    .select("id, title, status, default_match_type, target_score, win_by, started_at")
+    .select("id, title, status, default_match_type, target_score, win_by, track_scorers, started_at")
     .single();
 
   if (sessionError || !session) {

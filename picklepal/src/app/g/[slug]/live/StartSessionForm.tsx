@@ -39,6 +39,7 @@ export function StartSessionForm({
   const [matchType, setMatchType] = useState<"singles" | "doubles">("doubles");
   const [targetScore, setTargetScore] = useState(11);
   const [winBy, setWinBy] = useState(2);
+  const [trackScorers, setTrackScorers] = useState(false);
   const [error, setError] = useState("");
 
   // Step: "settings" or "players"
@@ -92,6 +93,7 @@ export function StartSessionForm({
         matchType,
         targetScore,
         winBy,
+        trackScorers,
         presentPlayerIds: Array.from(selectedPlayerIds),
       });
 
@@ -294,6 +296,33 @@ export function StartSessionForm({
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Track Scorers */}
+          <div className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-text-primary">
+                Track individual scorers
+              </p>
+              <p className="text-xs text-text-muted mt-0.5">
+                Tap player avatars to record who scored each point
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setTrackScorers(!trackScorers)}
+              className={`relative h-6 w-11 rounded-full transition-colors cursor-pointer ${
+                trackScorers ? "bg-primary" : "bg-border"
+              }`}
+              role="switch"
+              aria-checked={trackScorers}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                  trackScorers ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
           </div>
 
           {error && (

@@ -38,6 +38,7 @@ interface LiveScoringProps {
   readonly players: readonly Player[];
   readonly targetScore: number;
   readonly winBy: number;
+  readonly trackScorers?: boolean;
   readonly onMatchComplete: (history: MatchHistory) => void;
 }
 
@@ -49,6 +50,7 @@ export function LiveScoring({
   players,
   targetScore,
   winBy,
+  trackScorers = false,
   onMatchComplete,
 }: LiveScoringProps) {
   const [history, setHistory] = useState<MatchHistory>(() => {
@@ -79,6 +81,8 @@ export function LiveScoring({
   const [isOnline, setIsOnline] = useState(() =>
     typeof navigator === "undefined" ? true : navigator.onLine,
   );
+  const [bouncedPlayerId, setBouncedPlayerId] = useState<string | null>(null);
+  const [scorerLog, setScorerLog] = useState<(string | null)[]>([]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -102,7 +106,7 @@ export function LiveScoring({
   const isDoubles = isDoublesState(state);
 
   const handleRallyWinner = useCallback(
-    (winner: Team) => {
+    (winner: Team, scorerPlayerId: string | null = null) => {
       if (state.isComplete) return;
 
       const serverState = isDoublesState(history.currentState)
@@ -110,6 +114,7 @@ export function LiveScoring({
         : (history.currentState as SinglesMatchState).serverState;
       const { history: newHistory, result } = recordRally(history, winner);
       setHistory(newHistory);
+      setScorerLog((prev) => [...prev, scorerPlayerId]);
       const nextQueue = appendOfflineRallyEvent({
         sessionId,
         matchLocalId,
@@ -122,6 +127,7 @@ export function LiveScoring({
           ? (serverState as DoublesMatchState["serverState"]).serverNumber
           : null,
         sideOutOccurred: result.sideOutOccurred,
+        scorerPlayerId,
         createdAt: new Date().toISOString(),
       });
       setPendingRallyCount(nextQueue.length);
@@ -133,10 +139,28 @@ export function LiveScoring({
     [history, matchLocalId, onMatchComplete, sessionId, state.isComplete],
   );
 
+  const handlePlayerScored = useCallback(
+    (playerId: string) => {
+      if (state.isComplete) return;
+
+      // Determine which team this player is on
+      const team: Team = config.teamA.includes(playerId) ? "A" : "B";
+
+      // Trigger bounce animation
+      setBouncedPlayerId(playerId);
+      setTimeout(() => setBouncedPlayerId(null), 400);
+
+      // Record the rally with scorer info
+      handleRallyWinner(team, playerId);
+    },
+    [config.teamA, handleRallyWinner, state.isComplete],
+  );
+
   const handleUndo = useCallback(() => {
     if (canUndo(history)) {
       removeLastOfflineRallyEvent(sessionId, matchLocalId);
       setPendingRallyCount((count) => Math.max(0, count - 1));
+      setScorerLog((prev) => prev.slice(0, -1));
     }
     setHistory(undoRally(history));
   }, [history, matchLocalId, sessionId]);
@@ -171,6 +195,15 @@ export function LiveScoring({
     hasError: false,
   });
 
+  // Derive court positions for rendering
+  // Team A (left side, facing right): top box = left player, bottom box = right player
+  // Team B (right side, facing left): top box = right player, bottom box = left player
+  const doublesState = isDoubles ? (state as DoublesMatchState) : null;
+  const teamATop = doublesState ? doublesState.positions.teamA.left : config.teamA[0];
+  const teamABot = doublesState ? doublesState.positions.teamA.right : (config.teamA[1] ?? null);
+  const teamBTop = doublesState ? doublesState.positions.teamB.right : config.teamB[0];
+  const teamBBot = doublesState ? doublesState.positions.teamB.left : (config.teamB[1] ?? null);
+
   return (
     <div className="space-y-3">
       {/* Sync Status — compact */}
@@ -191,50 +224,66 @@ export function LiveScoring({
           <div className="grid grid-cols-[1fr_0.6fr_1fr]">
             {/* Team A side — two service boxes */}
             <div className={`grid grid-rows-2 border-r-[3px] border-white ${streak && streak.team === "A" && streak.count >= 3 ? "streak-fire" : ""}`}>
-              {/* Top service box */}
+              {/* Top service box (Team A's LEFT side) */}
               <div className="relative flex items-center justify-center p-3 min-h-[80px]" style={{ backgroundColor: "#4A7FA5" }}>
-                {config.teamA[0] && (
-                  <div className="flex flex-col items-center gap-1">
-                    <div className={`rounded-full p-0.5 ${serverPlayerId === config.teamA[0] ? "ring-2 ring-ball-yellow ring-offset-1" : ""} ${streak && streak.team === "A" && streak.count >= 3 ? "avatar-on-fire" : ""}`}>
+                {teamATop && (
+                  <button
+                    type="button"
+                    onClick={trackScorers && !state.isComplete ? () => handlePlayerScored(teamATop) : undefined}
+                    disabled={!trackScorers || state.isComplete}
+                    className={`flex flex-col items-center gap-1 ${trackScorers && !state.isComplete ? "cursor-pointer" : ""}`}
+                  >
+                    <div className={`rounded-full p-0.5 transition-transform ${serverPlayerId === teamATop ? "ring-2 ring-ball-yellow ring-offset-1" : ""} ${streak && streak.team === "A" && streak.count >= 3 ? "avatar-on-fire" : ""} ${bouncedPlayerId === teamATop ? "scorer-bounce" : ""}`}>
                       <PlayerAvatar
-                        displayName={getPlayer(config.teamA[0])?.display_name ?? "?"}
-                        color={getPlayer(config.teamA[0])?.color ?? null}
-                        avatarUrl={getPlayer(config.teamA[0])?.avatar_url ?? null}
+                        displayName={getPlayer(teamATop)?.display_name ?? "?"}
+                        color={getPlayer(teamATop)?.color ?? null}
+                        avatarUrl={getPlayer(teamATop)?.avatar_url ?? null}
                         size="md"
                       />
                     </div>
                     <span className="text-[10px] font-bold text-white drop-shadow-md">
-                      {getPlayerName(config.teamA[0]).split(" ")[0]}
+                      {getPlayerName(teamATop).split(" ")[0]}
                     </span>
-                    {serverPlayerId === config.teamA[0] && (
+                    {serverPlayerId === teamATop && (
                       <span className="text-[8px] font-bold text-ball-yellow bg-black/30 rounded px-1">
                         S{serverNumber ?? ""}
                       </span>
                     )}
-                  </div>
+                    {trackScorers && !state.isComplete && (
+                      <span className="text-[8px] font-medium text-white/50 mt-0.5">Tap to score</span>
+                    )}
+                  </button>
                 )}
               </div>
-              {/* Bottom service box */}
+              {/* Bottom service box (Team A's RIGHT side) */}
               <div className="relative flex items-center justify-center p-3 min-h-[80px] border-t-[3px] border-white" style={{ backgroundColor: "#4A7FA5" }}>
-                {config.teamA[1] && (
-                  <div className="flex flex-col items-center gap-1">
-                    <div className={`rounded-full p-0.5 ${serverPlayerId === config.teamA[1] ? "ring-2 ring-ball-yellow ring-offset-1" : ""} ${streak && streak.team === "A" && streak.count >= 3 ? "avatar-on-fire" : ""}`}>
+                {teamABot && (
+                  <button
+                    type="button"
+                    onClick={trackScorers && !state.isComplete ? () => handlePlayerScored(teamABot) : undefined}
+                    disabled={!trackScorers || state.isComplete}
+                    className={`flex flex-col items-center gap-1 ${trackScorers && !state.isComplete ? "cursor-pointer" : ""}`}
+                  >
+                    <div className={`rounded-full p-0.5 transition-transform ${serverPlayerId === teamABot ? "ring-2 ring-ball-yellow ring-offset-1" : ""} ${streak && streak.team === "A" && streak.count >= 3 ? "avatar-on-fire" : ""} ${bouncedPlayerId === teamABot ? "scorer-bounce" : ""}`}>
                       <PlayerAvatar
-                        displayName={getPlayer(config.teamA[1])?.display_name ?? "?"}
-                        color={getPlayer(config.teamA[1])?.color ?? null}
-                        avatarUrl={getPlayer(config.teamA[1])?.avatar_url ?? null}
+                        displayName={getPlayer(teamABot)?.display_name ?? "?"}
+                        color={getPlayer(teamABot)?.color ?? null}
+                        avatarUrl={getPlayer(teamABot)?.avatar_url ?? null}
                         size="md"
                       />
                     </div>
                     <span className="text-[10px] font-bold text-white drop-shadow-md">
-                      {getPlayerName(config.teamA[1]).split(" ")[0]}
+                      {getPlayerName(teamABot).split(" ")[0]}
                     </span>
-                    {serverPlayerId === config.teamA[1] && (
+                    {serverPlayerId === teamABot && (
                       <span className="text-[8px] font-bold text-ball-yellow bg-black/30 rounded px-1">
                         S{serverNumber ?? ""}
                       </span>
                     )}
-                  </div>
+                    {trackScorers && !state.isComplete && (
+                      <span className="text-[8px] font-medium text-white/50 mt-0.5">Tap to score</span>
+                    )}
+                  </button>
                 )}
               </div>
             </div>
@@ -253,50 +302,66 @@ export function LiveScoring({
 
             {/* Team B side — two service boxes */}
             <div className={`grid grid-rows-2 ${streak && streak.team === "B" && streak.count >= 3 ? "streak-fire" : ""}`}>
-              {/* Top service box */}
+              {/* Top service box (Team B's RIGHT side) */}
               <div className="relative flex items-center justify-center p-3 min-h-[80px]" style={{ backgroundColor: "#4A7FA5" }}>
-                {config.teamB[0] && (
-                  <div className="flex flex-col items-center gap-1">
-                    <div className={`rounded-full p-0.5 ${serverPlayerId === config.teamB[0] ? "ring-2 ring-ball-yellow ring-offset-1" : ""} ${streak && streak.team === "B" && streak.count >= 3 ? "avatar-on-fire" : ""}`}>
+                {teamBTop && (
+                  <button
+                    type="button"
+                    onClick={trackScorers && !state.isComplete ? () => handlePlayerScored(teamBTop) : undefined}
+                    disabled={!trackScorers || state.isComplete}
+                    className={`flex flex-col items-center gap-1 ${trackScorers && !state.isComplete ? "cursor-pointer" : ""}`}
+                  >
+                    <div className={`rounded-full p-0.5 transition-transform ${serverPlayerId === teamBTop ? "ring-2 ring-ball-yellow ring-offset-1" : ""} ${streak && streak.team === "B" && streak.count >= 3 ? "avatar-on-fire" : ""} ${bouncedPlayerId === teamBTop ? "scorer-bounce" : ""}`}>
                       <PlayerAvatar
-                        displayName={getPlayer(config.teamB[0])?.display_name ?? "?"}
-                        color={getPlayer(config.teamB[0])?.color ?? null}
-                        avatarUrl={getPlayer(config.teamB[0])?.avatar_url ?? null}
+                        displayName={getPlayer(teamBTop)?.display_name ?? "?"}
+                        color={getPlayer(teamBTop)?.color ?? null}
+                        avatarUrl={getPlayer(teamBTop)?.avatar_url ?? null}
                         size="md"
                       />
                     </div>
                     <span className="text-[10px] font-bold text-white drop-shadow-md">
-                      {getPlayerName(config.teamB[0]).split(" ")[0]}
+                      {getPlayerName(teamBTop).split(" ")[0]}
                     </span>
-                    {serverPlayerId === config.teamB[0] && (
+                    {serverPlayerId === teamBTop && (
                       <span className="text-[8px] font-bold text-ball-yellow bg-black/30 rounded px-1">
                         S{serverNumber ?? ""}
                       </span>
                     )}
-                  </div>
+                    {trackScorers && !state.isComplete && (
+                      <span className="text-[8px] font-medium text-white/50 mt-0.5">Tap to score</span>
+                    )}
+                  </button>
                 )}
               </div>
-              {/* Bottom service box */}
+              {/* Bottom service box (Team B's LEFT side) */}
               <div className="relative flex items-center justify-center p-3 min-h-[80px] border-t-[3px] border-white" style={{ backgroundColor: "#4A7FA5" }}>
-                {config.teamB[1] && (
-                  <div className="flex flex-col items-center gap-1">
-                    <div className={`rounded-full p-0.5 ${serverPlayerId === config.teamB[1] ? "ring-2 ring-ball-yellow ring-offset-1" : ""} ${streak && streak.team === "B" && streak.count >= 3 ? "avatar-on-fire" : ""}`}>
+                {teamBBot && (
+                  <button
+                    type="button"
+                    onClick={trackScorers && !state.isComplete ? () => handlePlayerScored(teamBBot) : undefined}
+                    disabled={!trackScorers || state.isComplete}
+                    className={`flex flex-col items-center gap-1 ${trackScorers && !state.isComplete ? "cursor-pointer" : ""}`}
+                  >
+                    <div className={`rounded-full p-0.5 transition-transform ${serverPlayerId === teamBBot ? "ring-2 ring-ball-yellow ring-offset-1" : ""} ${streak && streak.team === "B" && streak.count >= 3 ? "avatar-on-fire" : ""} ${bouncedPlayerId === teamBBot ? "scorer-bounce" : ""}`}>
                       <PlayerAvatar
-                        displayName={getPlayer(config.teamB[1])?.display_name ?? "?"}
-                        color={getPlayer(config.teamB[1])?.color ?? null}
-                        avatarUrl={getPlayer(config.teamB[1])?.avatar_url ?? null}
+                        displayName={getPlayer(teamBBot)?.display_name ?? "?"}
+                        color={getPlayer(teamBBot)?.color ?? null}
+                        avatarUrl={getPlayer(teamBBot)?.avatar_url ?? null}
                         size="md"
                       />
                     </div>
                     <span className="text-[10px] font-bold text-white drop-shadow-md">
-                      {getPlayerName(config.teamB[1]).split(" ")[0]}
+                      {getPlayerName(teamBBot).split(" ")[0]}
                     </span>
-                    {serverPlayerId === config.teamB[1] && (
+                    {serverPlayerId === teamBBot && (
                       <span className="text-[8px] font-bold text-ball-yellow bg-black/30 rounded px-1">
                         S{serverNumber ?? ""}
                       </span>
                     )}
-                  </div>
+                    {trackScorers && !state.isComplete && (
+                      <span className="text-[8px] font-medium text-white/50 mt-0.5">Tap to score</span>
+                    )}
+                  </button>
                 )}
               </div>
             </div>
@@ -338,7 +403,7 @@ export function LiveScoring({
       </div>
 
       {/* Rally Winner Buttons — large touch targets */}
-      {!state.isComplete && (
+      {!state.isComplete && !trackScorers && (
         <div className="space-y-2.5">
           <div className="grid grid-cols-2 gap-3">
             <button
@@ -388,6 +453,34 @@ export function LiveScoring({
           </div>
 
           {/* Fault buttons */}
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => handleRallyWinner("B")}
+              className="rounded-xl border border-hype-red/20 bg-hype-red/5 px-3 py-3 text-center transition-all active:scale-[0.97] cursor-pointer hover:bg-hype-red/10 hover:border-hype-red/40"
+            >
+              <span className="text-sm font-semibold text-hype-red/80">
+                Team A Fault
+              </span>
+            </button>
+            <button
+              onClick={() => handleRallyWinner("A")}
+              className="rounded-xl border border-hype-red/20 bg-hype-red/5 px-3 py-3 text-center transition-all active:scale-[0.97] cursor-pointer hover:bg-hype-red/10 hover:border-hype-red/40"
+            >
+              <span className="text-sm font-semibold text-hype-red/80">
+                Team B Fault
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Scorer mode hint + fault buttons */}
+      {!state.isComplete && trackScorers && (
+        <div className="space-y-2.5">
+          <p className="text-center text-xs font-medium text-text-muted">
+            Tap the player who scored on the court above
+          </p>
+          {/* Fault buttons still available in scorer mode */}
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => handleRallyWinner("B")}

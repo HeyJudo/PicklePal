@@ -639,7 +639,7 @@ Create players → Start session → Generate match → Score live → Save → 
 
 ### 7.5a. Player Management (Add/Edit/Photo)
 
-**Status:** 🟡 In progress  
+**Status:** ✅ Completed   
 **Effort:** Medium | **Dependencies:** 2a, 1d  
 **Deliverables:**
 - Add Player form (display_name required, color picker, optional photo upload)
@@ -661,7 +661,7 @@ Create players → Start session → Generate match → Score live → Save → 
 
 ### 7.5b. Late Arrival / Temporary Bench
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Completed  
 **Effort:** Medium | **Dependencies:** 4a, 4b  
 **Deliverables:**
 - During active session: mark player as "not arrived yet" → excluded from matchmaking
@@ -741,7 +741,7 @@ Create players → Start session → Generate match → Score live → Save → 
 
 ### 8a. Mobile/Tablet Court UI
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Completed  
 **Effort:** Large | **Dependencies:** 4d  
 - Refined court, touch-optimized buttons, high-contrast outdoor readability
 
