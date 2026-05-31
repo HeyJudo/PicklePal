@@ -11,6 +11,7 @@ interface PlayersListResult {
 }
 
 interface PlayerDetailResult {
+  readonly player: Player | null;
   readonly stats: PlayerStats | null;
   readonly duos: readonly DuoStats[];
   readonly error?: string;
@@ -66,7 +67,7 @@ export async function getPlayerDetail(
     .single();
 
   if (groupError || !group) {
-    return { stats: null, duos: [], error: "Group not found" };
+    return { player: null, stats: null, duos: [], error: "Group not found" };
   }
 
   // Fetch the player
@@ -79,7 +80,7 @@ export async function getPlayerDetail(
     .single();
 
   if (playerError || !player) {
-    return { stats: null, duos: [], error: "Player not found" };
+    return { player: null, stats: null, duos: [], error: "Player not found" };
   }
 
   // Fetch all players for duo stats
@@ -99,7 +100,7 @@ export async function getPlayerDetail(
 
   if (!sessions || sessions.length === 0) {
     const stats = computePlayerStats(player, []);
-    return { stats, duos: [] };
+    return { player, stats, duos: [] };
   }
 
   const sessionIds = sessions.map((s: { id: string }) => s.id);
@@ -120,5 +121,5 @@ export async function getPlayerDetail(
     (d) => d.playerAId === playerId || d.playerBId === playerId,
   );
 
-  return { stats, duos: playerDuos };
+  return { player, stats, duos: playerDuos };
 }

@@ -34,7 +34,7 @@ export function HostAuthGate({
     setShowModal(true);
   }, []);
 
-  const handleSuccess = useCallback(() => {
+  const handleSuccess = useCallback((_pin: string) => {
     grantAccess();
     setShowModal(false);
   }, [grantAccess]);

@@ -1,5 +1,6 @@
 import { getPlayers } from "./actions";
 import { PlayerCard } from "./PlayerCard";
+import { AddPlayerForm } from "./AddPlayerForm";
 
 interface PlayersPageProps {
   readonly params: Promise<{ slug: string }>;
@@ -11,11 +12,14 @@ export default async function PlayersPage({ params }: PlayersPageProps) {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold text-text-primary">Players</h1>
-        <p className="text-text-secondary mt-1">
-          Your crew roster — {players.length} player{players.length !== 1 ? "s" : ""}.
-        </p>
+      <header className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-text-primary">Players</h1>
+          <p className="text-text-secondary mt-1">
+            Your crew roster — {players.length} player{players.length !== 1 ? "s" : ""}.
+          </p>
+        </div>
+        <AddPlayerForm groupSlug={slug} />
       </header>
 
       {error ? (

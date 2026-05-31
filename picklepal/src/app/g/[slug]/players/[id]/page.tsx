@@ -8,15 +8,15 @@ interface PlayerDetailPageProps {
 
 export default async function PlayerDetailPage({ params }: PlayerDetailPageProps) {
   const { slug, id } = await params;
-  const { stats, duos, error } = await getPlayerDetail(slug, id);
+  const { player, stats, duos, error } = await getPlayerDetail(slug, id);
 
-  if (error === "Player not found" || !stats) {
+  if (error === "Player not found" || !stats || !player) {
     notFound();
   }
 
   return (
     <div className="space-y-6">
-      <PlayerProfile stats={stats} duos={duos} groupSlug={slug} />
+      <PlayerProfile stats={stats} duos={duos} groupSlug={slug} player={player} />
     </div>
   );
 }

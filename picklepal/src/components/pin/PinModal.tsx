@@ -6,7 +6,7 @@ import { verifyHostPin } from "@/app/g/[slug]/actions";
 interface PinModalProps {
   readonly groupSlug: string;
   readonly isOpen: boolean;
-  readonly onSuccess: () => void;
+  readonly onSuccess: (pin: string) => void;
   readonly onClose: () => void;
 }
 
@@ -41,7 +41,7 @@ export function PinModal({
         const result = await verifyHostPin(groupSlug, pin);
 
         if (result.success) {
-          onSuccess();
+          onSuccess(pin);
         } else {
           setError(result.error ?? "Verification failed");
           setPin("");

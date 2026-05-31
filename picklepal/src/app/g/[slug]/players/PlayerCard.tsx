@@ -1,35 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { PlayerAvatar } from "@/components/players";
 import type { Player } from "@/lib/supabase";
 
 interface PlayerCardProps {
   readonly player: Player;
   readonly groupSlug: string;
-}
-
-function PlayerAvatar({
-  displayName,
-  color,
-}: {
-  readonly displayName: string;
-  readonly color: string | null;
-}) {
-  const initials = displayName
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
-  return (
-    <div
-      className="flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold text-white shrink-0"
-      style={{ backgroundColor: color ?? "#64748B" }}
-    >
-      {initials}
-    </div>
-  );
 }
 
 export function PlayerCard({ player, groupSlug }: PlayerCardProps) {
@@ -38,7 +15,12 @@ export function PlayerCard({ player, groupSlug }: PlayerCardProps) {
       href={`/g/${groupSlug}/players/${player.id}`}
       className="flex items-center gap-4 rounded-xl border border-border bg-surface p-4 hover:bg-surface-muted/50 transition-colors cursor-pointer"
     >
-      <PlayerAvatar displayName={player.display_name} color={player.color} />
+      <PlayerAvatar
+        displayName={player.display_name}
+        color={player.color}
+        avatarUrl={player.avatar_url}
+        size="md"
+      />
       <div className="min-w-0 flex-1">
         <p className="font-semibold text-text-primary truncate">
           {player.display_name}

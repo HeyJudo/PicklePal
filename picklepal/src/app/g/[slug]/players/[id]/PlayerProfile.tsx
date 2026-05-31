@@ -1,12 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { PlayerAvatar } from "@/components/players";
+import { EditPlayerForm } from "./EditPlayerForm";
 import type { PlayerStats, DuoStats, MatchSummary } from "@/lib/stats";
+import type { Player } from "@/lib/supabase";
 
 interface PlayerProfileProps {
   readonly stats: PlayerStats;
   readonly duos: readonly DuoStats[];
   readonly groupSlug: string;
+  readonly player: Player;
 }
 
 function formatWinRate(rate: number): string {
@@ -16,30 +20,6 @@ function formatWinRate(rate: number): string {
 function formatPointDiff(diff: number): string {
   if (diff > 0) return `+${diff}`;
   return `${diff}`;
-}
-
-function PlayerAvatar({
-  displayName,
-  color,
-}: {
-  readonly displayName: string;
-  readonly color: string | null;
-}) {
-  const initials = displayName
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
-  return (
-    <div
-      className="flex h-16 w-16 items-center justify-center rounded-full text-xl font-bold text-white"
-      style={{ backgroundColor: color ?? "#64748B" }}
-    >
-      {initials}
-    </div>
-  );
 }
 
 function StatBox({
@@ -135,7 +115,7 @@ function DuoRow({
   );
 }
 
-export function PlayerProfile({ stats, duos, groupSlug }: PlayerProfileProps) {
+export function PlayerProfile({ stats, duos, groupSlug, player }: PlayerProfileProps) {
   return (
     <div className="space-y-6">
       {/* Back link */}
@@ -162,11 +142,19 @@ export function PlayerProfile({ stats, duos, groupSlug }: PlayerProfileProps) {
 
       {/* Player header */}
       <div className="flex items-center gap-4">
-        <PlayerAvatar displayName={stats.displayName} color={stats.color} />
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">
-            {stats.displayName}
-          </h1>
+        <PlayerAvatar
+          displayName={stats.displayName}
+          color={stats.color}
+          avatarUrl={player.avatar_url}
+          size="lg"
+        />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-text-primary truncate">
+              {stats.displayName}
+            </h1>
+            <EditPlayerForm player={player} groupSlug={groupSlug} />
+          </div>
           <p className="text-text-secondary text-sm mt-0.5">
             {stats.gamesPlayed} game{stats.gamesPlayed !== 1 ? "s" : ""} played
           </p>

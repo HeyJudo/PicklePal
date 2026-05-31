@@ -616,7 +616,7 @@ Create players → Start session → Generate match → Score live → Save → 
 
 ### 7c. Public Recap Page (Optional/Stretch)
 
-**Status:** 🔲 Not started  
+**Status:** ⏸️ Skipped (optional)  
 **Effort:** Small | **Dependencies:** 7a, 5d  
 **Deliverables:**
 - Public URL at `/g/[slug]/sessions/[id]/recap`
@@ -629,6 +629,111 @@ Create players → Start session → Generate match → Score live → Save → 
 - [ ] OG image shows session stats in link previews
 - [ ] Page displays session awards and overlay preview
 - [ ] "Download Overlay" button available on this page too
+
+---
+
+## Phase 7.5: Quality of Life Features
+
+> Mini-phase of real-world usability features added before final polish.
+> All subphases are independent — can be built in any order.
+
+### 7.5a. Player Management (Add/Edit/Photo)
+
+**Status:** 🟡 In progress  
+**Effort:** Medium | **Dependencies:** 2a, 1d  
+**Deliverables:**
+- Add Player form (display_name required, color picker, optional photo upload)
+- Edit Player profile (update name, color, photo)
+- Photo upload to Supabase Storage, stored as `avatar_url`
+- Avatar display: photo if available, initials fallback
+- Players page gets "Add Player" button (PIN-protected)
+- Player detail page gets "Edit" button (PIN-protected)
+
+**Acceptance Criteria:**
+- [ ] Host can add a new player with name and color
+- [ ] Host can upload a photo for any player
+- [ ] Avatar shows photo when available, initials when not
+- [ ] Host can edit player name, color, and photo
+- [ ] All write actions require host PIN
+- [ ] Player appears in roster immediately after creation
+
+---
+
+### 7.5b. Late Arrival / Temporary Bench
+
+**Status:** 🔲 Not started  
+**Effort:** Medium | **Dependencies:** 4a, 4b  
+**Deliverables:**
+- During active session: mark player as "not arrived yet" → excluded from matchmaking
+- "Player arrived" action → adds them back to the active pool
+- "Remove from session" for someone who leaves early
+- Matchmaking respects the active pool, not the full session roster
+- UI: toggle/chip on each player in the session player list
+
+**Acceptance Criteria:**
+- [ ] Benched players are excluded from matchup generation
+- [ ] Host can add a player back mid-session
+- [ ] Matchmaking fairness accounts for late arrivals (fewer games played)
+- [ ] Clear visual distinction between active and benched players
+- [ ] PIN-protected actions
+
+---
+
+### 7.5c. Manual Matchup Override
+
+**Status:** 🔲 Not started  
+**Effort:** Small | **Dependencies:** 4b  
+**Deliverables:**
+- "Pick Teams" button as alternative to "Generate Next Match"
+- Host selects exactly which players are on each team
+- Skips auto-shuffle algorithm
+- Creates a normal match record, flows into same scoring screen
+
+**Acceptance Criteria:**
+- [ ] Host can manually assign players to teams
+- [ ] Validates correct player count (4 for doubles, 2 for singles)
+- [ ] Match flows into position confirmation → scoring as normal
+- [ ] PIN-protected
+
+---
+
+### 7.5d. Record Past Match (Manual Entry)
+
+**Status:** 🔲 Not started  
+**Effort:** Medium | **Dependencies:** 2a, 1d  
+**Deliverables:**
+- Form: pick match type, select players/teams, enter final scores
+- Creates a completed match record with no rally events (just final scores)
+- Counts toward leaderboard and stats
+- Marked as `source: 'manual'` to distinguish from live-scored matches
+- PIN-protected
+
+**Acceptance Criteria:**
+- [ ] Host can record a past match with final scores
+- [ ] Match appears in history and affects leaderboard
+- [ ] Clearly marked as manually recorded
+- [ ] Validates scores (winner must meet target, win-by-2)
+- [ ] PIN-protected
+
+---
+
+### 7.5e. Point Scorer Tracking (Optional Mode)
+
+**Status:** 🔲 Not started  
+**Effort:** Medium | **Dependencies:** 3b, 4d  
+**Deliverables:**
+- Session setting: "Track individual scorers" (off by default)
+- When enabled: after tapping rally winner (team), quick picker shows which player scored
+- Stored in rally_events as `scorer_player_id`
+- Factors into MVP calculation (bonus for individual points scored)
+- When disabled: existing flow unchanged (no extra taps)
+
+**Acceptance Criteria:**
+- [ ] Setting toggleable per session
+- [ ] Scorer picker appears only when enabled
+- [ ] Scorer data stored in rally events
+- [ ] MVP calculation uses scorer data when available
+- [ ] No impact on scoring speed when disabled
 
 ---
 
