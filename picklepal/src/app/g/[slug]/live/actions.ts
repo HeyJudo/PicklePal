@@ -170,7 +170,7 @@ export async function getGroupPlayers(groupSlug: string) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: players } = await (supabase as any)
     .from("players")
-    .select("id, display_name, color, is_active")
+    .select("id, display_name, color, avatar_url, is_active")
     .eq("group_id", group.id)
     .eq("is_active", true)
     .order("display_name");

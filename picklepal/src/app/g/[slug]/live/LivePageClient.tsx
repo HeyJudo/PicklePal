@@ -42,6 +42,7 @@ interface Player {
   readonly id: string;
   readonly display_name: string;
   readonly color: string | null;
+  readonly avatar_url: string | null;
 }
 
 interface LivePageClientProps {

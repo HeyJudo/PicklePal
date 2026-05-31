@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useHostAuth } from "@/hooks/useHostAuth";
+import { PlayerAvatar } from "@/components/players";
 import { verifyHostPin } from "../actions";
 import { startSession } from "./actions";
 
@@ -9,6 +10,7 @@ interface Player {
   readonly id: string;
   readonly display_name: string;
   readonly color: string | null;
+  readonly avatar_url: string | null;
 }
 
 interface StartSessionFormProps {
@@ -180,14 +182,12 @@ export function StartSessionForm({
                       : "border-border bg-surface hover:border-primary/40"
                   }`}
                 >
-                  <div
-                    className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-                    style={{
-                      backgroundColor: player.color ?? "#6366f1",
-                    }}
-                  >
-                    {player.display_name.charAt(0).toUpperCase()}
-                  </div>
+                  <PlayerAvatar
+                    displayName={player.display_name}
+                    color={player.color}
+                    avatarUrl={player.avatar_url}
+                    size="sm"
+                  />
                   <span className="text-sm font-medium text-text-primary truncate">
                     {player.display_name}
                   </span>

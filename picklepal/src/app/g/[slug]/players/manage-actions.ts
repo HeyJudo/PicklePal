@@ -223,8 +223,7 @@ export async function uploadPlayerAvatar(
     });
 
   if (uploadError) {
-    console.error("Avatar upload error:", uploadError.message);
-    return { success: false, error: `Failed to upload image: ${uploadError.message}` };
+    return { success: false, error: "Failed to upload image" };
   }
 
   // Get public URL
