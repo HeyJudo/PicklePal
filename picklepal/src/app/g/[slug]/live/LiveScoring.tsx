@@ -195,7 +195,7 @@ export function LiveScoring({
               <div className="relative flex items-center justify-center p-3 min-h-[80px]" style={{ backgroundColor: "#4A7FA5" }}>
                 {config.teamA[0] && (
                   <div className="flex flex-col items-center gap-1">
-                    <div className={`rounded-full p-0.5 ${serverPlayerId === config.teamA[0] ? "ring-2 ring-ball-yellow ring-offset-1" : ""}`}>
+                    <div className={`rounded-full p-0.5 ${serverPlayerId === config.teamA[0] ? "ring-2 ring-ball-yellow ring-offset-1" : ""} ${streak && streak.team === "A" && streak.count >= 3 ? "avatar-on-fire" : ""}`}>
                       <PlayerAvatar
                         displayName={getPlayer(config.teamA[0])?.display_name ?? "?"}
                         color={getPlayer(config.teamA[0])?.color ?? null}
@@ -218,7 +218,7 @@ export function LiveScoring({
               <div className="relative flex items-center justify-center p-3 min-h-[80px] border-t-[3px] border-white" style={{ backgroundColor: "#4A7FA5" }}>
                 {config.teamA[1] && (
                   <div className="flex flex-col items-center gap-1">
-                    <div className={`rounded-full p-0.5 ${serverPlayerId === config.teamA[1] ? "ring-2 ring-ball-yellow ring-offset-1" : ""}`}>
+                    <div className={`rounded-full p-0.5 ${serverPlayerId === config.teamA[1] ? "ring-2 ring-ball-yellow ring-offset-1" : ""} ${streak && streak.team === "A" && streak.count >= 3 ? "avatar-on-fire" : ""}`}>
                       <PlayerAvatar
                         displayName={getPlayer(config.teamA[1])?.display_name ?? "?"}
                         color={getPlayer(config.teamA[1])?.color ?? null}
@@ -257,7 +257,7 @@ export function LiveScoring({
               <div className="relative flex items-center justify-center p-3 min-h-[80px]" style={{ backgroundColor: "#4A7FA5" }}>
                 {config.teamB[0] && (
                   <div className="flex flex-col items-center gap-1">
-                    <div className={`rounded-full p-0.5 ${serverPlayerId === config.teamB[0] ? "ring-2 ring-ball-yellow ring-offset-1" : ""}`}>
+                    <div className={`rounded-full p-0.5 ${serverPlayerId === config.teamB[0] ? "ring-2 ring-ball-yellow ring-offset-1" : ""} ${streak && streak.team === "B" && streak.count >= 3 ? "avatar-on-fire" : ""}`}>
                       <PlayerAvatar
                         displayName={getPlayer(config.teamB[0])?.display_name ?? "?"}
                         color={getPlayer(config.teamB[0])?.color ?? null}
@@ -280,7 +280,7 @@ export function LiveScoring({
               <div className="relative flex items-center justify-center p-3 min-h-[80px] border-t-[3px] border-white" style={{ backgroundColor: "#4A7FA5" }}>
                 {config.teamB[1] && (
                   <div className="flex flex-col items-center gap-1">
-                    <div className={`rounded-full p-0.5 ${serverPlayerId === config.teamB[1] ? "ring-2 ring-ball-yellow ring-offset-1" : ""}`}>
+                    <div className={`rounded-full p-0.5 ${serverPlayerId === config.teamB[1] ? "ring-2 ring-ball-yellow ring-offset-1" : ""} ${streak && streak.team === "B" && streak.count >= 3 ? "avatar-on-fire" : ""}`}>
                       <PlayerAvatar
                         displayName={getPlayer(config.teamB[1])?.display_name ?? "?"}
                         color={getPlayer(config.teamB[1])?.color ?? null}
