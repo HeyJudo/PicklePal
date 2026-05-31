@@ -179,146 +179,148 @@ export function LiveScoring({
         {syncDisplay.label}
       </div>
 
-      {/* Court View */}
-      <div className="relative rounded-2xl overflow-hidden border-2 border-court-green/30 bg-gradient-to-b from-court-green/5 via-surface to-sky-blue/5">
-        {/* Court center line */}
-        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[2px] bg-gradient-to-r from-transparent via-border to-transparent" />
+      {/* Court View — Top-down pickleball court */}
+      <div className="relative rounded-2xl overflow-hidden p-3" style={{ backgroundColor: "#8BA86B" }}>
+        {/* Court surface */}
+        <div className="relative rounded-lg overflow-hidden border-[3px] border-white">
+          {/* Court grid: Left service boxes | Kitchen | Right service boxes */}
+          <div className="grid grid-cols-[1fr_0.6fr_1fr]">
+            {/* Team A side — two service boxes */}
+            <div className="grid grid-rows-2 border-r-[3px] border-white">
+              {/* Top service box */}
+              <div className="relative flex items-center justify-center p-3 min-h-[80px]" style={{ backgroundColor: "#4A7FA5" }}>
+                {config.teamA[0] && (
+                  <div className="flex flex-col items-center gap-1">
+                    <div className={`rounded-full p-0.5 ${serverPlayerId === config.teamA[0] ? "ring-2 ring-ball-yellow ring-offset-1" : ""}`}>
+                      <PlayerAvatar
+                        displayName={getPlayer(config.teamA[0])?.display_name ?? "?"}
+                        color={getPlayer(config.teamA[0])?.color ?? null}
+                        avatarUrl={getPlayer(config.teamA[0])?.avatar_url ?? null}
+                        size="md"
+                      />
+                    </div>
+                    <span className="text-[10px] font-bold text-white drop-shadow-md">
+                      {getPlayerName(config.teamA[0]).split(" ")[0]}
+                    </span>
+                    {serverPlayerId === config.teamA[0] && (
+                      <span className="text-[8px] font-bold text-ball-yellow bg-black/30 rounded px-1">
+                        S{serverNumber ?? ""}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+              {/* Bottom service box */}
+              <div className="relative flex items-center justify-center p-3 min-h-[80px] border-t-[3px] border-white" style={{ backgroundColor: "#4A7FA5" }}>
+                {config.teamA[1] && (
+                  <div className="flex flex-col items-center gap-1">
+                    <div className={`rounded-full p-0.5 ${serverPlayerId === config.teamA[1] ? "ring-2 ring-ball-yellow ring-offset-1" : ""}`}>
+                      <PlayerAvatar
+                        displayName={getPlayer(config.teamA[1])?.display_name ?? "?"}
+                        color={getPlayer(config.teamA[1])?.color ?? null}
+                        avatarUrl={getPlayer(config.teamA[1])?.avatar_url ?? null}
+                        size="md"
+                      />
+                    </div>
+                    <span className="text-[10px] font-bold text-white drop-shadow-md">
+                      {getPlayerName(config.teamA[1]).split(" ")[0]}
+                    </span>
+                    {serverPlayerId === config.teamA[1] && (
+                      <span className="text-[8px] font-bold text-ball-yellow bg-black/30 rounded px-1">
+                        S{serverNumber ?? ""}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
 
-        <div className="relative grid grid-cols-[1fr_auto_1fr] items-stretch">
-          {/* Team A Side */}
-          <div className="p-4 flex flex-col items-center justify-center gap-3">
-            {/* Serving indicator */}
-            {servingTeam === "A" && (
-              <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-court-green/10 border border-court-green/30 px-2 py-0.5">
-                <div className="h-2 w-2 rounded-full bg-ball-yellow animate-pulse" />
-                <span className="text-[10px] font-bold text-court-green uppercase tracking-wider">
-                  Serve
+            {/* Kitchen (NVZ) — center */}
+            <div className="relative border-r-[3px] border-white" style={{ backgroundColor: "#6BC0D6" }}>
+              {/* Net line */}
+              <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[3px] bg-black/70" />
+              {/* Kitchen label */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-[9px] font-bold text-white/60 uppercase tracking-widest rotate-90">
+                  NVZ
                 </span>
               </div>
-            )}
+            </div>
 
-            {/* Score */}
-            <p
-              className={`text-6xl font-black tabular-nums leading-none ${
-                servingTeam === "A"
-                  ? "text-court-green drop-shadow-[0_2px_4px_rgba(45,139,78,0.3)]"
-                  : "text-text-primary"
-              }`}
-            >
-              {state.teamAScore}
-            </p>
-
-            {/* Players */}
-            <div className="flex flex-col items-center gap-2 mt-1">
-              {config.teamA.map((id) => {
-                const player = getPlayer(id);
-                const isServer = serverPlayerId === id;
-                return (
-                  <div
-                    key={id}
-                    className={`flex items-center gap-2 rounded-full px-2.5 py-1.5 transition-all ${
-                      isServer
-                        ? "bg-court-green/10 border border-court-green/40 shadow-sm"
-                        : "bg-surface-muted border border-transparent"
-                    }`}
-                  >
-                    <PlayerAvatar
-                      displayName={player?.display_name ?? "?"}
-                      color={player?.color ?? null}
-                      avatarUrl={player?.avatar_url ?? null}
-                      size="sm"
-                    />
-                    <div className="flex flex-col">
-                      <span className="text-xs font-semibold text-text-primary leading-tight">
-                        {getPlayerName(id).split(" ")[0]}
-                      </span>
-                      {isServer && (
-                        <span className="text-[9px] font-bold text-court-green uppercase">
-                          Server{serverNumber ? ` ${serverNumber}` : ""}
-                        </span>
-                      )}
+            {/* Team B side — two service boxes */}
+            <div className="grid grid-rows-2">
+              {/* Top service box */}
+              <div className="relative flex items-center justify-center p-3 min-h-[80px]" style={{ backgroundColor: "#4A7FA5" }}>
+                {config.teamB[0] && (
+                  <div className="flex flex-col items-center gap-1">
+                    <div className={`rounded-full p-0.5 ${serverPlayerId === config.teamB[0] ? "ring-2 ring-ball-yellow ring-offset-1" : ""}`}>
+                      <PlayerAvatar
+                        displayName={getPlayer(config.teamB[0])?.display_name ?? "?"}
+                        color={getPlayer(config.teamB[0])?.color ?? null}
+                        avatarUrl={getPlayer(config.teamB[0])?.avatar_url ?? null}
+                        size="md"
+                      />
                     </div>
+                    <span className="text-[10px] font-bold text-white drop-shadow-md">
+                      {getPlayerName(config.teamB[0]).split(" ")[0]}
+                    </span>
+                    {serverPlayerId === config.teamB[0] && (
+                      <span className="text-[8px] font-bold text-ball-yellow bg-black/30 rounded px-1">
+                        S{serverNumber ?? ""}
+                      </span>
+                    )}
                   </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Center Divider */}
-          <div className="flex flex-col items-center justify-center py-6 px-2">
-            <div className="w-[2px] flex-1 bg-gradient-to-b from-court-green/30 via-border to-sky-blue/30 rounded-full" />
-            <div className="my-2 rounded-full bg-surface border border-border shadow-sm px-2.5 py-1.5">
-              <span className="text-[11px] font-mono font-bold text-text-secondary tracking-wide">
-                {scoreCall}
-              </span>
-            </div>
-            <div className="w-[2px] flex-1 bg-gradient-to-b from-sky-blue/30 via-border to-court-green/30 rounded-full" />
-          </div>
-
-          {/* Team B Side */}
-          <div className="p-4 flex flex-col items-center justify-center gap-3">
-            {/* Serving indicator */}
-            {servingTeam === "B" && (
-              <div className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-sky-blue/10 border border-sky-blue/30 px-2 py-0.5">
-                <div className="h-2 w-2 rounded-full bg-ball-yellow animate-pulse" />
-                <span className="text-[10px] font-bold text-sky-blue uppercase tracking-wider">
-                  Serve
-                </span>
+                )}
               </div>
-            )}
-
-            {/* Score */}
-            <p
-              className={`text-6xl font-black tabular-nums leading-none ${
-                servingTeam === "B"
-                  ? "text-sky-blue drop-shadow-[0_2px_4px_rgba(33,150,243,0.3)]"
-                  : "text-text-primary"
-              }`}
-            >
-              {state.teamBScore}
-            </p>
-
-            {/* Players */}
-            <div className="flex flex-col items-center gap-2 mt-1">
-              {config.teamB.map((id) => {
-                const player = getPlayer(id);
-                const isServer = serverPlayerId === id;
-                return (
-                  <div
-                    key={id}
-                    className={`flex items-center gap-2 rounded-full px-2.5 py-1.5 transition-all ${
-                      isServer
-                        ? "bg-sky-blue/10 border border-sky-blue/40 shadow-sm"
-                        : "bg-surface-muted border border-transparent"
-                    }`}
-                  >
-                    <PlayerAvatar
-                      displayName={player?.display_name ?? "?"}
-                      color={player?.color ?? null}
-                      avatarUrl={player?.avatar_url ?? null}
-                      size="sm"
-                    />
-                    <div className="flex flex-col">
-                      <span className="text-xs font-semibold text-text-primary leading-tight">
-                        {getPlayerName(id).split(" ")[0]}
-                      </span>
-                      {isServer && (
-                        <span className="text-[9px] font-bold text-sky-blue uppercase">
-                          Server{serverNumber ? ` ${serverNumber}` : ""}
-                        </span>
-                      )}
+              {/* Bottom service box */}
+              <div className="relative flex items-center justify-center p-3 min-h-[80px] border-t-[3px] border-white" style={{ backgroundColor: "#4A7FA5" }}>
+                {config.teamB[1] && (
+                  <div className="flex flex-col items-center gap-1">
+                    <div className={`rounded-full p-0.5 ${serverPlayerId === config.teamB[1] ? "ring-2 ring-ball-yellow ring-offset-1" : ""}`}>
+                      <PlayerAvatar
+                        displayName={getPlayer(config.teamB[1])?.display_name ?? "?"}
+                        color={getPlayer(config.teamB[1])?.color ?? null}
+                        avatarUrl={getPlayer(config.teamB[1])?.avatar_url ?? null}
+                        size="md"
+                      />
                     </div>
+                    <span className="text-[10px] font-bold text-white drop-shadow-md">
+                      {getPlayerName(config.teamB[1]).split(" ")[0]}
+                    </span>
+                    {serverPlayerId === config.teamB[1] && (
+                      <span className="text-[8px] font-bold text-ball-yellow bg-black/30 rounded px-1">
+                        S{serverNumber ?? ""}
+                      </span>
+                    )}
                   </div>
-                );
-              })}
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Target score indicator */}
-        <div className="absolute bottom-1.5 inset-x-0 flex justify-center">
-          <span className="text-[10px] text-text-muted font-medium">
-            First to {targetScore}, win by {winBy}
+        {/* Scoreboard overlay — floating on top of court */}
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-black/70 backdrop-blur-sm px-4 py-1.5 shadow-lg">
+          <span className={`text-xl font-black tabular-nums ${servingTeam === "A" ? "text-ball-yellow" : "text-white"}`}>
+            {state.teamAScore}
+          </span>
+          <span className="text-white/50 text-sm font-medium">–</span>
+          <span className={`text-xl font-black tabular-nums ${servingTeam === "B" ? "text-ball-yellow" : "text-white"}`}>
+            {state.teamBScore}
+          </span>
+          {isDoubles && (
+            <>
+              <span className="text-white/30 text-xs">|</span>
+              <span className="text-[10px] font-mono text-white/70">{scoreCall}</span>
+            </>
+          )}
+        </div>
+
+        {/* Serving team indicator */}
+        <div className={`absolute bottom-2 ${servingTeam === "A" ? "left-3" : "right-3"} flex items-center gap-1 rounded-full bg-black/60 backdrop-blur-sm px-2 py-1`}>
+          <div className="h-2 w-2 rounded-full bg-ball-yellow animate-pulse" />
+          <span className="text-[9px] font-bold text-white uppercase">
+            {servingTeam === "A" ? "Team A" : "Team B"} Serving
           </span>
         </div>
       </div>
