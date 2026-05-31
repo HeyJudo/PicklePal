@@ -8,10 +8,11 @@ import { LiveScoring } from "./LiveScoring";
 import { MatchResult } from "./MatchResult";
 import { GameDayRecap } from "./GameDayRecap";
 import { OverlayRenderer } from "@/components/share";
-import { endSession, getSessionRecap } from "./actions";
+import { endSession, getSessionRecap, getSessionMatches } from "./actions";
 import type { MatchStartConfig } from "./PositionConfirmation";
 import type { CompletedMatchData } from "./MatchResult";
 import type { Matchup } from "@/lib/matchmaking";
+import type { SessionMatchData } from "./actions";
 import {
   clearRecoverableMatch,
   getRecoverableMatch,
@@ -56,6 +57,7 @@ interface LivePageClientProps {
   readonly initialSession: SessionData | null;
   readonly players: readonly Player[];
   readonly initialSessionPlayers: readonly SessionPlayerEntry[];
+  readonly initialSessionMatches: readonly SessionMatchData[];
 }
 
 export function LivePageClient({
@@ -63,12 +65,16 @@ export function LivePageClient({
   initialSession,
   players,
   initialSessionPlayers,
+  initialSessionMatches,
 }: LivePageClientProps) {
   const [activeSession, setActiveSession] = useState<SessionData | null>(
     initialSession,
   );
   const [sessionPlayers, setSessionPlayers] = useState<readonly SessionPlayerEntry[]>(
     initialSessionPlayers,
+  );
+  const [sessionMatches, setSessionMatches] = useState<readonly SessionMatchData[]>(
+    initialSessionMatches,
   );
   const [currentMatchup, setCurrentMatchup] = useState<Matchup | null>(null);
   const [matchConfig, setMatchConfig] = useState<MatchStartConfig | null>(null);
@@ -191,7 +197,14 @@ export function LivePageClient({
     setStep("result");
   };
 
-  const handleNextMatch = () => {
+  const handleNextMatch = async () => {
+    // Refresh session matches to include the just-completed match
+    if (activeSession) {
+      const result = await getSessionMatches(activeSession.id);
+      if (result.success && result.data) {
+        setSessionMatches(result.data);
+      }
+    }
     setMatchConfig(null);
     setMatchLocalId(null);
     setRecoveredHistory(null);
@@ -303,6 +316,7 @@ export function LivePageClient({
           session={activeSession}
           players={players}
           sessionPlayers={sessionPlayers}
+          sessionMatches={sessionMatches}
           onSessionEnded={handleSessionEnded}
           onMatchConfirmed={handleMatchConfirmed}
           onPlayerStatusChanged={handlePlayerStatusChanged}

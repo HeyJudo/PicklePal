@@ -6,8 +6,10 @@ import { verifyHostPin } from "../actions";
 import { endSession } from "./actions";
 import { MatchQueue } from "./MatchQueue";
 import { SessionPlayerList } from "./SessionPlayerList";
+import { SessionMatchHistory } from "./SessionMatchHistory";
 import type { Matchup } from "@/lib/matchmaking";
 import type { SessionPlayerStatus } from "@/lib/supabase";
+import type { SessionMatchData } from "./actions";
 
 interface Player {
   readonly id: string;
@@ -33,6 +35,7 @@ interface ActiveSessionProps {
   };
   readonly players: readonly Player[];
   readonly sessionPlayers: readonly SessionPlayerEntry[];
+  readonly sessionMatches: readonly SessionMatchData[];
   readonly onSessionEnded: () => void;
   readonly onMatchConfirmed: (matchup: Matchup) => void;
   readonly onPlayerStatusChanged: (playerId: string, newStatus: SessionPlayerStatus) => void;
@@ -43,6 +46,7 @@ export function ActiveSession({
   session,
   players,
   sessionPlayers,
+  sessionMatches,
   onSessionEnded,
   onMatchConfirmed,
   onPlayerStatusChanged,
@@ -149,6 +153,9 @@ export function ActiveSession({
         isHost={isHost}
         onPlayerStatusChanged={onPlayerStatusChanged}
       />
+
+      {/* Completed Matches */}
+      <SessionMatchHistory matches={sessionMatches} players={players} />
 
       {/* PIN Prompt */}
       {showPinInput && (

@@ -355,3 +355,36 @@ export async function getSessionRecap(sessionId: string): Promise<RecapResult> {
     },
   };
 }
+
+// ─── Get Session Completed Matches ───────────────────────────────────────────
+
+export interface SessionMatchData {
+  readonly id: string;
+  readonly match_type: string;
+  readonly team_a_player_ids: string[];
+  readonly team_b_player_ids: string[];
+  readonly team_a_score: number;
+  readonly team_b_score: number;
+  readonly winning_team: string | null;
+  readonly completed_at: string | null;
+}
+
+export async function getSessionMatches(
+  sessionId: string,
+): Promise<ActionResult<SessionMatchData[]>> {
+  const supabase = createServerClient();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
+    .from("matches")
+    .select("id, match_type, team_a_player_ids, team_b_player_ids, team_a_score, team_b_score, winning_team, completed_at")
+    .eq("session_id", sessionId)
+    .eq("status", "completed")
+    .order("completed_at", { ascending: false });
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, data: data ?? [] };
+}

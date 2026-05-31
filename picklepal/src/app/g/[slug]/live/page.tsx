@@ -1,4 +1,4 @@
-import { getActiveSession, getGroupPlayers } from "./actions";
+import { getActiveSession, getGroupPlayers, getSessionMatches } from "./actions";
 import { getSessionPlayers } from "./session-player-actions";
 import { LivePageClient } from "./LivePageClient";
 
@@ -16,10 +16,15 @@ export default async function LivePage({ params }: LivePageProps) {
 
   const activeSession = sessionResult.success ? sessionResult.data ?? null : null;
 
-  // Fetch session players if there's an active session
+  // Fetch session players and matches if there's an active session
   let sessionPlayers: { playerId: string; status: "active" | "benched" | "removed" }[] = [];
+  let sessionMatches: Awaited<ReturnType<typeof getSessionMatches>>["data"] = [];
   if (activeSession) {
-    const spResult = await getSessionPlayers(activeSession.id);
+    const [spResult, matchesResult] = await Promise.all([
+      getSessionPlayers(activeSession.id),
+      getSessionMatches(activeSession.id),
+    ]);
+
     if (spResult.success && spResult.data) {
       sessionPlayers = spResult.data.map((sp) => ({
         playerId: sp.player_id,
@@ -35,6 +40,10 @@ export default async function LivePage({ params }: LivePageProps) {
         status: "active" as const,
       }));
     }
+
+    if (matchesResult.success && matchesResult.data) {
+      sessionMatches = matchesResult.data;
+    }
   }
 
   return (
@@ -43,6 +52,7 @@ export default async function LivePage({ params }: LivePageProps) {
       initialSession={activeSession}
       players={players}
       initialSessionPlayers={sessionPlayers}
+      initialSessionMatches={sessionMatches ?? []}
     />
   );
 }
