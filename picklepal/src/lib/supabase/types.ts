@@ -7,6 +7,7 @@ export type SessionStatus = "active" | "completed" | "cancelled";
 export type MatchStatus = "queued" | "active" | "completed" | "cancelled";
 export type MatchType = "singles" | "doubles";
 export type QueueItemStatus = "pending" | "active" | "completed" | "skipped";
+export type SessionPlayerStatus = "active" | "benched" | "removed";
 
 export interface Database {
   public: {
@@ -248,6 +249,31 @@ export interface Database {
           generated_config?: Record<string, unknown> | null;
         };
       };
+      session_players: {
+        Row: {
+          id: string;
+          session_id: string;
+          player_id: string;
+          status: SessionPlayerStatus;
+          joined_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          player_id: string;
+          status?: SessionPlayerStatus;
+          joined_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          player_id?: string;
+          status?: SessionPlayerStatus;
+          updated_at?: string;
+        };
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -256,6 +282,7 @@ export interface Database {
       match_status: MatchStatus;
       match_type: MatchType;
       queue_item_status: QueueItemStatus;
+      session_player_status: SessionPlayerStatus;
     };
   };
 }
@@ -269,3 +296,5 @@ export type RallyEvent = Database["public"]["Tables"]["rally_events"]["Row"];
 export type MatchQueueItem =
   Database["public"]["Tables"]["match_queue_items"]["Row"];
 export type RecapCard = Database["public"]["Tables"]["recap_cards"]["Row"];
+export type SessionPlayer =
+  Database["public"]["Tables"]["session_players"]["Row"];

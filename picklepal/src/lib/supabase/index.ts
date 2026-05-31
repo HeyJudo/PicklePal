@@ -13,4 +13,5 @@ export type {
   MatchStatus,
   MatchType,
   QueueItemStatus,
+  SessionPlayerStatus,
 } from "./types";

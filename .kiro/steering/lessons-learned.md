@@ -116,6 +116,18 @@ Write-action buttons (End Game Day, Start Session, correct scores) should always
 {isHost && <button onClick={handleAction}>End Game Day</button>}
 ```
 
+### `MatchQueue` Uses `useState` Initializer — Reset with `key` Prop on Player Changes
+The `MatchQueue` component initializes its `MatchmakingState` via `useState(() => createMatchmakingState(...))`. This means if the player list changes (bench/activate/add), the internal state won't update. The fix is to pass a `key` prop derived from the active player IDs so React remounts the component with fresh state:
+```tsx
+<MatchQueue
+  key={activePlayers.map((p) => p.id).join(",")}
+  players={activePlayers}
+  matchType={matchType}
+  onMatchSelected={onMatchConfirmed}
+/>
+```
+This pattern applies to any component that derives initial state from props via `useState` initializer and needs to reset when those props change structurally.
+
 ---
 
 ## Architecture Decisions

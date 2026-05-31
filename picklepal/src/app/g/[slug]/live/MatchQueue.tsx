@@ -63,16 +63,28 @@ export function MatchQueue({
   const getPlayerColor = (id: string) =>
     playerMap.get(id)?.color ?? "#6366f1";
 
+  const minPlayers = matchType === "doubles" ? 4 : 2;
+  const hasEnoughPlayers = players.length >= minPlayers;
+
   return (
     <div className="space-y-4">
       {/* Generate Button */}
       {!currentMatchup && (
-        <button
-          onClick={generateNext}
-          className="w-full rounded-xl bg-primary px-4 py-3.5 text-base font-semibold text-white hover:bg-primary/90 transition-colors cursor-pointer"
-        >
-          Generate Next Match
-        </button>
+        <>
+          <button
+            onClick={generateNext}
+            disabled={!hasEnoughPlayers}
+            className="w-full rounded-xl bg-primary px-4 py-3.5 text-base font-semibold text-white hover:bg-primary/90 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Generate Next Match
+          </button>
+          {!hasEnoughPlayers && (
+            <p className="text-sm text-amber-600 text-center">
+              Need at least {minPlayers} active players for {matchType}.
+              Activate benched players or add a late arrival.
+            </p>
+          )}
+        </>
       )}
 
       {/* Current Matchup Display */}

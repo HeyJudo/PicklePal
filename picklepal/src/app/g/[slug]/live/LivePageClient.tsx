@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { StartSessionForm } from "./StartSessionForm";
 import { ActiveSession } from "./ActiveSession";
 import { PositionConfirmation } from "./PositionConfirmation";
@@ -25,6 +25,7 @@ import {
   isDoublesState,
 } from "@/lib/engine";
 import type { MatchHistory, DoublesMatchState, SinglesMatchState } from "@/lib/engine";
+import type { SessionPlayerStatus } from "@/lib/supabase";
 
 type LiveStep = "idle" | "active" | "positions" | "scoring" | "result" | "recap" | "overlay";
 
@@ -45,19 +46,29 @@ interface Player {
   readonly avatar_url: string | null;
 }
 
+interface SessionPlayerEntry {
+  readonly playerId: string;
+  readonly status: SessionPlayerStatus;
+}
+
 interface LivePageClientProps {
   readonly groupSlug: string;
   readonly initialSession: SessionData | null;
   readonly players: readonly Player[];
+  readonly initialSessionPlayers: readonly SessionPlayerEntry[];
 }
 
 export function LivePageClient({
   groupSlug,
   initialSession,
   players,
+  initialSessionPlayers,
 }: LivePageClientProps) {
   const [activeSession, setActiveSession] = useState<SessionData | null>(
     initialSession,
+  );
+  const [sessionPlayers, setSessionPlayers] = useState<readonly SessionPlayerEntry[]>(
+    initialSessionPlayers,
   );
   const [currentMatchup, setCurrentMatchup] = useState<Matchup | null>(null);
   const [matchConfig, setMatchConfig] = useState<MatchStartConfig | null>(null);
@@ -89,6 +100,25 @@ export function LivePageClient({
     });
     window.location.reload();
   };
+
+  const handlePlayerStatusChanged = useCallback(
+    (playerId: string, newStatus: SessionPlayerStatus) => {
+      setSessionPlayers((prev) => {
+        if (newStatus === "removed") {
+          return prev.filter((sp) => sp.playerId !== playerId);
+        }
+        const existing = prev.find((sp) => sp.playerId === playerId);
+        if (existing) {
+          return prev.map((sp) =>
+            sp.playerId === playerId ? { ...sp, status: newStatus } : sp,
+          );
+        }
+        // Late arrival — add new entry
+        return [...prev, { playerId, status: newStatus }];
+      });
+    },
+    [],
+  );
 
   const handleSessionEnded = async () => {
     // End the session in the database
@@ -272,8 +302,10 @@ export function LivePageClient({
           groupSlug={groupSlug}
           session={activeSession}
           players={players}
+          sessionPlayers={sessionPlayers}
           onSessionEnded={handleSessionEnded}
           onMatchConfirmed={handleMatchConfirmed}
+          onPlayerStatusChanged={handlePlayerStatusChanged}
         />
       )}
 

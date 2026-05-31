@@ -6,11 +6,12 @@ interface PlayerAvatarProps {
   readonly displayName: string;
   readonly color: string | null;
   readonly avatarUrl: string | null;
-  readonly size?: "sm" | "md" | "lg" | "xl";
+  readonly size?: "xs" | "sm" | "md" | "lg" | "xl";
   readonly className?: string;
 }
 
 const sizeClasses = {
+  xs: "h-5 w-5 text-[10px]",
   sm: "h-8 w-8 text-xs",
   md: "h-12 w-12 text-sm",
   lg: "h-16 w-16 text-xl",
@@ -18,6 +19,7 @@ const sizeClasses = {
 } as const;
 
 const imageSizes = {
+  xs: 20,
   sm: 32,
   md: 48,
   lg: 64,

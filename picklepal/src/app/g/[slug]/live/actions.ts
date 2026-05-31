@@ -126,6 +126,23 @@ export async function startSession(
     return { success: false, error: sessionError?.message ?? "Failed to create session" };
   }
 
+  // Create session_players records for all present players
+  const sessionPlayerRows = input.presentPlayerIds.map((playerId) => ({
+    session_id: session.id,
+    player_id: playerId,
+    status: "active",
+  }));
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: spError } = await (supabase as any)
+    .from("session_players")
+    .insert(sessionPlayerRows);
+
+  if (spError) {
+    // Non-fatal: session was created, log but don't fail
+    console.error("Failed to create session_players:", spError);
+  }
+
   return { success: true, data: session };
 }
 

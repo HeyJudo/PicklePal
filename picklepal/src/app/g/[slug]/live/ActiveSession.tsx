@@ -1,16 +1,24 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { useHostAuth } from "@/hooks/useHostAuth";
 import { verifyHostPin } from "../actions";
 import { endSession } from "./actions";
 import { MatchQueue } from "./MatchQueue";
+import { SessionPlayerList } from "./SessionPlayerList";
 import type { Matchup } from "@/lib/matchmaking";
+import type { SessionPlayerStatus } from "@/lib/supabase";
 
 interface Player {
   readonly id: string;
   readonly display_name: string;
   readonly color: string | null;
+  readonly avatar_url: string | null;
+}
+
+interface SessionPlayerEntry {
+  readonly playerId: string;
+  readonly status: SessionPlayerStatus;
 }
 
 interface ActiveSessionProps {
@@ -24,22 +32,41 @@ interface ActiveSessionProps {
     readonly started_at: string;
   };
   readonly players: readonly Player[];
+  readonly sessionPlayers: readonly SessionPlayerEntry[];
   readonly onSessionEnded: () => void;
   readonly onMatchConfirmed: (matchup: Matchup) => void;
+  readonly onPlayerStatusChanged: (playerId: string, newStatus: SessionPlayerStatus) => void;
 }
 
 export function ActiveSession({
   groupSlug,
   session,
   players,
+  sessionPlayers,
   onSessionEnded,
   onMatchConfirmed,
+  onPlayerStatusChanged,
 }: ActiveSessionProps) {
   const { isHost, grantAccess } = useHostAuth(groupSlug);
   const [isPending, startTransition] = useTransition();
   const [showPinInput, setShowPinInput] = useState(false);
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState("");
+
+  // Filter to only active players for matchmaking
+  const activePlayerIds = useMemo(
+    () => new Set(
+      sessionPlayers
+        .filter((sp) => sp.status === "active")
+        .map((sp) => sp.playerId),
+    ),
+    [sessionPlayers],
+  );
+
+  const activePlayersForMatchmaking = useMemo(
+    () => players.filter((p) => activePlayerIds.has(p.id)),
+    [players, activePlayerIds],
+  );
 
   const handleEndSession = () => {
     if (!isHost) {
@@ -108,9 +135,19 @@ export function ActiveSession({
 
       {/* Match Queue */}
       <MatchQueue
-        players={players}
+        key={activePlayersForMatchmaking.map((p) => p.id).join(",")}
+        players={activePlayersForMatchmaking}
         matchType={matchType}
         onMatchSelected={onMatchConfirmed}
+      />
+
+      {/* Session Player List */}
+      <SessionPlayerList
+        sessionId={session.id}
+        players={players}
+        sessionPlayers={sessionPlayers}
+        isHost={isHost}
+        onPlayerStatusChanged={onPlayerStatusChanged}
       />
 
       {/* PIN Prompt */}
