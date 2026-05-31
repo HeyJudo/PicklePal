@@ -159,6 +159,10 @@ export function LiveScoring({
     ? `${state.teamAScore}-${state.teamBScore}-${serverNumber}`
     : `${state.teamAScore}-${state.teamBScore}`;
 
+  // Streak detection — count consecutive points from the end of rallyWinners
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const streak = getStreak(history.rallyWinners);
+
   const syncDisplay = getSyncDisplay({
     pendingCount: pendingRallyCount,
     isOnline,
@@ -186,7 +190,7 @@ export function LiveScoring({
           {/* Court grid: Left service boxes | Kitchen | Right service boxes */}
           <div className="grid grid-cols-[1fr_0.6fr_1fr]">
             {/* Team A side — two service boxes */}
-            <div className="grid grid-rows-2 border-r-[3px] border-white">
+            <div className={`grid grid-rows-2 border-r-[3px] border-white ${streak && streak.team === "A" && streak.count >= 3 ? "streak-fire" : ""}`}>
               {/* Top service box */}
               <div className="relative flex items-center justify-center p-3 min-h-[80px]" style={{ backgroundColor: "#4A7FA5" }}>
                 {config.teamA[0] && (
@@ -248,7 +252,7 @@ export function LiveScoring({
             </div>
 
             {/* Team B side — two service boxes */}
-            <div className="grid grid-rows-2">
+            <div className={`grid grid-rows-2 ${streak && streak.team === "B" && streak.count >= 3 ? "streak-fire" : ""}`}>
               {/* Top service box */}
               <div className="relative flex items-center justify-center p-3 min-h-[80px]" style={{ backgroundColor: "#4A7FA5" }}>
                 {config.teamB[0] && (
@@ -313,6 +317,14 @@ export function LiveScoring({
               <span className="text-white/30 text-xs">|</span>
               <span className="text-[10px] font-mono text-white/70">{scoreCall}</span>
             </>
+          )}
+          {streak && streak.count >= 3 && (
+            <span className="flex items-center gap-0.5 text-[11px] font-bold text-hype-orange streak-flame">
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 23c-4.97 0-9-3.58-9-8 0-3.07 2.25-5.77 4.5-7.5.42-.32 1.02-.06 1.08.47.12 1.04.58 2.03 1.42 2.78.14.12.36.04.38-.13.1-.94.56-2.2 1.62-3.62.28-.37.85-.3 1.03.12C14.23 10.5 16 12.5 16 15c0 .55-.04 1.08-.13 1.58-.04.22.16.4.36.3.56-.28 1.07-.72 1.47-1.28.2-.28.6-.28.73.04.33.82.57 1.74.57 2.86 0 4.42-4.03 8-9 8z"/>
+              </svg>
+              {streak.count}
+            </span>
           )}
         </div>
 
@@ -447,6 +459,24 @@ export function LiveScoring({
       </div>
     </div>
   );
+}
+
+/**
+ * Count consecutive scoring rallies by the same team from the end of the list.
+ * Returns { team, count } or null if no rallies yet.
+ */
+function getStreak(
+  rallyWinners: readonly Team[],
+): { team: Team; count: number } | null {
+  if (rallyWinners.length === 0) return null;
+
+  const lastTeam = rallyWinners[rallyWinners.length - 1];
+  let count = 0;
+  for (let i = rallyWinners.length - 1; i >= 0; i--) {
+    if (rallyWinners[i] !== lastTeam) break;
+    count++;
+  }
+  return { team: lastTeam, count };
 }
 
 function getSyncToneClass(tone: "success" | "pending" | "warning" | "error") {
