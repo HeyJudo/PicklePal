@@ -8,6 +8,7 @@
 DELETE FROM public.rally_events;
 DELETE FROM public.match_queue_items;
 DELETE FROM public.matches;
+DELETE FROM public.session_players;
 DELETE FROM public.sessions;
 DELETE FROM public.players;
 DELETE FROM public.recap_cards;
