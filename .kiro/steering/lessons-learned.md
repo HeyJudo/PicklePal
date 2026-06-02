@@ -144,6 +144,22 @@ const teamBTop = positions.teamB.right;  // their right is screen-top
 const teamBBot = positions.teamB.left;   // their left is screen-bottom
 ```
 
+### `setX(prev => ...)` Callbacks Must Exclude the Item Being Mutated from Aggregate Counts
+When computing derived counts inside a functional state updater (`setX(prev => ...)`), exclude the item currently being changed from those counts. Otherwise the count includes the item's *old* assignment, making capacity checks stale. This came up in `ManualMatchupPicker`'s `cycleAssignment`:
+```typescript
+// ❌ Bad: teamACount includes the player being cycled
+const teamACount = players.filter(p => prev.get(p.id) === "teamA").length;
+
+// ✅ Good: exclude the player being mutated
+const teamACount = players.filter(
+  p => p.id !== playerId && prev.get(p.id) === "teamA"
+).length;
+```
+Applies anywhere you check "is there room?" before assigning an item to a slot, inside a state updater that also changes that item.
+
+### Manual Matchup Flows Into Existing Pipelines Without Schema Changes
+When adding an alternative entry path to an existing flow (e.g., "Pick Teams" as an alternative to auto-generate), design the alternative to produce the **same output type** as the original path. `ManualMatchupPicker` produces a `Matchup` object identical to `generateNextMatchup()`'s output — so Position Confirmation, LiveScoring, and MatchResult required zero changes. Pattern: identify the "handoff type" at the boundary between the new entry point and the existing pipeline, and build to that type exactly.
+
 ---
 
 ## Architecture Decisions

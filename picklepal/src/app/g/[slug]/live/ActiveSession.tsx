@@ -142,6 +142,7 @@ export function ActiveSession({
         key={activePlayersForMatchmaking.map((p) => p.id).join(",")}
         players={activePlayersForMatchmaking}
         matchType={matchType}
+        isHost={isHost}
         onMatchSelected={onMatchConfirmed}
       />
 
