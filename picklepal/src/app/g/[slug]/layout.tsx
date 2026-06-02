@@ -21,7 +21,7 @@ export default async function GroupLayout({
           <span className="text-lg font-bold text-court-green">PicklePal</span>
         </header>
 
-        <div className="mx-auto max-w-5xl px-4 py-6">{children}</div>
+        <div className="px-4 py-6 lg:px-8">{children}</div>
       </main>
 
       <BottomNav groupSlug={slug} />
