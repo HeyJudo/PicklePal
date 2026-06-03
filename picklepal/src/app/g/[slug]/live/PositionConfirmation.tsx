@@ -138,9 +138,13 @@ export function PositionConfirmation({
           <div className="w-px bg-border relative flex items-center justify-center">
             <button
               onClick={swapTeams}
-              className="absolute bg-surface border border-border rounded-full px-2 py-1 text-[10px] font-medium text-text-muted hover:text-primary hover:border-primary cursor-pointer"
+              className="absolute bg-surface border-2 border-primary/30 rounded-full p-2 text-primary hover:bg-primary/10 hover:border-primary hover:scale-110 active:scale-95 transition-all cursor-pointer shadow-sm"
+              aria-label="Swap teams"
+              title="Swap Team A and Team B sides"
             >
-              ⇄
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+              </svg>
             </button>
           </div>
 
