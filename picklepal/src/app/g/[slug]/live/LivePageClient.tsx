@@ -11,8 +11,10 @@ import { MatchQueue } from "./MatchQueue";
 import { SessionPlayerList } from "./SessionPlayerList";
 import { SessionMatchHistory } from "./SessionMatchHistory";
 import { GameDayRecap } from "./GameDayRecap";
+import { RecordMatchForm } from "./RecordMatchForm";
 import { OverlayRenderer } from "@/components/share";
 import { endSession, getSessionRecap, getSessionMatches } from "./actions";
+import { verifyHostPin } from "../actions";
 import { useHostAuth } from "@/hooks/useHostAuth";
 import type { MatchStartConfig } from "./PositionConfirmation";
 import type { CompletedMatchData } from "./MatchResult";
@@ -76,7 +78,7 @@ export function LivePageClient({
   initialSessionMatches,
   leaderboardEntries,
 }: LivePageClientProps) {
-  const { isHost } = useHostAuth(groupSlug);
+  const { isHost, grantAccess } = useHostAuth(groupSlug);
   const [activeSession, setActiveSession] = useState<SessionData | null>(initialSession);
   const [sessionPlayers, setSessionPlayers] = useState<readonly SessionPlayerEntry[]>(initialSessionPlayers);
   const [sessionMatches, setSessionMatches] = useState<readonly SessionMatchData[]>(initialSessionMatches);
@@ -96,6 +98,10 @@ export function LivePageClient({
     playerNames: Record<string, string>;
   } | null>(null);
   const [step, setStep] = useState<LiveStep>(initialSession ? "active" : "idle");
+  const [showRecordMatch, setShowRecordMatch] = useState(false);
+  const [showRecordPinPrompt, setShowRecordPinPrompt] = useState(false);
+  const [recordPin, setRecordPin] = useState("");
+  const [recordPinError, setRecordPinError] = useState("");
 
   // Derived state
   const activePlayerIds = useMemo(
@@ -189,6 +195,43 @@ export function LivePageClient({
   const handleBackToQueue = () => {
     setCurrentMatchup(null); setMatchConfig(null); setMatchLocalId(null);
     setRecoveredHistory(null); setStep("active");
+  };
+
+  const handleRecordMatchSuccess = async () => {
+    setShowRecordMatch(false);
+    if (activeSession) {
+      const result = await getSessionMatches(activeSession.id);
+      if (result.success && result.data) setSessionMatches(result.data);
+    }
+  };
+
+  const handleRecordMatchClick = () => {
+    if (isHost) {
+      setShowRecordMatch(true);
+    } else {
+      setShowRecordPinPrompt(true);
+      setRecordPin("");
+      setRecordPinError("");
+    }
+  };
+
+  const handleRecordPinSubmit = async () => {
+    setRecordPinError("");
+    const result = await verifyHostPin(groupSlug, recordPin);
+    if (result.success) {
+      grantAccess();
+      setShowRecordPinPrompt(false);
+      setRecordPin("");
+      setShowRecordMatch(true);
+    } else {
+      setRecordPinError(result.error ?? "Incorrect PIN");
+    }
+  };
+
+  const handleRecordPinCancel = () => {
+    setShowRecordPinPrompt(false);
+    setRecordPin("");
+    setRecordPinError("");
   };
 
   const handleResumeRecoveredMatch = () => {
@@ -303,6 +346,61 @@ export function LivePageClient({
           onNextMatch={handleNextMatch} onEndSession={handleSessionEnded}
         />
       )}
+      {/* Record Past Match */}
+      {step === "active" && !showRecordMatch && !showRecordPinPrompt && (
+        <button
+          type="button"
+          onClick={handleRecordMatchClick}
+          className="w-full rounded-xl border border-dashed border-border px-4 py-3 text-sm font-medium text-text-secondary hover:bg-surface-muted hover:border-primary/40 transition-colors cursor-pointer"
+        >
+          + Record Past Match
+        </button>
+      )}
+      {step === "active" && showRecordPinPrompt && (
+        <div className="rounded-xl border border-border bg-surface p-5 space-y-3">
+          <h3 className="text-sm font-semibold text-text-primary">
+            Enter Host PIN to record a match
+          </h3>
+          <input
+            type="password"
+            inputMode="numeric"
+            value={recordPin}
+            onChange={(e) => setRecordPin(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleRecordPinSubmit()}
+            placeholder="Enter PIN"
+            className="w-full rounded-lg border border-border bg-surface-muted px-4 py-2.5 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary"
+            autoFocus
+          />
+          {recordPinError && <p className="text-sm text-red-500">{recordPinError}</p>}
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={handleRecordPinSubmit}
+              className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors cursor-pointer"
+            >
+              Verify
+            </button>
+            <button
+              type="button"
+              onClick={handleRecordPinCancel}
+              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-muted transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      {step === "active" && showRecordMatch && (
+        <RecordMatchForm
+          sessionId={activeSession.id}
+          players={activePlayersForMatchmaking}
+          defaultMatchType={matchType as "singles" | "doubles"}
+          defaultTargetScore={activeSession.target_score}
+          defaultWinBy={activeSession.win_by}
+          onSuccess={handleRecordMatchSuccess}
+          onCancel={() => setShowRecordMatch(false)}
+        />
+      )}
     </div>
   );
 
@@ -402,6 +500,62 @@ export function LivePageClient({
             matchLocalId={matchLocalId} players={players}
             targetScore={activeSession.target_score} winBy={activeSession.win_by}
             onNextMatch={handleNextMatch} onEndSession={handleSessionEnded}
+          />
+        )}
+
+        {/* Record Past Match */}
+        {step === "active" && !showRecordMatch && !showRecordPinPrompt && (
+          <button
+            type="button"
+            onClick={handleRecordMatchClick}
+            className="w-full rounded-xl border border-dashed border-border px-4 py-3 text-sm font-medium text-text-secondary hover:bg-surface-muted hover:border-primary/40 transition-colors cursor-pointer"
+          >
+            + Record Past Match
+          </button>
+        )}
+        {step === "active" && showRecordPinPrompt && (
+          <div className="rounded-xl border border-border bg-surface p-5 space-y-3">
+            <h3 className="text-sm font-semibold text-text-primary">
+              Enter Host PIN to record a match
+            </h3>
+            <input
+              type="password"
+              inputMode="numeric"
+              value={recordPin}
+              onChange={(e) => setRecordPin(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleRecordPinSubmit()}
+              placeholder="Enter PIN"
+              className="w-full rounded-lg border border-border bg-surface-muted px-4 py-2.5 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary"
+              autoFocus
+            />
+            {recordPinError && <p className="text-sm text-red-500">{recordPinError}</p>}
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleRecordPinSubmit}
+                className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors cursor-pointer"
+              >
+                Verify
+              </button>
+              <button
+                type="button"
+                onClick={handleRecordPinCancel}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-muted transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+        {step === "active" && showRecordMatch && (
+          <RecordMatchForm
+            sessionId={activeSession.id}
+            players={activePlayersForMatchmaking}
+            defaultMatchType={matchType as "singles" | "doubles"}
+            defaultTargetScore={activeSession.target_score}
+            defaultWinBy={activeSession.win_by}
+            onSuccess={handleRecordMatchSuccess}
+            onCancel={() => setShowRecordMatch(false)}
           />
         )}
       </main>

@@ -50,9 +50,16 @@ export function SessionMatchHistory({
             >
               {/* Match number + time */}
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-medium text-text-muted">
-                  Game {matchNumber}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-medium text-text-muted">
+                    Game {matchNumber}
+                  </span>
+                  {match.source === "manual" && (
+                    <span className="text-[9px] font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5">
+                      Manual
+                    </span>
+                  )}
+                </div>
                 {match.completed_at && (
                   <span className="text-[11px] text-text-muted">
                     {formatTime(match.completed_at)}

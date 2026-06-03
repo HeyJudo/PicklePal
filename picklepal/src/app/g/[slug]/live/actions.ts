@@ -370,6 +370,7 @@ export interface SessionMatchData {
   readonly team_b_score: number;
   readonly winning_team: string | null;
   readonly completed_at: string | null;
+  readonly source: string;
 }
 
 export async function getSessionMatches(
@@ -380,7 +381,7 @@ export async function getSessionMatches(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("matches")
-    .select("id, match_type, team_a_player_ids, team_b_player_ids, team_a_score, team_b_score, winning_team, completed_at")
+    .select("id, match_type, team_a_player_ids, team_b_player_ids, team_a_score, team_b_score, winning_team, completed_at, source")
     .eq("session_id", sessionId)
     .eq("status", "completed")
     .order("completed_at", { ascending: false });

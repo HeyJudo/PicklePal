@@ -6,6 +6,7 @@
 export type SessionStatus = "active" | "completed" | "cancelled";
 export type MatchStatus = "queued" | "active" | "completed" | "cancelled";
 export type MatchType = "singles" | "doubles";
+export type MatchSource = "live" | "manual";
 export type QueueItemStatus = "pending" | "active" | "completed" | "skipped";
 export type SessionPlayerStatus = "active" | "benched" | "removed";
 
@@ -125,6 +126,7 @@ export interface Database {
           starting_server_player_id: string | null;
           target_score: number;
           win_by: number;
+          source: MatchSource;
           started_at: string | null;
           completed_at: string | null;
           created_at: string;
@@ -144,6 +146,7 @@ export interface Database {
           starting_server_player_id?: string | null;
           target_score?: number;
           win_by?: number;
+          source?: MatchSource;
           started_at?: string | null;
           completed_at?: string | null;
           created_at?: string;
@@ -163,6 +166,7 @@ export interface Database {
           starting_server_player_id?: string | null;
           target_score?: number;
           win_by?: number;
+          source?: MatchSource;
           started_at?: string | null;
           completed_at?: string | null;
           updated_at?: string;
