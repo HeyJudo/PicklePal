@@ -311,17 +311,8 @@ export function LivePageClient({
   // ── Active session — mobile single-column ───────────────────────────────────
 
   const mobileView = (
-    <div className="lg:hidden space-y-6">
-      <ActiveSession
-        groupSlug={groupSlug}
-        session={activeSession}
-        players={players}
-        sessionPlayers={sessionPlayers}
-        sessionMatches={sessionMatches}
-        onSessionEnded={handleSessionEnded}
-        onMatchConfirmed={handleMatchConfirmed}
-        onPlayerStatusChanged={handlePlayerStatusChanged}
-      />
+    <div className="lg:hidden">
+      {/* Full-screen steps: positions, scoring, result replace ActiveSession entirely */}
       {step === "positions" && currentMatchup && (
         <PositionConfirmation
           matchup={currentMatchup} players={players}
@@ -346,60 +337,75 @@ export function LivePageClient({
           onNextMatch={handleNextMatch} onEndSession={handleSessionEnded}
         />
       )}
-      {/* Record Past Match */}
-      {step === "active" && !showRecordMatch && !showRecordPinPrompt && (
-        <button
-          type="button"
-          onClick={handleRecordMatchClick}
-          className="w-full rounded-xl border border-dashed border-border px-4 py-3 text-sm font-medium text-text-secondary hover:bg-surface-muted hover:border-primary/40 transition-colors cursor-pointer"
-        >
-          + Record Past Match
-        </button>
-      )}
-      {step === "active" && showRecordPinPrompt && (
-        <div className="rounded-xl border border-border bg-surface p-5 space-y-3">
-          <h3 className="text-sm font-semibold text-text-primary">
-            Enter Host PIN to record a match
-          </h3>
-          <input
-            type="password"
-            inputMode="numeric"
-            value={recordPin}
-            onChange={(e) => setRecordPin(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleRecordPinSubmit()}
-            placeholder="Enter PIN"
-            className="w-full rounded-lg border border-border bg-surface-muted px-4 py-2.5 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary"
-            autoFocus
+      {/* Active step: show session overview + queue + record match */}
+      {step === "active" && (
+        <div className="space-y-6">
+          <ActiveSession
+            groupSlug={groupSlug}
+            session={activeSession}
+            players={players}
+            sessionPlayers={sessionPlayers}
+            sessionMatches={sessionMatches}
+            onSessionEnded={handleSessionEnded}
+            onMatchConfirmed={handleMatchConfirmed}
+            onPlayerStatusChanged={handlePlayerStatusChanged}
           />
-          {recordPinError && <p className="text-sm text-red-500">{recordPinError}</p>}
-          <div className="flex gap-3">
+          {/* Record Past Match */}
+          {!showRecordMatch && !showRecordPinPrompt && (
             <button
               type="button"
-              onClick={handleRecordPinSubmit}
-              className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors cursor-pointer"
+              onClick={handleRecordMatchClick}
+              className="w-full rounded-xl border border-dashed border-border px-4 py-3 text-sm font-medium text-text-secondary hover:bg-surface-muted hover:border-primary/40 transition-colors cursor-pointer"
             >
-              Verify
+              + Record Past Match
             </button>
-            <button
-              type="button"
-              onClick={handleRecordPinCancel}
-              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-muted transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-          </div>
+          )}
+          {showRecordPinPrompt && (
+            <div className="rounded-xl border border-border bg-surface p-5 space-y-3">
+              <h3 className="text-sm font-semibold text-text-primary">
+                Enter Host PIN to record a match
+              </h3>
+              <input
+                type="password"
+                inputMode="numeric"
+                value={recordPin}
+                onChange={(e) => setRecordPin(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleRecordPinSubmit()}
+                placeholder="Enter PIN"
+                className="w-full rounded-lg border border-border bg-surface-muted px-4 py-2.5 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary"
+                autoFocus
+              />
+              {recordPinError && <p className="text-sm text-red-500">{recordPinError}</p>}
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleRecordPinSubmit}
+                  className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors cursor-pointer"
+                >
+                  Verify
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRecordPinCancel}
+                  className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-muted transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+          {showRecordMatch && (
+            <RecordMatchForm
+              sessionId={activeSession.id}
+              players={activePlayersForMatchmaking}
+              defaultMatchType={matchType as "singles" | "doubles"}
+              defaultTargetScore={activeSession.target_score}
+              defaultWinBy={activeSession.win_by}
+              onSuccess={handleRecordMatchSuccess}
+              onCancel={() => setShowRecordMatch(false)}
+            />
+          )}
         </div>
-      )}
-      {step === "active" && showRecordMatch && (
-        <RecordMatchForm
-          sessionId={activeSession.id}
-          players={activePlayersForMatchmaking}
-          defaultMatchType={matchType as "singles" | "doubles"}
-          defaultTargetScore={activeSession.target_score}
-          defaultWinBy={activeSession.win_by}
-          onSuccess={handleRecordMatchSuccess}
-          onCancel={() => setShowRecordMatch(false)}
-        />
       )}
     </div>
   );
