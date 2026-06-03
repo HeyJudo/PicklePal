@@ -1,6 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useHostAuth } from "@/hooks/useHostAuth";
+import { verifyHostPin } from "../actions";
+import { deleteSession } from "./session-actions";
 import type { SessionGroup, MatchWithPlayers } from "./actions";
 
 interface MatchHistoryProps {
@@ -88,26 +93,145 @@ function MatchRow({ match }: { readonly match: MatchWithPlayers }) {
 
 function SessionSection({ group, groupSlug }: { readonly group: SessionGroup; readonly groupSlug: string }) {
   const { session, matches } = group;
+  const { isHost, grantAccess } = useHostAuth(groupSlug);
+  const router = useRouter();
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [showPin, setShowPin] = useState(false);
+  const [pin, setPin] = useState("");
+  const [pinError, setPinError] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const sessionDate = formatDate(session.started_at);
   const sessionTitle = session.title ?? `Game Day`;
+
+  const handleDeleteClick = () => {
+    if (!isHost) {
+      setShowPin(true);
+      setPin("");
+      setPinError("");
+    } else {
+      setShowConfirm(true);
+    }
+  };
+
+  const handlePinSubmit = async () => {
+    setPinError("");
+    const result = await verifyHostPin(groupSlug, pin);
+    if (result.success) {
+      grantAccess();
+      setShowPin(false);
+      setPin("");
+      setShowConfirm(true);
+    } else {
+      setPinError(result.error ?? "Incorrect PIN");
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    setIsDeleting(true);
+    const result = await deleteSession(session.id);
+    if (result.success) {
+      router.refresh();
+    } else {
+      setIsDeleting(false);
+      setShowConfirm(false);
+      alert(result.error ?? "Failed to delete");
+    }
+  };
 
   return (
     <section className="space-y-1">
       {/* Session header */}
-      <Link
-        href={`/g/${groupSlug}/sessions/${session.id}`}
-        className="flex items-baseline justify-between px-1 py-2 hover:opacity-80 transition-opacity cursor-pointer"
-      >
-        <div>
-          <h3 className="text-sm font-semibold text-text-primary">
-            {sessionTitle}
-          </h3>
-          <p className="text-xs text-text-muted mt-0.5">{sessionDate}</p>
+      <div className="flex items-center justify-between px-1 py-2">
+        <Link
+          href={`/g/${groupSlug}/sessions/${session.id}`}
+          className="flex-1 hover:opacity-80 transition-opacity cursor-pointer"
+        >
+          <div>
+            <h3 className="text-sm font-semibold text-text-primary">
+              {sessionTitle}
+            </h3>
+            <p className="text-xs text-text-muted mt-0.5">{sessionDate}</p>
+          </div>
+        </Link>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-text-muted">
+            {matches.length} match{matches.length !== 1 ? "es" : ""}
+          </span>
+          <button
+            type="button"
+            onClick={handleDeleteClick}
+            className="text-text-muted hover:text-red-500 transition-colors cursor-pointer p-1"
+            aria-label={`Delete session ${sessionTitle}`}
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+            </svg>
+          </button>
         </div>
-        <span className="text-xs text-text-muted">
-          {matches.length} match{matches.length !== 1 ? "es" : ""} →
-        </span>
-      </Link>
+      </div>
+
+      {/* PIN prompt */}
+      {showPin && (
+        <div className="rounded-xl border border-border bg-surface p-4 space-y-3 mx-1">
+          <h4 className="text-sm font-semibold text-text-primary">Enter Host PIN to delete</h4>
+          <input
+            type="password"
+            inputMode="numeric"
+            value={pin}
+            onChange={(e) => setPin(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
+            placeholder="Enter PIN"
+            className="w-full rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary"
+            autoFocus
+          />
+          {pinError && <p className="text-xs text-red-500">{pinError}</p>}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handlePinSubmit}
+              className="flex-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 cursor-pointer"
+            >
+              Verify
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowPin(false); setPin(""); setPinError(""); }}
+              className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-muted cursor-pointer"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm delete */}
+      {showConfirm && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 space-y-3 mx-1">
+          <p className="text-sm text-red-800 font-medium">
+            Delete &ldquo;{sessionTitle}&rdquo; and all {matches.length} match{matches.length !== 1 ? "es" : ""}?
+          </p>
+          <p className="text-xs text-red-600">This cannot be undone. Stats and leaderboard will be recalculated.</p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="flex-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 cursor-pointer disabled:opacity-50"
+            >
+              {isDeleting ? "Deleting..." : "Delete Forever"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowConfirm(false)}
+              disabled={isDeleting}
+              className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 cursor-pointer disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Matches */}
       <div className="rounded-xl border border-border bg-surface px-4">

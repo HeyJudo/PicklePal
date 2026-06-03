@@ -250,7 +250,7 @@ Purpose: establish a safe baseline before auth, migration, and redesign work.
 
 ### 0a. Current App Audit
 
-Deliverables:
+Deliverables: DONE
 
 - Audit current routes, server actions, Supabase schema, RLS policies, storage buckets, and environment variables.
 - Identify every PIN dependency.
@@ -267,7 +267,7 @@ Acceptance criteria:
 
 ### 0b. Data Backup And Baseline Verification
 
-Deliverables:
+Deliverables:DONE
 
 - Export/backup current Supabase data.
 - Capture baseline counts for groups, players, sessions, matches, rally events, and recap records.

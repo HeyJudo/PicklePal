@@ -681,7 +681,7 @@ Create players → Start session → Generate match → Score live → Save → 
 
 ### 7.5c. Manual Matchup Override
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Completed
 **Effort:** Small | **Dependencies:** 4b  
 **Deliverables:**
 - "Pick Teams" button as alternative to "Generate Next Match"
@@ -699,7 +699,7 @@ Create players → Start session → Generate match → Score live → Save → 
 
 ### 7.5d. Record Past Match (Manual Entry)
 
-**Status:** 🔲 Not started  
+**Status:** ✅ Completed   
 **Effort:** Medium | **Dependencies:** 2a, 1d  
 **Deliverables:**
 - Form: pick match type, select players/teams, enter final scores
@@ -747,7 +747,7 @@ Create players → Start session → Generate match → Score live → Save → 
 
 ### 8b. Desktop Responsive Layout
 
-**Status:** 🔲 Not started  
+**Status:**  ✅ Completed 
 **Effort:** Medium | **Dependencies:** 8a  
 - 3-column desktop Live view, all pages responsive
 
