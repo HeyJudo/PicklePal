@@ -159,6 +159,27 @@ const teamACount = players.filter(
 ```
 Applies anywhere you check "is there room?" before assigning an item to a slot, inside a state updater that also changes that item.
 
+### Desktop 3-Column Layouts: Split Monolithic Components, Don't Nest Them
+When adapting a mobile-first component (like `ActiveSession`) into a multi-column desktop layout, **don't render the monolithic component in one column** and leave others empty. Instead, render its sub-components (`MatchQueue`, `SessionPlayerList`, etc.) directly into their appropriate columns at the parent level. Keep the monolithic component for mobile only via `lg:hidden`. Pattern:
+```tsx
+// ✅ Good: split sub-components across columns on desktop
+<div className="hidden lg:grid lg:grid-cols-[260px_1fr_260px]">
+  <aside><SessionPlayerList /></aside>
+  <main><MatchQueue /></main>
+  <aside><Leaderboard /></aside>
+</div>
+<div className="lg:hidden">
+  <ActiveSession /> {/* monolithic mobile view */}
+</div>
+
+// ❌ Bad: jam the monolithic component into one column
+<div className="hidden lg:grid lg:grid-cols-3">
+  <aside><ActiveSession /></aside> {/* crammed + duplicate UI */}
+  <main>{/* empty placeholder */}</main>
+</div>
+```
+This avoids duplicate UI elements and puts the right content in the right column as the focal point.
+
 ### Manual Matchup Flows Into Existing Pipelines Without Schema Changes
 When adding an alternative entry path to an existing flow (e.g., "Pick Teams" as an alternative to auto-generate), design the alternative to produce the **same output type** as the original path. `ManualMatchupPicker` produces a `Matchup` object identical to `generateNextMatchup()`'s output — so Position Confirmation, LiveScoring, and MatchResult required zero changes. Pattern: identify the "handoff type" at the boundary between the new entry point and the existing pipeline, and build to that type exactly.
 
