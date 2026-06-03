@@ -402,9 +402,9 @@ export function LivePageClient({
 
       {/* Desktop 3-column: Queue | Court/Main | Leaderboard */}
       {showDesktopLayout && (
-        <div className="hidden lg:grid lg:grid-cols-[300px_1fr_260px] lg:gap-6 lg:items-start">
+        <div className="hidden lg:grid lg:grid-cols-[340px_1fr_280px] lg:gap-6 lg:items-start">
           {/* ── Left: Queue + Players ── */}
-          <aside className="space-y-4">
+          <aside className="space-y-4 overflow-visible">
             {/* Session badge */}
             {activeSession && (
               <div className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">

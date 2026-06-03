@@ -57,7 +57,6 @@ export function SessionPlayerList({
   );
 
   const handleBench = (playerId: string) => {
-    if (!isHost) return;
     startTransition(async () => {
       const result = await benchPlayer(sessionId, playerId);
       if (result.success) {
@@ -67,7 +66,6 @@ export function SessionPlayerList({
   };
 
   const handleActivate = (playerId: string) => {
-    if (!isHost) return;
     startTransition(async () => {
       const result = await activatePlayer(sessionId, playerId);
       if (result.success) {
@@ -77,7 +75,6 @@ export function SessionPlayerList({
   };
 
   const handleRemove = (playerId: string) => {
-    if (!isHost) return;
     startTransition(async () => {
       const result = await removePlayerFromSession(sessionId, playerId);
       if (result.success) {
@@ -87,7 +84,6 @@ export function SessionPlayerList({
   };
 
   const handleAddLateArrival = (playerId: string) => {
-    if (!isHost) return;
     startTransition(async () => {
       const result = await activatePlayer(sessionId, playerId);
       if (result.success) {
@@ -184,7 +180,7 @@ export function SessionPlayerList({
           )}
 
           {/* Add Late Arrival */}
-          {isHost && availableToAdd.length > 0 && (
+          {availableToAdd.length > 0 && (
             <div className="pt-2 border-t border-border">
               {!showAddPlayer ? (
                 <button
@@ -265,9 +261,8 @@ function PlayerChip({
   return (
     <div className="relative">
       <button
-        onClick={() => isHost && setShowActions(!showActions)}
-        disabled={!isHost}
-        className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-colors ${chipStyles} ${isHost ? "cursor-pointer hover:border-primary/40" : ""}`}
+        onClick={() => setShowActions(!showActions)}
+        className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-colors ${chipStyles} cursor-pointer hover:border-primary/40`}
       >
         <PlayerAvatar
           displayName={player.display_name}
@@ -284,7 +279,7 @@ function PlayerChip({
       </button>
 
       {/* Action popover */}
-      {showActions && isHost && (
+      {showActions && (
         <>
           {/* Backdrop */}
           <div

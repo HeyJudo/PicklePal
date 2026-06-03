@@ -114,8 +114,8 @@ export function MatchQueue({
       {/* Matchup display — once generated */}
       {currentMatchup && (
         <div className="space-y-4">
-          {/* Edit hint for host */}
-          {isHost && currentMatchup.sittingOut.length > 0 && (
+          {/* Edit hint */}
+          {currentMatchup.sittingOut.length > 0 && (
             <p className="text-xs text-center text-text-muted">
               Tap a player to swap them out
             </p>
@@ -253,7 +253,7 @@ function PlayerSlot({
   onStartSwap,
   onSwap,
 }: PlayerSlotProps) {
-  const interactive = isHost && canSwap;
+  const interactive = canSwap;
 
   return (
     <div className="relative">

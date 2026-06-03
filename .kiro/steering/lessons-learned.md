@@ -116,6 +116,8 @@ Write-action buttons (End Game Day, Start Session, correct scores) should always
 {isHost && <button onClick={handleAction}>End Game Day</button>}
 ```
 
+**Exception:** For actions that are purely local state (no server write), like swapping players in a generated matchup, skip the PIN gate entirely. The PIN is only meaningful for actions that persist to the database. Server actions use service-role key and execute regardless of client-side `isHost` state — so `isHost` is purely a UX hint, not a security boundary.
+
 ### `MatchQueue` Uses `useState` Initializer — Reset with `key` Prop on Player Changes
 The `MatchQueue` component initializes its `MatchmakingState` via `useState(() => createMatchmakingState(...))`. This means if the player list changes (bench/activate/add), the internal state won't update. The fix is to pass a `key` prop derived from the active player IDs so React remounts the component with fresh state:
 ```tsx
