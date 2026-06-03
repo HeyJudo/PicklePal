@@ -10,7 +10,8 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "backup:baseline": "node scripts/backup-baseline.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
