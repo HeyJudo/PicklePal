@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Narrow:ital,wght@0,400..700;1,400..700&family=Outfit:wght@100..900&display=swap');
 @import "tailwindcss";
 
 @theme inline {
@@ -88,4 +89,58 @@ body {
 
 .scorer-bounce {
   animation: scorerBounce 0.4s ease-out;
+}
+
+@theme {
+  --color-primary: #087a45;
+  --color-primary-dark: #0d2118;
+  --color-primary-container: #087a45;
+  --color-accent: #16a6e8;
+  --color-celebration: #f6c343;
+  --color-inverse-surface: #2b322e;
+  --color-on-surface-variant: #3f4940;
+  --color-surface-dim: #d5dcd6;
+  --color-surface-bright: #f8fff9;
+  --color-surface: #f8fff9;
+  --color-on-secondary: #ffffff;
+  --color-background: #f8fff9;
+  --color-surface-container-lowest: #ffffff;
+  --color-on-primary: #ffffff;
+  --color-surface-container-high: #e3eae4;
+  --color-primary-fixed: #96f7b5;
+  --color-on-surface: #161d1a;
+  --color-surface-container-highest: #dde4de;
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-surface-container: #eef9f4;
+  --color-error-container: #ffdad6;
+  --color-primary-fixed-dim: #7ada9b;
+  --color-outline: #6f7a70;
+  --color-outline-variant: #becabe;
+  --color-on-background: #161d1a;
+  --color-on-primary-container: #a4ffc0;
+  --color-secondary-fixed: #c8e6ff;
+  --color-secondary-fixed-dim: #87ceff;
+  --color-surface-variant: #dde4de;
+  --color-surface-container-low: #eef9f4;
+
+  --font-display: "Anton", sans-serif;
+  --font-headline: "Outfit", sans-serif;
+  --font-body: "Outfit", sans-serif;
+  --font-score: "Archivo Narrow", sans-serif;
+  --font-label: "Archivo Narrow", sans-serif;
+}
+
+@layer utilities {
+  .court-lines {
+    background-image: 
+      linear-gradient(to right, rgba(255,255,255,0.1) 2px, transparent 2px),
+      linear-gradient(to bottom, rgba(255,255,255,0.1) 2px, transparent 2px);
+    background-size: 100px 100px;
+    background-position: center center;
+  }
+
+  .clip-diagonal {
+    clip-path: polygon(0 0, 100% 3vw, 100% 100%, 0 calc(100% - 3vw));
+  }
 }
