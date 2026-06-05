@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { checkSlugAvailability, createGroup } from "./actions";
 
-type Step = "name" | "slug" | "players";
+type Step = "name" | "slug" | "players" | "success";
 
 const STEPS: Step[] = ["name", "slug", "players"];
 
@@ -30,6 +30,8 @@ export default function OnboardingFlow() {
   const [slugStatus, setSlugStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
   const [slugError, setSlugError] = useState<string | null>(null);
   const [players, setPlayers] = useState<string[]>(["", "", "", ""]);
+  const [includeSelf, setIncludeSelf] = useState(true);
+  const [createdSlug, setCreatedSlug] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const stepIndex = STEPS.indexOf(currentStep);
@@ -149,10 +151,17 @@ export default function OnboardingFlow() {
         name: groupName.trim(),
         slug,
         players: validPlayers,
+        includeSelf,
       });
 
       if (result.success && result.slug) {
-        router.push(`/g/${result.slug}`);
+        setCreatedSlug(result.slug);
+        setDirection(1);
+        setCurrentStep("success");
+        // Auto-redirect after celebration
+        setTimeout(() => {
+          router.push(`/g/${result.slug}`);
+        }, 2200);
       } else {
         setError(result.error ?? "Something went wrong. Please try again.");
       }
@@ -512,6 +521,122 @@ export default function OnboardingFlow() {
                   <p className="text-xs text-on-surface-variant pt-2">
                     <span className="font-medium text-on-background">{filledPlayers}</span> player{filledPlayers !== 1 ? "s" : ""} added · min 2
                   </p>
+
+                  {/* Include yourself toggle */}
+                  <motion.label
+                    className="flex items-center gap-3 cursor-pointer rounded-xl border-2 border-border bg-surface-container-low/50 px-4 py-3 mt-4 transition-all hover:border-primary/30"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                  >
+                    <div className="relative">
+                      <input
+                        type="checkbox"
+                        checked={includeSelf}
+                        onChange={(e) => setIncludeSelf(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="h-5 w-5 rounded-md border-2 border-border bg-surface transition-all peer-checked:border-primary peer-checked:bg-primary flex items-center justify-center">
+                        {includeSelf && (
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                          >
+                            <Check className="h-3 w-3 text-white" />
+                          </motion.div>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-on-background">
+                        I play too
+                      </span>
+                      <p className="text-xs text-on-surface-variant">
+                        Add me to the roster as a player
+                      </p>
+                    </div>
+                  </motion.label>
+                </motion.div>
+              </motion.div>
+            )}
+
+            {/* Step: Success */}
+            {currentStep === "success" && (
+              <motion.div
+                key="success"
+                custom={direction}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
+                className="flex flex-col items-center text-center py-12"
+              >
+                {/* Animated checkmark circle */}
+                <motion.div
+                  className="relative mb-8"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.1 }}
+                >
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary">
+                    <motion.div
+                      initial={{ pathLength: 0, opacity: 0 }}
+                      animate={{ pathLength: 1, opacity: 1 }}
+                      transition={{ delay: 0.4, duration: 0.4 }}
+                    >
+                      <Check className="h-10 w-10 text-white" strokeWidth={3} />
+                    </motion.div>
+                  </div>
+                  {/* Pulse rings */}
+                  <motion.div
+                    className="absolute inset-0 rounded-full border-2 border-primary/30"
+                    initial={{ scale: 1, opacity: 1 }}
+                    animate={{ scale: 2, opacity: 0 }}
+                    transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
+                  />
+                  <motion.div
+                    className="absolute inset-0 rounded-full border-2 border-primary/20"
+                    initial={{ scale: 1, opacity: 1 }}
+                    animate={{ scale: 2.5, opacity: 0 }}
+                    transition={{ duration: 1.2, delay: 0.7, ease: "easeOut" }}
+                  />
+                </motion.div>
+
+                <motion.h1
+                  className="font-headline text-3xl font-bold text-on-background"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3, duration: 0.4 }}
+                >
+                  You&apos;re all set!
+                </motion.h1>
+
+                <motion.p
+                  className="mt-3 text-on-surface-variant text-[15px] max-w-xs"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5, duration: 0.4 }}
+                >
+                  <span className="font-semibold text-on-background">{groupName}</span> is ready.
+                  Time for your first DinkDay.
+                </motion.p>
+
+                <motion.div
+                  className="mt-8"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 1.2, duration: 0.4 }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => createdSlug && router.push(`/g/${createdSlug}`)}
+                    className="cursor-pointer flex items-center gap-2 rounded-xl bg-primary px-7 py-3 text-sm font-semibold text-on-primary shadow-lg shadow-primary/20 transition-all hover:shadow-xl hover:shadow-primary/30"
+                  >
+                    Go to your group
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
                 </motion.div>
               </motion.div>
             )}
@@ -533,7 +658,8 @@ export default function OnboardingFlow() {
         </div>
       </main>
 
-      {/* Bottom bar */}
+      {/* Bottom bar — hidden on success */}
+      {currentStep !== "success" && (
       <div className="fixed bottom-0 left-0 right-0 z-20">
         <div className="bg-gradient-to-t from-background via-background/95 to-transparent h-8 pointer-events-none" />
         <div className="bg-background border-t border-border/50 px-4 py-4">
@@ -587,6 +713,7 @@ export default function OnboardingFlow() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

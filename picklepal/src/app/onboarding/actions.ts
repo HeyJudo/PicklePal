@@ -7,6 +7,7 @@ interface CreateGroupInput {
   name: string;
   slug: string;
   players: string[];
+  includeSelf: boolean;
 }
 
 interface CreateGroupResult {
@@ -104,6 +105,14 @@ export async function createGroup(input: CreateGroupInput): Promise<CreateGroupR
   const players = input.players
     .map((p) => p.trim())
     .filter((p) => p.length > 0);
+
+  // Add organizer as a player if they opted in
+  if (input.includeSelf) {
+    const selfName = user.firstName ?? user.emailAddresses[0]?.emailAddress?.split("@")[0] ?? "Me";
+    if (!players.some((p) => p.toLowerCase() === selfName.toLowerCase())) {
+      players.unshift(selfName);
+    }
+  }
 
   if (players.length < 2) {
     return { success: false, error: "Add at least 2 players to get started" };
