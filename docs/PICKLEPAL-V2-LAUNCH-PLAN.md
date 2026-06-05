@@ -285,7 +285,7 @@ Acceptance criteria:
 
 Purpose: choose a public identity before public launch UI and metadata work.
 
-### 1a. Public Name Selection
+### 1a. Public Name Selection DONE 
 
 Deliverables:
 
@@ -300,7 +300,7 @@ Acceptance criteria:
 - Final name is approved before landing page implementation.
 - Internal codename vs public brand is documented.
 
-### 1b. Brand System
+### 1b. Brand System DONE 
 
 Deliverables:
 
@@ -316,7 +316,7 @@ Acceptance criteria:
 - Visual language avoids the current portal/table-first feeling.
 - Share cards and landing page can use the same identity.
 
-### 1c. Landing Page Plan
+### 1c. Landing Page Plan 
 
 Deliverables:
 
@@ -336,7 +336,7 @@ Acceptance criteria:
 
 Purpose: add account-based entry without changing player roster behavior.
 
-### 2a. Clerk Integration
+### 2a. Clerk Integration DONE 
 
 Deliverables:
 
@@ -352,7 +352,7 @@ Acceptance criteria:
 - Anonymous visitors can still view allowed public routes.
 - Auth state is available in server actions.
 
-### 2b. My Groups Dashboard
+### 2b. My Groups Dashboard DONE 
 
 Deliverables:
 
@@ -368,7 +368,7 @@ Acceptance criteria:
 - User with no groups is directed into onboarding/create group.
 - Desktop and mobile layouts are usable.
 
-### 2c. First-Group Onboarding Shell
+### 2c. First-Group Onboarding Shell DONE 
 
 Deliverables:
 

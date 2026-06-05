@@ -185,9 +185,18 @@ When adding an alternative entry path to an existing flow (e.g., "Pick Teams" as
 
 ---
 
+### Clerk v7 `UserButton` Has No `afterSignOutUrl` Prop
+In `@clerk/nextjs` v7+, the `UserButton` component no longer accepts `afterSignOutUrl` as a prop (it did in v5/v6). Sign-out redirect behavior is configured either in the Clerk dashboard or via `ClerkProvider`'s `afterSignOutUrl` prop at the layout level. When checking Clerk component APIs, always verify against the installed major version — their API surface changes significantly between majors.
+
+### Next.js 16 Deprecates `middleware.ts` in Favor of `proxy.ts`
+Next.js 16 shows a warning: `The "middleware" file convention is deprecated. Please use "proxy" instead.` The current `src/middleware.ts` with Clerk's `clerkMiddleware` still works but will need migration to the `proxy` convention in a future pass. When that happens, check Clerk's docs for their updated Next.js 16+ integration pattern before renaming the file — the API surface may change.
+
 ## Architecture Decisions
 
 *Document key architectural decisions and their rationale.*
+
+### Clerk Auth Is Separate From Supabase — Bridge via `profiles` Table
+Clerk handles organizer/admin authentication (sign-up, sign-in, session tokens). Supabase remains the database. They are **not coupled** — Clerk doesn't write to Supabase directly. The bridge is a `profiles` table (Phase 3a) that maps `clerk_user_id` → app identity. Server actions use `currentUser()` from Clerk to identify the caller, then query Supabase with the service role key. RLS policies will later use Clerk's JWT claims for row-level access, but that's Phase 3d.
 
 ### Example: State Management
 - **Decision**: Use Zustand for global state, React Context for component trees
