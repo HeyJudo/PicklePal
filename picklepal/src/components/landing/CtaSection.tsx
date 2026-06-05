@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import { motion } from 'motion/react';
 import { ArrowRight, Star } from 'lucide-react';
 
@@ -45,13 +46,13 @@ export default function CtaSection() {
           initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
           className="flex flex-col sm:flex-row justify-center items-center gap-4"
         >
-          <button className="bg-primary text-on-primary font-label text-xs font-semibold uppercase tracking-wider px-8 py-4 rounded-lg hover:bg-primary-container hover:-translate-y-1 transition-all duration-300 flex items-center gap-2 shadow-[0_4px_0_#065a33] hover:shadow-[0_6px_0_#065a33] active:translate-y-1 active:shadow-none relative overflow-hidden group">
+          <Link href="/sign-up" className="bg-primary text-on-primary font-label text-xs font-semibold uppercase tracking-wider px-8 py-4 rounded-lg hover:bg-primary-container hover:-translate-y-1 transition-all duration-300 flex items-center gap-2 shadow-[0_4px_0_#065a33] hover:shadow-[0_6px_0_#065a33] active:translate-y-1 active:shadow-none relative overflow-hidden group">
              <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></span>
              Create Your Group <ArrowRight className="w-4 h-4" />
-          </button>
-          <button className="bg-surface text-primary border-2 border-primary/20 font-label text-xs font-semibold uppercase tracking-wider px-8 py-4 rounded-lg hover:border-primary hover:bg-primary/5 hover:-translate-y-1 transition-all duration-300 flex items-center gap-2">
+          </Link>
+          <Link href="/g/default" className="bg-surface text-primary border-2 border-primary/20 font-label text-xs font-semibold uppercase tracking-wider px-8 py-4 rounded-lg hover:border-primary hover:bg-primary/5 hover:-translate-y-1 transition-all duration-300 flex items-center gap-2">
             View Demo Group
-          </button>
+          </Link>
         </motion.div>
       </div>
     </section>

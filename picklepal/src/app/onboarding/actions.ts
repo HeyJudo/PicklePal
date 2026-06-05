@@ -2,6 +2,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { currentUser } from "@clerk/nextjs/server";
+import { getOrCreateProfile, createGroupMembership } from "@/lib/membership";
 
 interface CreateGroupInput {
   name: string;
@@ -132,6 +133,21 @@ export async function createGroup(input: CreateGroupInput): Promise<CreateGroupR
 
   if (groupError || !group) {
     return { success: false, error: "Failed to create group. Please try again." };
+  }
+
+  // Create profile + owner membership for the organizer
+  const displayName = user.firstName
+    ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}`
+    : user.emailAddresses[0]?.emailAddress?.split("@")[0] ?? "Organizer";
+
+  const { profile } = await getOrCreateProfile(
+    user.id,
+    displayName,
+    user.imageUrl ?? null,
+  );
+
+  if (profile) {
+    await createGroupMembership(group.id, profile.id, "owner");
   }
 
   // Create players with auto-assigned colors

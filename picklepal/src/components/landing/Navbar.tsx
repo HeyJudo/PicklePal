@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 
 export default function Navbar() {
@@ -25,10 +26,10 @@ export default function Navbar() {
         ))}
       </div>
 
-      <button className="bg-primary text-on-primary font-label text-xs uppercase font-semibold tracking-wider px-6 py-3 rounded-lg hover:scale-105 hover:shadow-lg transition-all duration-300 active:scale-95 flex items-center gap-2 relative overflow-hidden group">
+      <Link href="/sign-up" className="bg-primary text-on-primary font-label text-xs uppercase font-semibold tracking-wider px-6 py-3 rounded-lg hover:scale-105 hover:shadow-lg transition-all duration-300 active:scale-95 flex items-center gap-2 relative overflow-hidden group">
         <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></span>
         Create Your Group <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-      </button>
+      </Link>
     </nav>
   );
 }
