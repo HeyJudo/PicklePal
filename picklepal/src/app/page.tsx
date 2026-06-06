@@ -1,27 +1,19 @@
-'use client';
+import { currentUser } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+import { getUserGroups } from "@/lib/membership";
+import { LandingPage } from "@/components/landing/LandingPage";
 
-import Navbar from '../components/landing/Navbar';
-import HeroSection from '../components/landing/HeroSection';
-import ProblemSection from '../components/landing/ProblemSection';
-import WorkflowSection from '../components/landing/WorkflowSection';
-import FeaturesSection from '../components/landing/FeaturesSection';
-import DemoSection from '../components/landing/DemoSection';
-import BetaSection from '../components/landing/BetaSection';
-import CtaSection from '../components/landing/CtaSection';
-import Footer from '../components/landing/Footer';
+export default async function RootPage() {
+  const user = await currentUser();
 
-export default function LandingPage() {
-  return (
-    <div className="bg-background text-on-background font-body antialiased overflow-x-hidden">
-      <Navbar />
-      <HeroSection />
-      <ProblemSection />
-      <WorkflowSection />
-      <FeaturesSection />
-      <DemoSection />
-      <BetaSection />
-      <CtaSection />
-      <Footer />
-    </div>
-  );
+  if (user) {
+    // Check if user has any groups — new users go to onboarding
+    const groups = await getUserGroups(user.id);
+    if (groups.length === 0) {
+      redirect("/onboarding");
+    }
+    redirect("/app");
+  }
+
+  return <LandingPage />;
 }

@@ -159,6 +159,38 @@ const teamACount = players.filter(
 ```
 Applies anywhere you check "is there room?" before assigning an item to a slot, inside a state updater that also changes that item.
 
+### Root Page Must Be a Server Component That Routes by Auth State
+The root `/` page must check auth state server-side and redirect signed-in users based on their account status. If it's a client component showing just the landing page, signed-in users get stuck in a redirect loop when clicking "Sign in" (Clerk sees they're already authenticated and bounces them back to `/`). Additionally, new users (no groups) should go to `/onboarding`, not `/app` with an empty state. Pattern:
+```tsx
+// src/app/page.tsx — server component
+import { currentUser } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+import { getUserGroups } from "@/lib/membership";
+
+export default async function RootPage() {
+  const user = await currentUser();
+  if (user) {
+    const groups = await getUserGroups(user.id);
+    if (groups.length === 0) redirect("/onboarding");
+    redirect("/app");
+  }
+  return <LandingPage />;
+}
+```
+The landing page content lives in a separate `'use client'` component. This three-way routing (anonymous → landing, new user → onboarding, existing user → dashboard) applies to any SaaS app with public marketing + authenticated product.
+
+### Privacy/Access Gates Belong in `layout.tsx`, Not Individual Pages
+To enforce access control across an entire route segment (e.g., all `/g/[slug]/*` pages), add the gate in the layout, not in each page. This ensures every nested route — including dynamically added future pages — is automatically protected. The layout renders the gate component (e.g., `PrivateGroupGate`) instead of the children when access is denied. Pattern:
+```tsx
+// layout.tsx — gates ALL child routes
+const access = await canViewGroup(slug, user?.id ?? null);
+if (!access.canView) {
+  return <PrivateGroupGate reason={access.reason} />;
+}
+return <div>{children}</div>;
+```
+This prevents the common mistake of forgetting to add access checks when new pages are created under the segment.
+
 ### Admin-Only UI Must Appear in Both Empty and Populated States
 The group dashboard has two render paths: `EmptyDashboard` (0 games) and `HeroSection` (1+ games). Any admin-visible UI (settings gear, admin badges, management links) must be added to **both** components, not just the populated one. New groups spend their entire early life in the empty state, so admins will never see settings if it's only in `HeroSection`. Pattern: when adding admin-conditional UI to a page with an empty/populated split, always check both branches.
 

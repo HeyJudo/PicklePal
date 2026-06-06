@@ -1,4 +1,7 @@
+import { currentUser } from "@clerk/nextjs/server";
 import { BottomNav, DesktopNav } from "@/components/navigation";
+import { canViewGroup } from "@/lib/privacy";
+import { PrivateGroupGate } from "./PrivateGroupGate";
 
 interface GroupLayoutProps {
   readonly children: React.ReactNode;
@@ -10,6 +13,14 @@ export default async function GroupLayout({
   params,
 }: GroupLayoutProps) {
   const { slug } = await params;
+
+  // Check privacy access
+  const user = await currentUser();
+  const access = await canViewGroup(slug, user?.id ?? null);
+
+  if (!access.canView) {
+    return <PrivateGroupGate reason={access.reason} />;
+  }
 
   return (
     <div className="flex min-h-dvh">

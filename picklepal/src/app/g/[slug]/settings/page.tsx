@@ -5,6 +5,7 @@ import { isGroupAdmin } from "@/lib/membership";
 import { ArrowLeft, Settings } from "lucide-react";
 import Link from "next/link";
 import { InviteManager } from "./InviteManager";
+import { PrivacySettings } from "./PrivacySettings";
 
 interface SettingsPageProps {
   params: Promise<{ slug: string }>;
@@ -74,6 +75,12 @@ export default async function SettingsPage({ params }: SettingsPageProps) {
             Manage your group settings, admins, and privacy.
           </p>
         </section>
+
+        {/* Divider */}
+        <div className="border-t border-border" />
+
+        {/* Group Privacy */}
+        <PrivacySettings slug={slug} />
 
         {/* Divider */}
         <div className="border-t border-border" />
