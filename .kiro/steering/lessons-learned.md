@@ -242,6 +242,15 @@ if (userGroups.length > 0) {
 ```
 This prevents the dashboard from appearing empty for the existing friend group until Phase 4 migration assigns ownership. Remove the fallback after Phase 4 is complete.
 
+### `authorizeGroupWrite` Accepts Both Slugs and UUIDs
+The `authorizeGroupWrite(slugOrGroupId)` helper auto-detects whether the input is a UUID (via regex) or a slug, and resolves accordingly. This means server actions can call it with whatever identifier they have on hand — slug from the URL params, or groupId from a DB query. Pattern:
+```typescript
+const auth = await authorizeGroupWrite(slug); // from URL
+const auth = await authorizeGroupWrite(group.id); // from prior query
+if (!auth.authorized) return { success: false, error: auth.error };
+```
+All new write server actions should use this as their first line. It replaces the old manual `currentUser()` → `isGroupAdmin()` dance and the legacy PIN checks.
+
 ### Clerk Auth Is Separate From Supabase — Bridge via `profiles` Table
 Clerk handles organizer/admin authentication (sign-up, sign-in, session tokens). Supabase remains the database. They are **not coupled** — Clerk doesn't write to Supabase directly. The bridge is a `profiles` table (Phase 3a) that maps `clerk_user_id` → app identity. Server actions use `currentUser()` from Clerk to identify the caller, then query Supabase with the service role key. RLS policies will later use Clerk's JWT claims for row-level access, but that's Phase 3d.
 
