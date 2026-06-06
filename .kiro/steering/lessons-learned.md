@@ -159,6 +159,9 @@ const teamACount = players.filter(
 ```
 Applies anywhere you check "is there room?" before assigning an item to a slot, inside a state updater that also changes that item.
 
+### Admin-Only UI Must Appear in Both Empty and Populated States
+The group dashboard has two render paths: `EmptyDashboard` (0 games) and `HeroSection` (1+ games). Any admin-visible UI (settings gear, admin badges, management links) must be added to **both** components, not just the populated one. New groups spend their entire early life in the empty state, so admins will never see settings if it's only in `HeroSection`. Pattern: when adding admin-conditional UI to a page with an empty/populated split, always check both branches.
+
 ### Desktop 3-Column Layouts: Split Monolithic Components, Don't Nest Them
 When adapting a mobile-first component (like `ActiveSession`) into a multi-column desktop layout, **don't render the monolithic component in one column** and leave others empty. Instead, render its sub-components (`MatchQueue`, `SessionPlayerList`, etc.) directly into their appropriate columns at the parent level. Keep the monolithic component for mobile only via `lg:hidden`. Pattern:
 ```tsx
@@ -195,8 +198,33 @@ Next.js 16 shows a warning: `The "middleware" file convention is deprecated. Ple
 
 *Document key architectural decisions and their rationale.*
 
+### Membership Queries Need a Fallback for Pre-Migration Data
+When switching from "show all groups" to "show groups by membership," always include a fallback path for the pre-migration state where the `group_memberships` table exists but has no rows for the current user. The pattern in `src/app/app/actions.ts`:
+```typescript
+const userGroups = await getUserGroups(clerkUserId);
+if (userGroups.length > 0) {
+  // Use membership-based filtering
+} else {
+  // Fallback: show all groups (pre-migration compatibility)
+}
+```
+This prevents the dashboard from appearing empty for the existing friend group until Phase 4 migration assigns ownership. Remove the fallback after Phase 4 is complete.
+
 ### Clerk Auth Is Separate From Supabase — Bridge via `profiles` Table
 Clerk handles organizer/admin authentication (sign-up, sign-in, session tokens). Supabase remains the database. They are **not coupled** — Clerk doesn't write to Supabase directly. The bridge is a `profiles` table (Phase 3a) that maps `clerk_user_id` → app identity. Server actions use `currentUser()` from Clerk to identify the caller, then query Supabase with the service role key. RLS policies will later use Clerk's JWT claims for row-level access, but that's Phase 3d.
+
+### Token-Based Invite Pattern: Hash in DB, Raw in URL
+For invite/reset/verification tokens, generate with `crypto.randomBytes(32).toString("base64url")`, store only the SHA-256 hash in the database, and put the raw token in the shareable URL. This means:
+- DB leak doesn't compromise active tokens
+- Lookup is still fast via unique index on `token_hash`
+- Token validation: hash the URL param and query by hash
+- Use `base64url` encoding (not `hex`) for shorter URLs
+```typescript
+import { randomBytes, createHash } from "crypto";
+const token = randomBytes(32).toString("base64url");        // share this
+const tokenHash = createHash("sha256").update(token).digest("hex"); // store this
+```
+This pattern applies to any feature that needs secure, one-time-use links (invites, password resets, email verification).
 
 ### Example: State Management
 - **Decision**: Use Zustand for global state, React Context for component trees

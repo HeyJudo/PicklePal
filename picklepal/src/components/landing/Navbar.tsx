@@ -26,10 +26,15 @@ export default function Navbar() {
         ))}
       </div>
 
-      <Link href="/sign-up" className="bg-primary text-on-primary font-label text-xs uppercase font-semibold tracking-wider px-6 py-3 rounded-lg hover:scale-105 hover:shadow-lg transition-all duration-300 active:scale-95 flex items-center gap-2 relative overflow-hidden group">
-        <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></span>
-        Create Your Group <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-      </Link>
+      <div className="flex items-center gap-3">
+        <Link href="/sign-in" className="text-on-surface-variant hover:text-primary transition-colors font-label text-xs uppercase font-semibold tracking-wider">
+          Sign In
+        </Link>
+        <Link href="/sign-up" className="bg-primary text-on-primary font-label text-xs uppercase font-semibold tracking-wider px-6 py-3 rounded-lg hover:scale-105 hover:shadow-lg transition-all duration-300 active:scale-95 flex items-center gap-2 relative overflow-hidden group">
+          <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></span>
+          Create Your Group <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+        </Link>
+      </div>
     </nav>
   );
 }

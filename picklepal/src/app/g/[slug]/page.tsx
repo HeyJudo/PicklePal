@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
+import { currentUser } from "@clerk/nextjs/server";
 import { createServerClient, type Group } from "@/lib/supabase";
+import { isGroupAdmin } from "@/lib/membership";
 import { getDashboardData } from "./actions";
 import { HeroSection } from "./dashboard/HeroSection";
 import { StatsHighlights } from "./dashboard/StatsHighlights";
@@ -32,9 +34,13 @@ export default async function HomePage({ params }: HomePageProps) {
 
   const { data: dashboard } = await getDashboardData(slug);
 
+  // Check if current user is an admin (for showing settings gear)
+  const user = await currentUser();
+  const userIsAdmin = user ? await isGroupAdmin(user.id, group.id) : false;
+
   // Show welcoming empty state for brand-new groups with no games
   if (!dashboard || dashboard.totalGamesPlayed === 0) {
-    return <EmptyDashboard groupName={group.name} groupSlug={slug} />;
+    return <EmptyDashboard groupName={group.name} groupSlug={slug} isAdmin={userIsAdmin} />;
   }
 
   return (
@@ -45,6 +51,7 @@ export default async function HomePage({ params }: HomePageProps) {
         activeSession={dashboard.activeSession}
         totalGamesPlayed={dashboard.totalGamesPlayed}
         totalSessions={dashboard.totalSessions}
+        isAdmin={userIsAdmin}
       />
 
       <StatsHighlights

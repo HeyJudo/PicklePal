@@ -1,15 +1,17 @@
 import Link from "next/link";
+import { Settings } from "lucide-react";
 
 interface EmptyDashboardProps {
   readonly groupName: string;
   readonly groupSlug: string;
+  readonly isAdmin?: boolean;
 }
 
 /**
  * Welcoming empty state shown when a group has no matches or sessions yet.
  * Guides the host to add players and start their first Game Day.
  */
-export function EmptyDashboard({ groupName, groupSlug }: EmptyDashboardProps) {
+export function EmptyDashboard({ groupName, groupSlug, isAdmin }: EmptyDashboardProps) {
   return (
     <div className="space-y-8">
       {/* Welcome hero */}
@@ -18,6 +20,18 @@ export function EmptyDashboard({ groupName, groupSlug }: EmptyDashboardProps) {
           <div className="absolute top-6 right-8 w-24 h-24 rounded-full border-4 border-white" />
           <div className="absolute bottom-6 left-8 w-16 h-16 rounded-full border-2 border-white" />
         </div>
+
+        {/* Settings gear — top right */}
+        {isAdmin && (
+          <Link
+            href={`/g/${groupSlug}/settings`}
+            className="absolute top-4 right-4 z-20 cursor-pointer inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-white border border-white/30 transition-all hover:bg-white/30 hover:border-white/50"
+            aria-label="Group settings"
+          >
+            <Settings className="h-3.5 w-3.5" />
+            Settings
+          </Link>
+        )}
 
         <div className="relative z-10">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/15 backdrop-blur-sm mb-4">

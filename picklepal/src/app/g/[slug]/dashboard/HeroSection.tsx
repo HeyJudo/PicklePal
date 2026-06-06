@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Settings } from "lucide-react";
 import type { ActiveSessionInfo } from "../actions";
 
 interface HeroSectionProps {
@@ -7,6 +8,7 @@ interface HeroSectionProps {
   readonly activeSession: ActiveSessionInfo | null;
   readonly totalGamesPlayed: number;
   readonly totalSessions: number;
+  readonly isAdmin?: boolean;
 }
 
 export function HeroSection({
@@ -15,6 +17,7 @@ export function HeroSection({
   activeSession,
   totalGamesPlayed,
   totalSessions,
+  isAdmin,
 }: HeroSectionProps) {
   return (
     <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-court-green via-court-green-dark to-sky-blue-dark p-6 sm:p-8">
@@ -27,13 +30,25 @@ export function HeroSection({
 
       <div className="relative z-10">
         {/* Group name & tagline */}
-        <div className="mb-4">
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            {groupName}
-          </h1>
-          <p className="text-white/70 text-sm sm:text-base mt-1 font-medium">
-            Your pickleball crew scoreboard
-          </p>
+        <div className="mb-4 flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              {groupName}
+            </h1>
+            <p className="text-white/70 text-sm sm:text-base mt-1 font-medium">
+              Your pickleball crew scoreboard
+            </p>
+          </div>
+          {isAdmin && (
+            <Link
+              href={`/g/${groupSlug}/settings`}
+              className="cursor-pointer inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-white border border-white/30 transition-all hover:bg-white/30 hover:border-white/50"
+              aria-label="Group settings"
+            >
+              <Settings className="h-3.5 w-3.5" />
+              Settings
+            </Link>
+          )}
         </div>
 
         {/* Active session banner OR idle state */}

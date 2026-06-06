@@ -388,7 +388,7 @@ Acceptance criteria:
 
 Purpose: define public-launch ownership and access control.
 
-### 3a. Profiles And Memberships
+### 3a. Profiles And Memberships DONE
 
 Deliverables:
 
