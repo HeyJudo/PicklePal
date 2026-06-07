@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { PlayerAvatar } from "@/components/players";
 import {
   createMatchHistory,
@@ -21,6 +21,7 @@ import {
   getSyncDisplay,
   removeLastOfflineRallyEvent,
 } from "@/lib/offline";
+import { updateMatchSnapshot } from "./active-match-actions";
 import type { MatchStartConfig } from "./PositionConfirmation";
 
 interface Player {
@@ -39,6 +40,7 @@ interface LiveScoringProps {
   readonly targetScore: number;
   readonly winBy: number;
   readonly trackScorers?: boolean;
+  readonly activeMatchId: string | null;
   readonly onMatchComplete: (history: MatchHistory) => void;
 }
 
@@ -51,6 +53,7 @@ export function LiveScoring({
   targetScore,
   winBy,
   trackScorers = false,
+  activeMatchId,
   onMatchComplete,
 }: LiveScoringProps) {
   const [history, setHistory] = useState<MatchHistory>(() => {
@@ -97,13 +100,51 @@ export function LiveScoring({
     };
   }, []);
 
+  const state = history.currentState;
+  const isDoubles = isDoublesState(state);
+
+  // Sync snapshot to DB every 5 seconds while match is active
+  const lastSnapshotRef = useRef<string>("");
+  useEffect(() => {
+    if (!activeMatchId || history.currentState.isComplete) return;
+
+    const syncSnapshot = async () => {
+      const currentState = history.currentState;
+      const serverState = isDoublesState(currentState)
+        ? (currentState as DoublesMatchState).serverState
+        : (currentState as SinglesMatchState).serverState;
+
+      const snapshot = {
+        teamAScore: currentState.teamAScore,
+        teamBScore: currentState.teamBScore,
+        servingTeam: serverState.servingTeam,
+        serverPlayerId: serverState.serverPlayerId,
+        serverNumber: isDoublesState(currentState)
+          ? (serverState as DoublesMatchState["serverState"]).serverNumber
+          : null,
+        rallyCount: history.rallyWinners.length,
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Only sync if state actually changed
+      const snapshotKey = `${snapshot.teamAScore}-${snapshot.teamBScore}-${snapshot.rallyCount}`;
+      if (snapshotKey === lastSnapshotRef.current) return;
+      lastSnapshotRef.current = snapshotKey;
+
+      await updateMatchSnapshot(activeMatchId, snapshot);
+    };
+
+    const intervalId = setInterval(syncSnapshot, 5000);
+    // Also sync immediately on first render / state change
+    syncSnapshot();
+
+    return () => clearInterval(intervalId);
+  }, [activeMatchId, history]);
+
   const playerMap = new Map(players.map((p) => [p.id, p]));
   const getPlayer = (id: string) => playerMap.get(id);
   const getPlayerName = (id: string) =>
     playerMap.get(id)?.display_name ?? "?";
-
-  const state = history.currentState;
-  const isDoubles = isDoublesState(state);
 
   const handleRallyWinner = useCallback(
     (winner: Team, scorerPlayerId: string | null = null) => {

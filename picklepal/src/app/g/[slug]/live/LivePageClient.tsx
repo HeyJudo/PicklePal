@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { StartSessionForm } from "./StartSessionForm";
 import { ActiveSession } from "./ActiveSession";
@@ -12,12 +12,16 @@ import { SessionPlayerList } from "./SessionPlayerList";
 import { SessionMatchHistory } from "./SessionMatchHistory";
 import { GameDayRecap } from "./GameDayRecap";
 import { RecordMatchForm } from "./RecordMatchForm";
+import { ActiveMatchBanner } from "./ActiveMatchBanner";
+import { ViewOnlyScoring } from "./ViewOnlyScoring";
 import { OverlayRenderer } from "@/components/share";
 import { endSession, getSessionRecap, getSessionMatches } from "./actions";
+import { createActiveMatch, completeActiveMatch } from "./active-match-actions";
 import type { MatchStartConfig } from "./PositionConfirmation";
 import type { CompletedMatchData } from "./MatchResult";
 import type { Matchup } from "@/lib/matchmaking";
 import type { SessionMatchData } from "./actions";
+import type { MatchSnapshot } from "@/lib/supabase";
 import {
   clearRecoverableMatch,
   getRecoverableMatch,
@@ -35,7 +39,10 @@ import type { SessionPlayerStatus } from "@/lib/supabase";
 import type { LeaderboardEntry } from "@/lib/stats";
 import type { GroupSettings } from "@/lib/supabase";
 
-type LiveStep = "idle" | "active" | "positions" | "scoring" | "result" | "recap" | "overlay";
+type LiveStep = "idle" | "active" | "positions" | "scoring" | "result" | "recap" | "overlay" | "viewing";
+
+/** Staleness threshold in milliseconds (30 seconds) */
+const HEARTBEAT_STALE_MS = 30_000;
 
 interface SessionData {
   readonly id: string;
@@ -60,6 +67,19 @@ interface SessionPlayerEntry {
   readonly status: SessionPlayerStatus;
 }
 
+interface ActiveMatchInfo {
+  readonly id: string;
+  readonly matchType: string;
+  readonly teamAPlayerIds: string[];
+  readonly teamBPlayerIds: string[];
+  readonly scorerClerkUserId: string | null;
+  readonly scorerHeartbeatAt: string | null;
+  readonly currentSnapshot: MatchSnapshot | null;
+  readonly startingServerPlayerId: string | null;
+  readonly targetScore: number;
+  readonly winBy: number;
+}
+
 interface LivePageClientProps {
   readonly groupSlug: string;
   readonly initialSession: SessionData | null;
@@ -68,6 +88,9 @@ interface LivePageClientProps {
   readonly initialSessionMatches: readonly SessionMatchData[];
   readonly leaderboardEntries: readonly LeaderboardEntry[];
   readonly groupSettings: GroupSettings | null;
+  readonly clerkUserId: string | null;
+  readonly isAdmin: boolean;
+  readonly initialActiveMatch: ActiveMatchInfo | null;
 }
 
 export function LivePageClient({
@@ -78,6 +101,9 @@ export function LivePageClient({
   initialSessionMatches,
   leaderboardEntries,
   groupSettings,
+  clerkUserId,
+  isAdmin,
+  initialActiveMatch,
 }: LivePageClientProps) {
   const [activeSession, setActiveSession] = useState<SessionData | null>(initialSession);
   const [sessionPlayers, setSessionPlayers] = useState<readonly SessionPlayerEntry[]>(initialSessionPlayers);
@@ -90,6 +116,9 @@ export function LivePageClient({
     initialSession ? getRecoverableMatch(initialSession.id) : null,
   );
   const [completedMatch, setCompletedMatch] = useState<CompletedMatchData | null>(null);
+  const [activeMatchId, setActiveMatchId] = useState<string | null>(initialActiveMatch?.id ?? null);
+  const [dbActiveMatch, setDbActiveMatch] = useState<ActiveMatchInfo | null>(initialActiveMatch);
+  const [showResumePrompt, setShowResumePrompt] = useState(false);
   const [recapData, setRecapData] = useState<{
     gamesPlayed: number;
     playerCount: number;
@@ -97,7 +126,28 @@ export function LivePageClient({
     awards: import("@/lib/stats").SessionAwards;
     playerNames: Record<string, string>;
   } | null>(null);
-  const [step, setStep] = useState<LiveStep>(initialSession ? "active" : "idle");
+  const [step, setStep] = useState<LiveStep>(() => {
+    if (!initialSession) return "idle";
+    // Auto-resume detection on mount
+    if (initialActiveMatch && clerkUserId) {
+      const iAmScorer = initialActiveMatch.scorerClerkUserId === clerkUserId;
+      const heartbeatFresh = isHeartbeatFresh(initialActiveMatch.scorerHeartbeatAt);
+
+      if (iAmScorer && heartbeatFresh) {
+        // Auto-resume: I'm the scorer and heartbeat is fresh
+        return "scoring";
+      }
+      if (iAmScorer && !heartbeatFresh) {
+        // Ambiguous: I'm the scorer but heartbeat is stale — show prompt
+        return "active";
+      }
+      if (!iAmScorer) {
+        // Someone else is scoring — show banner in active step
+        return "active";
+      }
+    }
+    return "active";
+  });
   const [showRecordMatch, setShowRecordMatch] = useState(false);
 
   // Derived state
@@ -110,6 +160,65 @@ export function LivePageClient({
     [players, activePlayerIds],
   );
   const matchType = activeSession?.default_match_type === "singles" ? "singles" : "doubles";
+
+  // ── Auto-resume from DB active match ────────────────────────────────────────
+
+  // Set up matchConfig and history for auto-resume when step is "scoring" on mount
+  useEffect(() => {
+    if (!initialActiveMatch || !clerkUserId) return;
+    const iAmScorer = initialActiveMatch.scorerClerkUserId === clerkUserId;
+    const heartbeatFresh = isHeartbeatFresh(initialActiveMatch.scorerHeartbeatAt);
+
+    if (iAmScorer && heartbeatFresh && !matchConfig) {
+      // Auto-resume: rebuild config from DB match
+      const config: MatchStartConfig = {
+        teamA: initialActiveMatch.teamAPlayerIds,
+        teamB: initialActiveMatch.teamBPlayerIds,
+        startingServerPlayerId: initialActiveMatch.startingServerPlayerId ?? initialActiveMatch.teamAPlayerIds[0],
+        matchType: initialActiveMatch.matchType as "singles" | "doubles",
+      };
+      setMatchConfig(config);
+      setMatchLocalId(initialActiveMatch.id);
+      setActiveMatchId(initialActiveMatch.id);
+
+      // Rebuild history from snapshot rally count
+      const snapshot = initialActiveMatch.currentSnapshot;
+      if (snapshot && snapshot.rallyCount > 0) {
+        // We have a snapshot — rebuild history using local rally queue if available
+        const localMatch = initialSession ? getRecoverableMatch(initialSession.id) : null;
+        if (localMatch && localMatch.matchLocalId === initialActiveMatch.id) {
+          // Use local recovery data for exact state
+          const history = rebuildHistoryFromRecovery(localMatch);
+          setRecoveredHistory(history);
+        } else {
+          // No local recovery found — rebuild from DB snapshot by replaying rally events
+          // We can't reconstruct exact rally-by-rally state, but we can fetch rally_events from DB
+          // For now, show the resume prompt so the scorer can confirm
+          setStep("active");
+          setShowResumePrompt(true);
+          return;
+        }
+      }
+    }
+
+    if (iAmScorer && !heartbeatFresh) {
+      // Show resume prompt for stale heartbeat
+      setShowResumePrompt(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Determine active match relationship for banner/view-only
+  const activeMatchRelation = useMemo(() => {
+    if (!dbActiveMatch || !clerkUserId) return "none" as const;
+    if (dbActiveMatch.scorerClerkUserId === clerkUserId) return "scorer" as const;
+    return "viewer" as const;
+  }, [dbActiveMatch, clerkUserId]);
+
+  const isActiveMatchHeartbeatStale = useMemo(() => {
+    if (!dbActiveMatch) return false;
+    return !isHeartbeatFresh(dbActiveMatch.scorerHeartbeatAt);
+  }, [dbActiveMatch]);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
@@ -160,22 +269,56 @@ export function LivePageClient({
     setStep("positions");
   };
 
-  const handlePositionsConfirmed = (config: MatchStartConfig) => {
+  const handlePositionsConfirmed = async (config: MatchStartConfig) => {
     if (!activeSession) return;
-    const nextMatchLocalId = createLocalMatchId();
+    let matchLocalIdToUse = createLocalMatchId();
+
+    // Create active match in DB before entering scoring
+    const result = await createActiveMatch({
+      sessionId: activeSession.id,
+      matchType: config.matchType,
+      teamAPlayerIds: config.teamA,
+      teamBPlayerIds: config.teamB,
+      startingServerPlayerId: config.startingServerPlayerId,
+      targetScore: activeSession.target_score,
+      winBy: activeSession.win_by,
+    });
+
+    if (result.success && result.data) {
+      setActiveMatchId(result.data.matchId);
+      // Use DB match ID as the local match ID so auto-resume can find it
+      matchLocalIdToUse = result.data.matchId;
+    }
+    // If DB creation fails, still allow local scoring (offline resilience)
+
     setMatchConfig(config);
-    setMatchLocalId(nextMatchLocalId);
+    setMatchLocalId(matchLocalIdToUse);
     setRecoveredHistory(null);
     saveRecoverableMatch({
-      sessionId: activeSession.id, matchLocalId: nextMatchLocalId, config,
+      sessionId: activeSession.id, matchLocalId: matchLocalIdToUse, config,
       targetScore: activeSession.target_score, winBy: activeSession.win_by,
       createdAt: new Date().toISOString(),
     });
     setStep("scoring");
   };
 
-  const handleMatchComplete = (completedHistory: MatchHistory) => {
-    setCompletedMatch(buildCompletedMatchData(completedHistory));
+  const handleMatchComplete = async (completedHistory: MatchHistory) => {
+    const matchData = buildCompletedMatchData(completedHistory);
+    setCompletedMatch(matchData);
+
+    // If we have an active DB match, transition it to completed
+    if (activeMatchId) {
+      const rallyEvents = buildRallyEvents(completedHistory);
+      await completeActiveMatch({
+        matchId: activeMatchId,
+        teamAScore: matchData.teamAScore,
+        teamBScore: matchData.teamBScore,
+        winningTeam: matchData.winner,
+        losingTeam: matchData.winner === "A" ? "B" : "A",
+        rallyEvents,
+      });
+    }
+
     setStep("result");
   };
 
@@ -186,6 +329,7 @@ export function LivePageClient({
     }
     setMatchConfig(null); setMatchLocalId(null); setRecoveredHistory(null);
     setRecoverableMatch(null); setCurrentMatchup(null); setCompletedMatch(null);
+    setActiveMatchId(null); setDbActiveMatch(null);
     setStep("active");
   };
 
@@ -225,6 +369,67 @@ export function LivePageClient({
     if (!recoverableMatch) return;
     clearRecoverableMatch(recoverableMatch.sessionId, recoverableMatch.matchLocalId);
     setRecoverableMatch(null);
+  };
+
+  // ── Phase 6b/6c: Resume & View-Only Handlers ───────────────────────────────
+
+  const handleResumeFromDb = () => {
+    if (!dbActiveMatch || !activeSession) return;
+    const config: MatchStartConfig = {
+      teamA: dbActiveMatch.teamAPlayerIds,
+      teamB: dbActiveMatch.teamBPlayerIds,
+      startingServerPlayerId: dbActiveMatch.startingServerPlayerId ?? dbActiveMatch.teamAPlayerIds[0],
+      matchType: dbActiveMatch.matchType as "singles" | "doubles",
+    };
+    setMatchConfig(config);
+    setMatchLocalId(dbActiveMatch.id);
+    setActiveMatchId(dbActiveMatch.id);
+    setShowResumePrompt(false);
+
+    // Try local rally queue for exact state
+    const localMatch = getRecoverableMatch(activeSession.id);
+    if (localMatch && localMatch.matchLocalId === dbActiveMatch.id) {
+      const history = rebuildHistoryFromRecovery(localMatch);
+      setRecoveredHistory(history);
+    } else {
+      // No local recovery — save recoverable match metadata for future navigations
+      saveRecoverableMatch({
+        sessionId: activeSession.id,
+        matchLocalId: dbActiveMatch.id,
+        config,
+        targetScore: dbActiveMatch.targetScore,
+        winBy: dbActiveMatch.winBy,
+        createdAt: new Date().toISOString(),
+      });
+      // recoveredHistory stays null — LiveScoring will start fresh from 0-0
+      // but activeMatchId ensures snapshot sync continues from where it was
+    }
+
+    setStep("scoring");
+  };
+
+  const handleDismissResumePrompt = () => {
+    setShowResumePrompt(false);
+  };
+
+  const handleViewActiveMatch = () => {
+    setStep("viewing");
+  };
+
+  const handleTakeOverComplete = () => {
+    // After takeover, reload to get fresh state as the new scorer
+    window.location.reload();
+  };
+
+  const handleViewMatchEnded = async () => {
+    // Match ended while viewing — refresh matches and go back to active
+    setDbActiveMatch(null);
+    setActiveMatchId(null);
+    if (activeSession) {
+      const result = await getSessionMatches(activeSession.id);
+      if (result.success && result.data) setSessionMatches(result.data);
+    }
+    setStep("active");
   };
 
   // ── Full-screen steps (early returns) ───────────────────────────────────────
@@ -305,6 +510,7 @@ export function LivePageClient({
           matchLocalId={matchLocalId} initialHistory={recoveredHistory ?? undefined}
           players={players} targetScore={activeSession.target_score}
           winBy={activeSession.win_by} trackScorers={activeSession.track_scorers}
+          activeMatchId={activeMatchId}
           onMatchComplete={handleMatchComplete}
         />
       )}
@@ -313,12 +519,64 @@ export function LivePageClient({
           matchData={completedMatch} sessionId={activeSession.id}
           matchLocalId={matchLocalId} players={players}
           targetScore={activeSession.target_score} winBy={activeSession.win_by}
+          activeMatchId={activeMatchId}
           onNextMatch={handleNextMatch} onEndSession={handleSessionEnded}
+        />
+      )}
+      {/* View-only scoring (another admin is scoring) */}
+      {step === "viewing" && dbActiveMatch && (
+        <ViewOnlyScoring
+          matchId={dbActiveMatch.id}
+          sessionId={activeSession.id}
+          initialSnapshot={dbActiveMatch.currentSnapshot}
+          matchType={dbActiveMatch.matchType as "singles" | "doubles"}
+          teamAPlayerIds={dbActiveMatch.teamAPlayerIds}
+          teamBPlayerIds={dbActiveMatch.teamBPlayerIds}
+          players={players}
+          targetScore={dbActiveMatch.targetScore}
+          onMatchEnded={handleViewMatchEnded}
         />
       )}
       {/* Active step: show session overview + queue + record match */}
       {step === "active" && (
         <div className="space-y-6">
+          {/* Resume prompt — stale heartbeat, I am scorer */}
+          {showResumePrompt && dbActiveMatch && activeMatchRelation === "scorer" && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-2">
+              <p className="text-sm font-semibold text-amber-800">Resume your match?</p>
+              <p className="text-xs text-amber-700">
+                You have an active match in progress. Your scoring session may have been interrupted.
+              </p>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  onClick={handleResumeFromDb}
+                  className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 transition-colors cursor-pointer"
+                >
+                  Resume Scoring
+                </button>
+                <button
+                  onClick={handleDismissResumePrompt}
+                  className="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors cursor-pointer"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+          {/* Active match banner — someone else is scoring */}
+          {dbActiveMatch && activeMatchRelation === "viewer" && (
+            <ActiveMatchBanner
+              matchId={dbActiveMatch.id}
+              snapshot={dbActiveMatch.currentSnapshot}
+              teamAPlayerIds={dbActiveMatch.teamAPlayerIds}
+              teamBPlayerIds={dbActiveMatch.teamBPlayerIds}
+              players={players}
+              isHeartbeatStale={isActiveMatchHeartbeatStale}
+              isAdmin={isAdmin}
+              onTakeOver={handleTakeOverComplete}
+              onViewMatch={handleViewActiveMatch}
+            />
+          )}
           <ActiveSession
             groupSlug={groupSlug}
             session={activeSession}
@@ -440,6 +698,7 @@ export function LivePageClient({
             matchLocalId={matchLocalId} initialHistory={recoveredHistory ?? undefined}
             players={players} targetScore={activeSession.target_score}
             winBy={activeSession.win_by} trackScorers={activeSession.track_scorers}
+            activeMatchId={activeMatchId}
             onMatchComplete={handleMatchComplete}
           />
         )}
@@ -450,7 +709,62 @@ export function LivePageClient({
             matchData={completedMatch} sessionId={activeSession.id}
             matchLocalId={matchLocalId} players={players}
             targetScore={activeSession.target_score} winBy={activeSession.win_by}
+            activeMatchId={activeMatchId}
             onNextMatch={handleNextMatch} onEndSession={handleSessionEnded}
+          />
+        )}
+
+        {/* View-only scoring (another admin is scoring) */}
+        {step === "viewing" && dbActiveMatch && (
+          <ViewOnlyScoring
+            matchId={dbActiveMatch.id}
+            sessionId={activeSession.id}
+            initialSnapshot={dbActiveMatch.currentSnapshot}
+            matchType={dbActiveMatch.matchType as "singles" | "doubles"}
+            teamAPlayerIds={dbActiveMatch.teamAPlayerIds}
+            teamBPlayerIds={dbActiveMatch.teamBPlayerIds}
+            players={players}
+            targetScore={dbActiveMatch.targetScore}
+            onMatchEnded={handleViewMatchEnded}
+          />
+        )}
+
+        {/* Resume prompt — stale heartbeat, I am scorer (desktop) */}
+        {step === "active" && showResumePrompt && dbActiveMatch && activeMatchRelation === "scorer" && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-2">
+            <p className="text-sm font-semibold text-amber-800">Resume your match?</p>
+            <p className="text-xs text-amber-700">
+              You have an active match in progress. Your scoring session may have been interrupted.
+            </p>
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={handleResumeFromDb}
+                className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 transition-colors cursor-pointer"
+              >
+                Resume Scoring
+              </button>
+              <button
+                onClick={handleDismissResumePrompt}
+                className="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors cursor-pointer"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Active match banner — someone else is scoring (desktop) */}
+        {step === "active" && dbActiveMatch && activeMatchRelation === "viewer" && (
+          <ActiveMatchBanner
+            matchId={dbActiveMatch.id}
+            snapshot={dbActiveMatch.currentSnapshot}
+            teamAPlayerIds={dbActiveMatch.teamAPlayerIds}
+            teamBPlayerIds={dbActiveMatch.teamBPlayerIds}
+            players={players}
+            isHeartbeatStale={isActiveMatchHeartbeatStale}
+            isAdmin={isAdmin}
+            onTakeOver={handleTakeOverComplete}
+            onViewMatch={handleViewActiveMatch}
           />
         )}
 
@@ -632,4 +946,14 @@ function buildRallyEvents(history: MatchHistory) {
     replayState = result.newState;
   }
   return events;
+}
+
+/**
+ * Check if a heartbeat timestamp is fresh (within 30 seconds).
+ * Returns false if null/undefined (treat as stale).
+ */
+function isHeartbeatFresh(heartbeatAt: string | null | undefined): boolean {
+  if (!heartbeatAt) return false;
+  const age = Date.now() - new Date(heartbeatAt).getTime();
+  return age < HEARTBEAT_STALE_MS;
 }

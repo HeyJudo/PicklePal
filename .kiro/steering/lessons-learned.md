@@ -289,3 +289,25 @@ This pattern applies to any feature that needs secure, one-time-use links (invit
 - Remove patterns that are no longer relevant
 - Update patterns as the project evolves
 - Focus on what's unique to this project
+
+### Graceful Degradation for DB-Backed Live Features
+When adding DB persistence to real-time flows (live scoring, heartbeats, viewer sync), always let the flow continue locally if the server call fails. Pattern: attempt the DB write, store the returned ID if successful, but proceed with local state regardless. On completion, use the DB-backed completion path if the ID exists, else fall back to the legacy save path. This avoids blocking courtside scoring on network hiccups while still getting the benefits of DB-backed state when online.
+
+```typescript
+// Good: non-blocking DB write at scoring start
+const result = await createActiveMatch({ ... });
+if (result.success && result.data) {
+  setActiveMatchId(result.data.matchId);
+}
+// Proceed to scoring regardless of success/failure
+setStep("scoring");
+```
+
+### Piggyback Heartbeats on Existing Sync Intervals
+When adding heartbeat/presence tracking, don't create a separate interval if an existing periodic sync already exists. The scorer heartbeat piggybacks on the 5-second snapshot sync (`updateMatchSnapshot` also sets `scorer_heartbeat_at = now()` server-side). This halves the network traffic, eliminates drift between two timers, and means "is scorer alive?" is answered by the same mechanism that answers "what's the current score?". Apply this pattern whenever adding liveness detection to a feature that already has periodic DB writes.
+
+### Server Component Props as the Auth Gateway for Client Components
+When a client component needs to know the user's identity/role (e.g., "am I the scorer?" or "am I an admin?"), resolve that in the page.tsx server component and pass it as a prop (`clerkUserId`, `isAdmin`, `initialActiveMatch`). Don't call `currentUser()` from client components or repeat auth checks in multiple places. The server component is the single source of truth for "who is viewing this page and what can they do?" — client components just consume the pre-resolved identity.
+
+### Use DB Record ID as the Local Storage Key for Offline Recovery
+When a feature stores local recovery data keyed by a match/session ID, always use the **DB record ID** (from the server response) as the key — not a locally-generated random UUID. The auto-resume flow looks up local recovery data using the DB match ID fetched from the server. If the local key was a different random UUID, the lookup fails silently and state resets to zero. Pattern: `matchLocalId = dbResult.success ? dbResult.data.matchId : createLocalMatchId()`.

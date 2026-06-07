@@ -1,7 +1,10 @@
+import { currentUser } from "@clerk/nextjs/server";
 import { getActiveSession, getGroupPlayers, getSessionMatches } from "./actions";
 import { getSessionPlayers } from "./session-player-actions";
+import { getActiveMatch } from "./active-match-actions";
 import { getLeaderboard } from "../board/actions";
 import { getGroupSettings } from "../settings/settings-actions";
+import { isGroupAdmin } from "@/lib/membership";
 import { LivePageClient } from "./LivePageClient";
 
 interface LivePageProps {
@@ -11,23 +14,39 @@ interface LivePageProps {
 export default async function LivePage({ params }: LivePageProps) {
   const { slug } = await params;
 
-  const [sessionResult, players, leaderboardResult, groupSettingsResult] = await Promise.all([
+  const [sessionResult, players, leaderboardResult, groupSettingsResult, user] = await Promise.all([
     getActiveSession(slug),
     getGroupPlayers(slug),
     getLeaderboard(slug),
     getGroupSettings(slug),
+    currentUser(),
   ]);
 
   const activeSession = sessionResult.success ? sessionResult.data ?? null : null;
   const groupSettings = groupSettingsResult.data?.settings ?? null;
+  const clerkUserId = user?.id ?? null;
 
   // Fetch session players and matches if there's an active session
   let sessionPlayers: { playerId: string; status: "active" | "benched" | "removed" }[] = [];
   let sessionMatches: Awaited<ReturnType<typeof getSessionMatches>>["data"] = [];
+  let activeMatchData: {
+    id: string;
+    matchType: string;
+    teamAPlayerIds: string[];
+    teamBPlayerIds: string[];
+    scorerClerkUserId: string | null;
+    scorerHeartbeatAt: string | null;
+    currentSnapshot: import("@/lib/supabase").MatchSnapshot | null;
+    startingServerPlayerId: string | null;
+    targetScore: number;
+    winBy: number;
+  } | null = null;
+
   if (activeSession) {
-    const [spResult, matchesResult] = await Promise.all([
+    const [spResult, matchesResult, activeMatchResult] = await Promise.all([
       getSessionPlayers(activeSession.id),
       getSessionMatches(activeSession.id),
+      getActiveMatch(activeSession.id),
     ]);
 
     if (spResult.success && spResult.data) {
@@ -49,6 +68,43 @@ export default async function LivePage({ params }: LivePageProps) {
     if (matchesResult.success && matchesResult.data) {
       sessionMatches = matchesResult.data;
     }
+
+    if (activeMatchResult.success && activeMatchResult.data) {
+      const am = activeMatchResult.data;
+      activeMatchData = {
+        id: am.id,
+        matchType: am.match_type,
+        teamAPlayerIds: am.team_a_player_ids,
+        teamBPlayerIds: am.team_b_player_ids,
+        scorerClerkUserId: am.scorer_clerk_user_id,
+        scorerHeartbeatAt: am.scorer_heartbeat_at,
+        currentSnapshot: am.current_snapshot,
+        startingServerPlayerId: am.starting_server_player_id,
+        targetScore: am.target_score,
+        winBy: am.win_by,
+      };
+    }
+  }
+
+  // Check if user is an admin (needed for takeover UX)
+  let isAdmin = false;
+  if (clerkUserId) {
+    // Resolve group ID from slug for the admin check
+    const { createClient } = await import("@supabase/supabase-js");
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { persistSession: false, autoRefreshToken: false } },
+    );
+    const { data: group } = await supabase
+      .from("groups")
+      .select("id")
+      .eq("slug", slug)
+      .maybeSingle();
+
+    if (group) {
+      isAdmin = await isGroupAdmin(clerkUserId, group.id);
+    }
   }
 
   return (
@@ -60,6 +116,9 @@ export default async function LivePage({ params }: LivePageProps) {
       initialSessionMatches={sessionMatches ?? []}
       leaderboardEntries={leaderboardResult.entries}
       groupSettings={groupSettings}
+      clerkUserId={clerkUserId}
+      isAdmin={isAdmin}
+      initialActiveMatch={activeMatchData}
     />
   );
 }

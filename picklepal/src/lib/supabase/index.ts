@@ -7,6 +7,7 @@ export type {
   Player,
   Session,
   Match,
+  MatchSnapshot,
   RallyEvent,
   MatchQueueItem,
   RecapCard,

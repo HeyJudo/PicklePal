@@ -45,6 +45,7 @@ interface MatchResultProps {
   readonly players: readonly Player[];
   readonly targetScore: number;
   readonly winBy: number;
+  readonly activeMatchId: string | null;
   readonly onNextMatch: () => void;
   readonly onEndSession: () => void;
 }
@@ -56,6 +57,7 @@ export function MatchResult({
   players,
   targetScore,
   winBy,
+  activeMatchId,
   onNextMatch,
   onEndSession,
 }: MatchResultProps) {
@@ -99,6 +101,16 @@ export function MatchResult({
   const attemptSave = useCallback(async () => {
     if (saved || isSaving) return;
 
+    // If match was already completed via activeMatchId flow, mark as saved
+    if (activeMatchId) {
+      setSaved(true);
+      setPendingRallyCount(0);
+      if (matchLocalId) {
+        clearRecoverableMatch(sessionId, matchLocalId);
+      }
+      return;
+    }
+
     if (!isOnline) {
       setError("Waiting for connection to sync match");
       setRetryAttempt((attempt) => Math.max(1, attempt));
@@ -138,6 +150,7 @@ export function MatchResult({
       setIsSaving(false);
     }
   }, [
+    activeMatchId,
     isOnline,
     isSaving,
     loser,
