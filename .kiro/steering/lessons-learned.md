@@ -242,6 +242,15 @@ if (userGroups.length > 0) {
 ```
 This prevents the dashboard from appearing empty for the existing friend group until Phase 4 migration assigns ownership. Remove the fallback after Phase 4 is complete.
 
+### Slug Renames Require Codebase-Wide Hardcoded Reference Sweeps
+When renaming a group slug (e.g., `default` → `picklepal`), the migration SQL is not enough. Hardcoded slug references exist in:
+- Landing page links (`/g/default` → `/g/picklepal`)
+- Reserved slug lists in onboarding validation
+- Seed data files
+- Potentially in test fixtures or E2E test URLs
+
+Always `grep` for the old slug across `**/*.{ts,tsx,sql}` after writing the migration and update all matches. The build won't catch stale slugs — they'll just 404 at runtime.
+
 ### `authorizeGroupWrite` Accepts Both Slugs and UUIDs
 The `authorizeGroupWrite(slugOrGroupId)` helper auto-detects whether the input is a UUID (via regex) or a slug, and resolves accordingly. This means server actions can call it with whatever identifier they have on hand — slug from the URL params, or groupId from a DB query. Pattern:
 ```typescript

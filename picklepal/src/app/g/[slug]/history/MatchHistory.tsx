@@ -3,8 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useHostAuth } from "@/hooks/useHostAuth";
-import { verifyHostPin } from "../actions";
 import { deleteSession } from "./session-actions";
 import type { SessionGroup, MatchWithPlayers } from "./actions";
 
@@ -93,38 +91,15 @@ function MatchRow({ match }: { readonly match: MatchWithPlayers }) {
 
 function SessionSection({ group, groupSlug }: { readonly group: SessionGroup; readonly groupSlug: string }) {
   const { session, matches } = group;
-  const { isHost, grantAccess } = useHostAuth(groupSlug);
   const router = useRouter();
   const [showConfirm, setShowConfirm] = useState(false);
-  const [showPin, setShowPin] = useState(false);
-  const [pin, setPin] = useState("");
-  const [pinError, setPinError] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
 
   const sessionDate = formatDate(session.started_at);
   const sessionTitle = session.title ?? `Game Day`;
 
   const handleDeleteClick = () => {
-    if (!isHost) {
-      setShowPin(true);
-      setPin("");
-      setPinError("");
-    } else {
-      setShowConfirm(true);
-    }
-  };
-
-  const handlePinSubmit = async () => {
-    setPinError("");
-    const result = await verifyHostPin(groupSlug, pin);
-    if (result.success) {
-      grantAccess();
-      setShowPin(false);
-      setPin("");
-      setShowConfirm(true);
-    } else {
-      setPinError(result.error ?? "Incorrect PIN");
-    }
+    setShowConfirm(true);
   };
 
   const handleConfirmDelete = async () => {
@@ -170,40 +145,6 @@ function SessionSection({ group, groupSlug }: { readonly group: SessionGroup; re
           </button>
         </div>
       </div>
-
-      {/* PIN prompt */}
-      {showPin && (
-        <div className="rounded-xl border border-border bg-surface p-4 space-y-3 mx-1">
-          <h4 className="text-sm font-semibold text-text-primary">Enter Host PIN to delete</h4>
-          <input
-            type="password"
-            inputMode="numeric"
-            value={pin}
-            onChange={(e) => setPin(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
-            placeholder="Enter PIN"
-            className="w-full rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary"
-            autoFocus
-          />
-          {pinError && <p className="text-xs text-red-500">{pinError}</p>}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={handlePinSubmit}
-              className="flex-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 cursor-pointer"
-            >
-              Verify
-            </button>
-            <button
-              type="button"
-              onClick={() => { setShowPin(false); setPin(""); setPinError(""); }}
-              className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-muted cursor-pointer"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Confirm delete */}
       {showConfirm && (

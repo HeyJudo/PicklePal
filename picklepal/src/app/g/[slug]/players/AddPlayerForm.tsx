@@ -2,8 +2,6 @@
 
 import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useHostAuth } from "@/hooks/useHostAuth";
-import { PinModal } from "@/components/pin";
 import { addPlayer } from "./manage-actions";
 
 interface AddPlayerFormProps {
@@ -25,28 +23,16 @@ const PRESET_COLORS = [
 
 export function AddPlayerForm({ groupSlug }: AddPlayerFormProps) {
   const router = useRouter();
-  const { isHost, grantAccess } = useHostAuth(groupSlug);
   const [isPending, startTransition] = useTransition();
 
   const [isOpen, setIsOpen] = useState(false);
-  const [showPinModal, setShowPinModal] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [selectedColor, setSelectedColor] = useState<string>(PRESET_COLORS[0]);
   const [error, setError] = useState("");
 
   const handleOpen = useCallback(() => {
-    if (!isHost) {
-      setShowPinModal(true);
-      return;
-    }
     setIsOpen(true);
-  }, [isHost]);
-
-  const handlePinSuccess = useCallback(() => {
-    grantAccess();
-    setShowPinModal(false);
-    setIsOpen(true);
-  }, [grantAccess]);
+  }, []);
 
   const handleClose = useCallback(() => {
     setIsOpen(false);
@@ -98,14 +84,6 @@ export function AddPlayerForm({ groupSlug }: AddPlayerFormProps) {
         </svg>
         Add Player
       </button>
-
-      {/* PIN Modal */}
-      <PinModal
-        groupSlug={groupSlug}
-        isOpen={showPinModal}
-        onSuccess={handlePinSuccess}
-        onClose={() => setShowPinModal(false)}
-      />
 
       {/* Add Player Modal */}
       {isOpen && (

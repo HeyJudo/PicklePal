@@ -17,13 +17,11 @@ DELETE FROM public.groups;
 -- ============================================================
 -- GROUP
 -- ============================================================
-INSERT INTO public.groups (id, slug, name, host_pin_hash)
+INSERT INTO public.groups (id, slug, name)
 VALUES (
   'a0000000-0000-0000-0000-000000000001',
-  'default',
-  'PicklePal Crew',
-  -- PIN: 1234 (SHA-256 hash)
-  '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4'
+  'picklepal',
+  'PicklePal Crew'
 );
 
 -- ============================================================

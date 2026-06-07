@@ -403,7 +403,7 @@ Acceptance criteria:
 - Owner/Admin checks are reusable in server actions.
 - Players remain roster records, not users.
 
-### 3b. Admin Invites
+### 3b. Admin Invites DONE 
 
 Deliverables:
 
@@ -418,7 +418,7 @@ Acceptance criteria:
 - Invited admin can sign in and gain group admin access.
 - Players are not invited as app users.
 
-### 3c. Group Privacy
+### 3c. Group Privacy DONE 
 
 Deliverables:
 
@@ -433,7 +433,7 @@ Acceptance criteria:
 - Private group pages block anonymous visitors.
 - Owner/Admin write permissions are unchanged by privacy mode.
 
-### 3d. RLS And Server Action Authorization
+### 3d. RLS And Server Action Authorization DONE
 
 Deliverables:
 
@@ -454,7 +454,7 @@ Acceptance criteria:
 
 Purpose: preserve the current group while removing the PIN model.
 
-### 4a. Current Group Ownership Migration
+### 4a. Current Group Ownership Migration DONE
 
 Deliverables:
 
@@ -468,7 +468,7 @@ Acceptance criteria:
 - Historical data remains attached to the group.
 - Counts match the baseline backup.
 
-### 4b. Post-Migration Stats Verification
+### 4b. Post-Migration Stats Verification DONE
 
 Deliverables:
 
@@ -480,7 +480,7 @@ Acceptance criteria:
 - Derived outputs match baseline.
 - No completed match data is lost.
 
-### 4c. PIN Flow Removal
+### 4c. PIN Flow Removal DONE
 
 Deliverables:
 

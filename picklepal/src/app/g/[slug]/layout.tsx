@@ -28,8 +28,10 @@ export default async function GroupLayout({
 
       <main className="flex-1 md:ml-56 lg:ml-64 pb-20 md:pb-0">
         {/* Mobile top header */}
-        <header className="sticky top-0 z-40 flex items-center h-14 px-4 border-b border-border bg-surface/95 backdrop-blur-sm md:hidden">
-          <span className="text-lg font-bold text-court-green">PicklePal</span>
+        <header className="sticky top-0 z-40 flex items-center justify-between h-14 px-4 border-b border-border bg-surface/95 backdrop-blur-sm md:hidden">
+          <a href="/app" className="text-lg font-bold text-court-green cursor-pointer">
+            DinkDay
+          </a>
         </header>
 
         <div className="px-4 py-6 lg:px-8">{children}</div>

@@ -3,6 +3,7 @@ export { createBrowserClient } from "./browser";
 export type {
   Database,
   Group,
+  GroupSettings,
   Player,
   Session,
   Match,

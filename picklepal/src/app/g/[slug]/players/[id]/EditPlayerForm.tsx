@@ -2,8 +2,6 @@
 
 import { useCallback, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useHostAuth } from "@/hooks/useHostAuth";
-import { PinModal } from "@/components/pin";
 import { PlayerAvatar } from "@/components/players";
 import { updatePlayer, uploadPlayerAvatar } from "../manage-actions";
 import type { Player } from "@/lib/supabase";
@@ -20,12 +18,10 @@ const PRESET_COLORS = [
 
 export function EditPlayerForm({ player, groupSlug }: EditPlayerFormProps) {
   const router = useRouter();
-  const { isHost, grantAccess } = useHostAuth(groupSlug);
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isOpen, setIsOpen] = useState(false);
-  const [showPinModal, setShowPinModal] = useState(false);
   const [displayName, setDisplayName] = useState(player.display_name);
   const [selectedColor, setSelectedColor] = useState<string>(player.color ?? "#64748B");
   const [avatarPreview, setAvatarPreview] = useState<string | null>(player.avatar_url);
@@ -34,18 +30,8 @@ export function EditPlayerForm({ player, groupSlug }: EditPlayerFormProps) {
   const [isUploading, setIsUploading] = useState(false);
 
   const handleOpen = useCallback(() => {
-    if (!isHost) {
-      setShowPinModal(true);
-      return;
-    }
     setIsOpen(true);
-  }, [isHost]);
-
-  const handlePinSuccess = useCallback(() => {
-    grantAccess();
-    setShowPinModal(false);
-    setIsOpen(true);
-  }, [grantAccess]);
+  }, []);
 
   const handleClose = useCallback(() => {
     setIsOpen(false);
@@ -180,14 +166,6 @@ export function EditPlayerForm({ player, groupSlug }: EditPlayerFormProps) {
         </svg>
         Edit
       </button>
-
-      {/* PIN Modal */}
-      <PinModal
-        groupSlug={groupSlug}
-        isOpen={showPinModal}
-        onSuccess={handlePinSuccess}
-        onClose={() => setShowPinModal(false)}
-      />
 
       {/* Edit Player Modal */}
       {isOpen && (

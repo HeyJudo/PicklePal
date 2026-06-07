@@ -1,6 +1,7 @@
 import { getActiveSession, getGroupPlayers, getSessionMatches } from "./actions";
 import { getSessionPlayers } from "./session-player-actions";
 import { getLeaderboard } from "../board/actions";
+import { getGroupSettings } from "../settings/settings-actions";
 import { LivePageClient } from "./LivePageClient";
 
 interface LivePageProps {
@@ -10,13 +11,15 @@ interface LivePageProps {
 export default async function LivePage({ params }: LivePageProps) {
   const { slug } = await params;
 
-  const [sessionResult, players, leaderboardResult] = await Promise.all([
+  const [sessionResult, players, leaderboardResult, groupSettingsResult] = await Promise.all([
     getActiveSession(slug),
     getGroupPlayers(slug),
     getLeaderboard(slug),
+    getGroupSettings(slug),
   ]);
 
   const activeSession = sessionResult.success ? sessionResult.data ?? null : null;
+  const groupSettings = groupSettingsResult.data?.settings ?? null;
 
   // Fetch session players and matches if there's an active session
   let sessionPlayers: { playerId: string; status: "active" | "benched" | "removed" }[] = [];
@@ -56,6 +59,7 @@ export default async function LivePage({ params }: LivePageProps) {
       initialSessionPlayers={sessionPlayers}
       initialSessionMatches={sessionMatches ?? []}
       leaderboardEntries={leaderboardResult.entries}
+      groupSettings={groupSettings}
     />
   );
 }

@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useHostAuth } from "@/hooks/useHostAuth";
 import { PlayerAvatar } from "@/components/players";
-import { verifyHostPin } from "../actions";
 import { startSession } from "./actions";
 
 interface Player {
@@ -17,28 +15,28 @@ interface StartSessionFormProps {
   readonly groupSlug: string;
   readonly players: readonly Player[];
   readonly onSessionStarted: (sessionId: string) => void;
+  readonly defaultMatchType?: "singles" | "doubles";
+  readonly defaultTargetScore?: number;
+  readonly defaultWinBy?: number;
 }
 
 export function StartSessionForm({
   groupSlug,
   players,
   onSessionStarted,
+  defaultMatchType,
+  defaultTargetScore,
+  defaultWinBy,
 }: StartSessionFormProps) {
-  const { isHost, grantAccess } = useHostAuth(groupSlug);
   const [isPending, startTransition] = useTransition();
-
-  // PIN state
-  const [showPinInput, setShowPinInput] = useState(false);
-  const [pin, setPin] = useState("");
-  const [pinError, setPinError] = useState("");
 
   // Session settings
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(
     () => new Set(players.map((p) => p.id)),
   );
-  const [matchType, setMatchType] = useState<"singles" | "doubles">("doubles");
-  const [targetScore, setTargetScore] = useState(11);
-  const [winBy, setWinBy] = useState(2);
+  const [matchType, setMatchType] = useState<"singles" | "doubles">(defaultMatchType ?? "doubles");
+  const [targetScore, setTargetScore] = useState(defaultTargetScore ?? 11);
+  const [winBy, setWinBy] = useState(defaultWinBy ?? 2);
   const [trackScorers, setTrackScorers] = useState(false);
   const [error, setError] = useState("");
 
@@ -68,24 +66,7 @@ export function StartSessionForm({
   const minPlayers = matchType === "doubles" ? 4 : 2;
   const canStart = selectedPlayerIds.size >= minPlayers;
 
-  const handlePinSubmit = async () => {
-    setPinError("");
-    const result = await verifyHostPin(groupSlug, pin);
-    if (result.success) {
-      grantAccess();
-      setShowPinInput(false);
-      setPin("");
-    } else {
-      setPinError(result.error ?? "Verification failed");
-    }
-  };
-
   const handleStartSession = () => {
-    if (!isHost) {
-      setShowPinInput(true);
-      return;
-    }
-
     setError("");
     startTransition(async () => {
       const result = await startSession({
@@ -107,46 +88,6 @@ export function StartSessionForm({
 
   return (
     <div className="space-y-6">
-      {/* PIN Modal */}
-      {showPinInput && (
-        <div className="rounded-xl border border-border bg-surface p-6 space-y-4">
-          <h3 className="text-lg font-semibold text-text-primary">
-            Enter Host PIN
-          </h3>
-          <input
-            type="password"
-            inputMode="numeric"
-            value={pin}
-            onChange={(e) => setPin(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
-            placeholder="Enter PIN"
-            className="w-full rounded-lg border border-border bg-surface-muted px-4 py-3 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary"
-            autoFocus
-          />
-          {pinError && (
-            <p className="text-sm text-red-500">{pinError}</p>
-          )}
-          <div className="flex gap-3">
-            <button
-              onClick={handlePinSubmit}
-              className="flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary/90 transition-colors cursor-pointer"
-            >
-              Verify
-            </button>
-            <button
-              onClick={() => {
-                setShowPinInput(false);
-                setPin("");
-                setPinError("");
-              }}
-              className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-text-secondary hover:bg-surface-muted transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Player Selection */}
       {step === "players" && (
         <div className="space-y-4">

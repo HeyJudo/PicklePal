@@ -1,8 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
-import { useHostAuth } from "@/hooks/useHostAuth";
-import { verifyHostPin } from "../actions";
+import { useMemo, useTransition } from "react";
 import { endSession } from "./actions";
 import { MatchQueue } from "./MatchQueue";
 import { SessionPlayerList } from "./SessionPlayerList";
@@ -51,11 +49,7 @@ export function ActiveSession({
   onMatchConfirmed,
   onPlayerStatusChanged,
 }: ActiveSessionProps) {
-  const { isHost, grantAccess } = useHostAuth(groupSlug);
   const [isPending, startTransition] = useTransition();
-  const [showPinInput, setShowPinInput] = useState(false);
-  const [pin, setPin] = useState("");
-  const [pinError, setPinError] = useState("");
 
   // Filter to only active players for matchmaking
   const activePlayerIds = useMemo(
@@ -73,36 +67,12 @@ export function ActiveSession({
   );
 
   const handleEndSession = () => {
-    if (!isHost) {
-      setShowPinInput(true);
-      return;
-    }
-
     startTransition(async () => {
       const result = await endSession(session.id);
       if (result.success) {
         onSessionEnded();
       }
     });
-  };
-
-  const handlePinSubmit = async () => {
-    setPinError("");
-    const result = await verifyHostPin(groupSlug, pin);
-    if (result.success) {
-      grantAccess();
-      setShowPinInput(false);
-      setPin("");
-      // Now execute the end session action
-      startTransition(async () => {
-        const endResult = await endSession(session.id);
-        if (endResult.success) {
-          onSessionEnded();
-        }
-      });
-    } else {
-      setPinError(result.error ?? "Verification failed");
-    }
   };
 
   const startedAt = new Date(session.started_at);
@@ -142,7 +112,7 @@ export function ActiveSession({
         key={activePlayersForMatchmaking.map((p) => p.id).join(",")}
         players={activePlayersForMatchmaking}
         matchType={matchType}
-        isHost={isHost}
+        isHost={true}
         onMatchSelected={onMatchConfirmed}
       />
 
@@ -151,61 +121,21 @@ export function ActiveSession({
         sessionId={session.id}
         players={players}
         sessionPlayers={sessionPlayers}
-        isHost={isHost}
+        isHost={true}
         onPlayerStatusChanged={onPlayerStatusChanged}
       />
 
       {/* Completed Matches */}
       <SessionMatchHistory matches={sessionMatches} players={players} />
 
-      {/* PIN Prompt */}
-      {showPinInput && (
-        <div className="rounded-xl border border-border bg-surface p-5 space-y-3">
-          <h3 className="text-sm font-semibold text-text-primary">
-            Enter Host PIN to end session
-          </h3>
-          <input
-            type="password"
-            inputMode="numeric"
-            value={pin}
-            onChange={(e) => setPin(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
-            placeholder="Enter PIN"
-            className="w-full rounded-lg border border-border bg-surface-muted px-4 py-2.5 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary"
-            autoFocus
-          />
-          {pinError && <p className="text-sm text-red-500">{pinError}</p>}
-          <div className="flex gap-3">
-            <button
-              onClick={handlePinSubmit}
-              className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors cursor-pointer"
-            >
-              Verify & End
-            </button>
-            <button
-              onClick={() => {
-                setShowPinInput(false);
-                setPin("");
-                setPinError("");
-              }}
-              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-muted transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* End Session — always visible */}
-      {!showPinInput && (
-        <button
-          onClick={handleEndSession}
-          disabled={isPending}
-          className="w-full rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 hover:bg-red-100 transition-colors cursor-pointer disabled:opacity-50"
-        >
-          {isPending ? "Ending..." : "End Game Day"}
-        </button>
-      )}
+      {/* End Session */}
+      <button
+        onClick={handleEndSession}
+        disabled={isPending}
+        className="w-full rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 hover:bg-red-100 transition-colors cursor-pointer disabled:opacity-50"
+      >
+        {isPending ? "Ending..." : "End Game Day"}
+      </button>
     </div>
   );
 }

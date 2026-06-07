@@ -6,6 +6,9 @@ import { ArrowLeft, Settings } from "lucide-react";
 import Link from "next/link";
 import { InviteManager } from "./InviteManager";
 import { PrivacySettings } from "./PrivacySettings";
+import { GroupInfoSettings } from "./GroupInfoSettings";
+import { GameDefaultsSettings } from "./GameDefaultsSettings";
+import type { GroupSettings } from "@/lib/supabase";
 
 interface SettingsPageProps {
   params: Promise<{ slug: string }>;
@@ -29,9 +32,10 @@ export default async function SettingsPage({ params }: SettingsPageProps) {
 
   // Get group
   const supabase = getSupabase();
-  const { data: group } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: group } = await (supabase as any)
     .from("groups")
-    .select("id, name, slug")
+    .select("id, name, slug, settings")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -79,8 +83,28 @@ export default async function SettingsPage({ params }: SettingsPageProps) {
         {/* Divider */}
         <div className="border-t border-border" />
 
+        {/* Group Name & Slug (owner only) */}
+        <GroupInfoSettings slug={slug} name={group.name} />
+
+        {/* Divider */}
+        <div className="border-t border-border" />
+
         {/* Group Privacy */}
         <PrivacySettings slug={slug} />
+
+        {/* Divider */}
+        <div className="border-t border-border" />
+
+        {/* Game Defaults */}
+        <GameDefaultsSettings
+          slug={slug}
+          settings={{
+            default_match_type: group.settings?.default_match_type ?? "doubles",
+            default_target_score: group.settings?.default_target_score ?? 11,
+            default_win_by: group.settings?.default_win_by ?? 2,
+            qualification_threshold: group.settings?.qualification_threshold ?? 3,
+          } as GroupSettings}
+        />
 
         {/* Divider */}
         <div className="border-t border-border" />

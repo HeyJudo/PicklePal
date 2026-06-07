@@ -3,6 +3,13 @@
  * Matches the schema defined in supabase/migrations/.
  */
 
+export interface GroupSettings {
+  default_match_type: "singles" | "doubles";
+  default_target_score: number;
+  default_win_by: number;
+  qualification_threshold: number;
+}
+
 export type SessionStatus = "active" | "completed" | "cancelled";
 export type MatchStatus = "queued" | "active" | "completed" | "cancelled";
 export type MatchType = "singles" | "doubles";
@@ -18,7 +25,7 @@ export interface Database {
           id: string;
           slug: string;
           name: string;
-          host_pin_hash: string | null;
+          settings: GroupSettings;
           created_at: string;
           updated_at: string;
         };
@@ -26,7 +33,7 @@ export interface Database {
           id?: string;
           slug: string;
           name: string;
-          host_pin_hash?: string | null;
+          settings?: Partial<GroupSettings>;
           created_at?: string;
           updated_at?: string;
         };
@@ -34,7 +41,7 @@ export interface Database {
           id?: string;
           slug?: string;
           name?: string;
-          host_pin_hash?: string | null;
+          settings?: Partial<GroupSettings>;
           updated_at?: string;
         };
       };

@@ -27,6 +27,7 @@ const RESERVED_SLUGS = new Set([
   "sign-in",
   "sign-up",
   "default",
+  "picklepal",
   "demo",
   "help",
   "support",

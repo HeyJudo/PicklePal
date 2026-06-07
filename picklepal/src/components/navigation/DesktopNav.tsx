@@ -45,8 +45,9 @@ export function DesktopNav({ groupSlug }: { readonly groupSlug: string }) {
       {/* Brand header */}
       <div className="px-5 py-5 border-b border-border">
         <Link
-          href={`/g/${groupSlug}`}
+          href="/app"
           className="flex items-center gap-2.5 group"
+          title="My Groups"
         >
           <div className="w-8 h-8 rounded-lg bg-court-green flex items-center justify-center shrink-0 shadow-sm group-hover:bg-court-green-light transition-colors">
             <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -59,10 +60,10 @@ export function DesktopNav({ groupSlug }: { readonly groupSlug: string }) {
           </div>
           <div>
             <span className="text-base font-extrabold text-text-primary tracking-tight leading-none">
-              PicklePal
+              DinkDay
             </span>
             <p className="text-[10px] text-text-muted font-medium leading-tight mt-0.5">
-              Your crew scoreboard
+              My Groups
             </p>
           </div>
         </Link>
