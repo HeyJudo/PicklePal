@@ -1,47 +1,106 @@
-@import url('https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Narrow:ital,wght@0,400..700;1,400..700&family=Outfit:wght@100..900&display=swap');
 @import "tailwindcss";
 
-@theme inline {
-  /* PicklePal Sport Palette */
+/* =====================================================
+   DINKDAY DESIGN SYSTEM — "Fresh Court Day"
+   Single source of truth. No duplicate @theme blocks.
+   ===================================================== */
+
+/* === COLOR TOKENS (creates CSS custom properties on :root) === */
+@theme {
+  /* Brand: Court Green */
   --color-court-green: #2D8B4E;
   --color-court-green-light: #3DA863;
   --color-court-green-dark: #1E6B3A;
+
+  /* Brand: Sky Blue */
   --color-sky-blue: #2196F3;
   --color-sky-blue-light: #64B5F6;
   --color-sky-blue-dark: #1565C0;
+
+  /* Celebration: Ball Yellow / Warm Gold */
   --color-ball-yellow: #F5C518;
   --color-ball-yellow-light: #FFD54F;
+
+  /* Energy accents */
   --color-hype-orange: #FF6B35;
   --color-hype-red: #E53935;
 
-  /* Primary action color */
+  /* Semantic aliases */
   --color-primary: #2D8B4E;
+  --color-primary-dark: #1E6B3A;
+  --color-primary-container: #2D8B4E;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #a4ffc0;
+  --color-primary-fixed: #96f7b5;
+  --color-primary-fixed-dim: #7ada9b;
 
-  /* Neutral surfaces */
-  --color-surface: #FFFFFF;
-  --color-surface-muted: #F8FAFC;
-  --color-surface-elevated: #FFFFFF;
-  --color-border: #E2E8F0;
-  --color-border-muted: #F1F5F9;
+  --color-accent: #2196F3;
+  --color-on-secondary: #ffffff;
+  --color-secondary-fixed: #c8e6ff;
+  --color-secondary-fixed-dim: #87ceff;
 
-  /* Text */
-  --color-text-primary: #0F172A;
-  --color-text-secondary: #475569;
-  --color-text-muted: #94A3B8;
-  --color-text-inverse: #FFFFFF;
+  --color-celebration: #F5C518;
 
-  /* Fonts */
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Surfaces — court-tinted, never cold white */
+  --color-surface: #f8fff9;
+  --color-surface-bright: #f8fff9;
+  --color-surface-muted: #eef9f4;
+  --color-surface-elevated: #ffffff;
+  --color-surface-dim: #d5dcd6;
+  --color-surface-variant: #dde4de;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #eef9f4;
+  --color-surface-container: #eef9f4;
+  --color-surface-container-high: #e3eae4;
+  --color-surface-container-highest: #dde4de;
+  --color-background: #f8fff9;
+  --color-inverse-surface: #2b332e;
+
+  /* Borders — warm green-gray, not cold slate */
+  --color-border: #becabe;
+  --color-border-muted: #dde4de;
+  --color-outline: #6f7a70;
+  --color-outline-variant: #becabe;
+
+  /* Text — deep green-black, not cold slate */
+  --color-text-primary: #161d1a;
+  --color-text-secondary: #3f4940;
+  --color-text-muted: #6f7a70;
+  --color-text-inverse: #ffffff;
+  --color-on-surface: #161d1a;
+  --color-on-surface-variant: #3f4940;
+  --color-on-background: #161d1a;
+
+  /* State */
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
 }
 
+/* === FONT TOKENS (inline — resolves CSS variable references from next/font) === */
+@theme inline {
+  --font-sans: var(--font-outfit);
+  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-anton);
+  --font-headline: var(--font-outfit);
+  --font-body: var(--font-outfit);
+  --font-score: var(--font-archivo-narrow);
+  --font-label: var(--font-archivo-narrow);
+}
+
+/* === BODY DEFAULTS === */
 body {
   background: var(--color-surface);
   color: var(--color-text-primary);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  /* Directly reference the CSS variable from next/font for reliability */
+  font-family: var(--font-outfit), system-ui, sans-serif;
 }
 
-/* Fire/streak animation for live scoring */
+/* =====================================================
+   ANIMATIONS
+   ===================================================== */
+
+/* Streak / fire (live scoring hot players) */
 @keyframes fireFlicker {
   0%, 100% { opacity: 0.8; transform: scaleY(1) translateY(0); }
   25% { opacity: 1; transform: scaleY(1.1) translateY(-2px); }
@@ -52,14 +111,6 @@ body {
 @keyframes fireGlow {
   0%, 100% { box-shadow: inset 0 0 20px rgba(255, 107, 53, 0.3), inset 0 -10px 30px rgba(255, 107, 53, 0.2); }
   50% { box-shadow: inset 0 0 30px rgba(255, 107, 53, 0.5), inset 0 -15px 40px rgba(255, 107, 53, 0.3); }
-}
-
-.streak-fire {
-  animation: fireGlow 1s ease-in-out infinite;
-}
-
-.streak-flame {
-  animation: fireFlicker 0.8s ease-in-out infinite;
 }
 
 @keyframes avatarFireRing {
@@ -74,11 +125,7 @@ body {
   }
 }
 
-.avatar-on-fire {
-  animation: avatarFireRing 1.2s ease-in-out infinite, fireFlicker 0.8s ease-in-out infinite;
-  border-radius: 9999px;
-}
-
+/* Score celebration */
 @keyframes scorerBounce {
   0% { transform: scale(1); }
   30% { transform: scale(1.3); }
@@ -87,60 +134,134 @@ body {
   100% { transform: scale(1); }
 }
 
-.scorer-bounce {
-  animation: scorerBounce 0.4s ease-out;
+/* Win pop (result screen) */
+@keyframes winPop {
+  0% { transform: scale(0.85); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  80% { transform: scale(0.96); }
+  100% { transform: scale(1); opacity: 1; }
 }
 
-@theme {
-  --color-primary: #087a45;
-  --color-primary-dark: #0d2118;
-  --color-primary-container: #087a45;
-  --color-accent: #16a6e8;
-  --color-celebration: #f6c343;
-  --color-inverse-surface: #2b322e;
-  --color-on-surface-variant: #3f4940;
-  --color-surface-dim: #d5dcd6;
-  --color-surface-bright: #f8fff9;
-  --color-surface: #f8fff9;
-  --color-on-secondary: #ffffff;
-  --color-background: #f8fff9;
-  --color-surface-container-lowest: #ffffff;
-  --color-on-primary: #ffffff;
-  --color-surface-container-high: #e3eae4;
-  --color-primary-fixed: #96f7b5;
-  --color-on-surface: #161d1a;
-  --color-surface-container-highest: #dde4de;
-  --color-error: #ba1a1a;
-  --color-on-error: #ffffff;
-  --color-surface-container: #eef9f4;
-  --color-error-container: #ffdad6;
-  --color-primary-fixed-dim: #7ada9b;
-  --color-outline: #6f7a70;
-  --color-outline-variant: #becabe;
-  --color-on-background: #161d1a;
-  --color-on-primary-container: #a4ffc0;
-  --color-secondary-fixed: #c8e6ff;
-  --color-secondary-fixed-dim: #87ceff;
-  --color-surface-variant: #dde4de;
-  --color-surface-container-low: #eef9f4;
-
-  --font-display: "Anton", sans-serif;
-  --font-headline: "Outfit", sans-serif;
-  --font-body: "Outfit", sans-serif;
-  --font-score: "Archivo Narrow", sans-serif;
-  --font-label: "Archivo Narrow", sans-serif;
+/* Fade rise (list/card entrance) */
+@keyframes fadeRise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
+
+/* Shimmer (skeleton loading) */
+@keyframes shimmer {
+  from { background-position: -200% center; }
+  to { background-position: 200% center; }
+}
+
+/* Score tick (brief flash on score change) */
+@keyframes scoreTick {
+  0% { transform: scale(1); }
+  20% { transform: scale(1.18); color: var(--color-ball-yellow); }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* Pulse ring (live indicator) */
+@keyframes pulseRing {
+  0% { transform: scale(0.8); opacity: 0.8; }
+  70% { transform: scale(1.4); opacity: 0; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+/* =====================================================
+   ANIMATION UTILITY CLASSES
+   ===================================================== */
 
 @layer utilities {
+  /* Streak fire effects */
+  .streak-fire {
+    animation: fireGlow 1s ease-in-out infinite;
+  }
+  .streak-flame {
+    animation: fireFlicker 0.8s ease-in-out infinite;
+  }
+  .avatar-on-fire {
+    animation: avatarFireRing 1.2s ease-in-out infinite, fireFlicker 0.8s ease-in-out infinite;
+    border-radius: 9999px;
+  }
+
+  /* Score interactions */
+  .scorer-bounce {
+    animation: scorerBounce 0.4s ease-out;
+  }
+  .score-tick {
+    animation: scoreTick 0.35s ease-out;
+  }
+
+  /* Entrance animations */
+  .win-pop {
+    animation: winPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+  .fade-rise {
+    animation: fadeRise 0.4s ease-out forwards;
+  }
+
+  /* Skeleton shimmer */
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      var(--color-surface-muted) 25%,
+      var(--color-surface-container-high) 50%,
+      var(--color-surface-muted) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+
+  /* Court visual patterns */
   .court-lines {
-    background-image: 
+    background-image:
       linear-gradient(to right, rgba(255,255,255,0.1) 2px, transparent 2px),
       linear-gradient(to bottom, rgba(255,255,255,0.1) 2px, transparent 2px);
     background-size: 100px 100px;
     background-position: center center;
   }
 
+  /* Winner accent bar (gold left border) */
+  .winner-accent {
+    border-left: 4px solid var(--color-ball-yellow);
+  }
+  .winner-accent-green {
+    border-left: 4px solid var(--color-court-green);
+  }
+
+  /* Diagonal section break */
   .clip-diagonal {
     clip-path: polygon(0 0, 100% 3vw, 100% 100%, 0 calc(100% - 3vw));
+  }
+
+  /* Staggered entrance delays for lists */
+  .stagger-1 { animation-delay: 0.05s; }
+  .stagger-2 { animation-delay: 0.10s; }
+  .stagger-3 { animation-delay: 0.15s; }
+  .stagger-4 { animation-delay: 0.20s; }
+  .stagger-5 { animation-delay: 0.25s; }
+
+  /* Reduced motion: disable all nonessential animations */
+  @media (prefers-reduced-motion: reduce) {
+    .streak-fire,
+    .streak-flame,
+    .avatar-on-fire,
+    .scorer-bounce,
+    .score-tick,
+    .win-pop,
+    .fade-rise,
+    .skeleton-shimmer,
+    .stagger-1,
+    .stagger-2,
+    .stagger-3,
+    .stagger-4,
+    .stagger-5 {
+      animation: none !important;
+      transition: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+    }
   }
 }

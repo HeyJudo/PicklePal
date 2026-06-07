@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion } from "motion/react";
+import { ChevronLeft } from "lucide-react";
 import {
   HomeIcon,
   LiveIcon,
@@ -42,44 +44,99 @@ export function DesktopNav({ groupSlug }: { readonly groupSlug: string }) {
       aria-label="Main navigation"
       className="hidden md:flex md:flex-col md:w-56 lg:w-64 border-r border-border bg-surface h-full fixed left-0 top-0 z-30"
     >
-      {/* Brand header */}
-      <div className="px-5 py-5 border-b border-border">
+      {/* Brand header — court-line texture + DinkDay wordmark */}
+      <div className="relative overflow-hidden px-5 py-5 border-b border-border">
+        {/* Subtle court-line texture in background */}
+        <div
+          className="absolute inset-0 opacity-[0.04] court-lines"
+          aria-hidden="true"
+        />
+        {/* Back to groups */}
         <Link
           href="/app"
-          className="flex items-center gap-2.5 group"
-          title="My Groups"
+          className="relative flex items-center gap-1 text-[11px] font-medium text-text-muted hover:text-court-green transition-colors duration-150 mb-3 w-fit"
         >
-          <div className="w-8 h-8 rounded-lg bg-court-green flex items-center justify-center shrink-0 shadow-sm group-hover:bg-court-green-light transition-colors">
-            <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <circle cx="12" cy="10" r="7" />
-              <rect x="10.5" y="16" width="3" height="6" rx="1.5" />
-              <line x1="8.5" y1="7" x2="15.5" y2="13" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" />
-              <line x1="8.5" y1="10" x2="15.5" y2="10" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" />
-              <line x1="8.5" y1="13" x2="15.5" y2="7" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" />
+          <ChevronLeft className="w-3.5 h-3.5" />
+          My Groups
+        </Link>
+        {/* Wordmark */}
+        <div className="relative flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-court-green flex items-center justify-center shrink-0 shadow-sm">
+            {/* Paddle icon */}
+            <svg
+              className="w-5 h-5 text-white"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
+              <ellipse cx="12" cy="10" rx="6.5" ry="7.5" fill="currentColor" />
+              <line
+                x1="8.5"
+                y1="7"
+                x2="15.5"
+                y2="13"
+                stroke="rgba(255,255,255,0.35)"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+              <line
+                x1="8.5"
+                y1="10"
+                x2="15.5"
+                y2="10"
+                stroke="rgba(255,255,255,0.35)"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+              <line
+                x1="8.5"
+                y1="13"
+                x2="15.5"
+                y2="7"
+                stroke="rgba(255,255,255,0.35)"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+              <rect
+                x="11"
+                y="17.5"
+                width="2"
+                height="5"
+                rx="1"
+                fill="currentColor"
+              />
             </svg>
           </div>
           <div>
-            <span className="text-base font-extrabold text-text-primary tracking-tight leading-none">
-              DinkDay
+            <span className="text-base font-bold tracking-tight leading-none text-text-primary">
+              Dink
+              <span className="text-court-green">Day</span>
             </span>
             <p className="text-[10px] text-text-muted font-medium leading-tight mt-0.5">
-              My Groups
+              Game day, handled.
             </p>
           </div>
-        </Link>
+        </div>
       </div>
 
-      {/* Live session pill — shown when on live page */}
+      {/* Game Day Active pill — shown on live page */}
       {isLivePage && (
-        <div className="mx-3 mt-3 rounded-xl bg-court-green/8 border border-court-green/20 px-3 py-2.5">
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 400, damping: 30 }}
+          className="mx-3 mt-3 rounded-xl bg-court-green px-3 py-2.5 shadow-sm"
+        >
           <div className="flex items-center gap-2">
-            <span className="relative flex h-2 w-2 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-court-green opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-court-green" />
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-60" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
             </span>
-            <span className="text-xs font-semibold text-court-green">Game Day Active</span>
+            <span className="text-xs font-semibold text-white tracking-tight">
+              Game Day Active
+            </span>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Nav items */}
@@ -91,22 +148,46 @@ export function DesktopNav({ groupSlug }: { readonly groupSlug: string }) {
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
-                    active
-                      ? "bg-court-green text-white shadow-sm"
-                      : "text-text-secondary hover:bg-surface-muted hover:text-text-primary"
-                  }`}
                   aria-current={active ? "page" : undefined}
+                  className={[
+                    "relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors duration-150 overflow-hidden",
+                    active
+                      ? "text-white"
+                      : "text-text-secondary hover:text-text-primary hover:bg-surface-muted",
+                  ].join(" ")}
                 >
-                  <span className={active ? "text-white" : "text-text-muted"}>
+                  {/* Animated active background pill */}
+                  {active && (
+                    <motion.span
+                      layoutId="desktop-nav-active"
+                      className="absolute inset-0 rounded-xl bg-court-green"
+                      transition={{ type: "spring", stiffness: 400, damping: 35 }}
+                    />
+                  )}
+
+                  {/* Icon */}
+                  <span
+                    className={[
+                      "relative z-10 shrink-0 transition-colors",
+                      active ? "text-white" : "text-text-muted",
+                    ].join(" ")}
+                    aria-hidden="true"
+                  >
                     {item.icon}
                   </span>
-                  {item.label}
+
+                  {/* Label */}
+                  <span className="relative z-10">{item.label}</span>
+
+                  {/* Live dot when not active */}
                   {item.label === "Live" && !active && (
                     <span
-                      className="ml-auto h-1.5 w-1.5 rounded-full bg-court-green"
+                      className="relative z-10 ml-auto h-2 w-2 rounded-full bg-court-green flex items-center justify-center"
                       aria-hidden="true"
-                    />
+                    >
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-court-green opacity-50" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-court-green" />
+                    </span>
                   )}
                 </Link>
               </li>
@@ -117,7 +198,7 @@ export function DesktopNav({ groupSlug }: { readonly groupSlug: string }) {
 
       {/* Footer */}
       <div className="px-5 py-4 border-t border-border">
-        <p className="text-[10px] text-text-muted">picklepal.app</p>
+        <p className="text-[10px] text-text-muted font-medium">dinkday.app</p>
       </div>
     </aside>
   );

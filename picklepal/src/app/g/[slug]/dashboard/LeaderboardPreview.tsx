@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RankBadge } from "@/components/ui";
 import type { LeaderboardEntry } from "@/lib/stats";
 
 interface LeaderboardPreviewProps {
@@ -6,142 +7,136 @@ interface LeaderboardPreviewProps {
   readonly groupSlug: string;
 }
 
-export function LeaderboardPreview({
-  entries,
-  groupSlug,
-}: LeaderboardPreviewProps) {
-  if (entries.length === 0) {
-    return (
-      <section aria-label="Leaderboard preview">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wide">
-            Leaderboard
-          </h2>
-        </div>
-        <div className="rounded-xl border border-border-muted bg-surface-muted p-6 text-center">
-          <p className="text-sm text-text-muted">
-            No rankings yet. Play some games to see the leaderboard.
-          </p>
-        </div>
-      </section>
-    );
-  }
-
+export function LeaderboardPreview({ entries, groupSlug }: LeaderboardPreviewProps) {
   return (
     <section aria-label="Leaderboard preview">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wide">
-          Leaderboard
-        </h2>
+        <div className="flex items-center gap-2">
+          <PodiumIcon className="w-4 h-4 text-court-green" />
+          <h2 className="text-base font-bold text-text-primary tracking-tight">Leaderboard</h2>
+        </div>
         <Link
           href={`/g/${groupSlug}/board`}
-          className="text-xs font-medium text-court-green hover:text-court-green-dark transition-colors cursor-pointer"
+          className="text-xs font-semibold text-court-green hover:text-court-green-dark transition-colors"
         >
-          View Full Board →
+          Full Board
         </Link>
       </div>
 
-      <div className="rounded-xl border border-border bg-surface overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border-muted bg-surface-muted">
-              <th className="text-left py-2.5 px-3 text-xs font-medium text-text-muted uppercase tracking-wide w-10">
-                #
-              </th>
-              <th className="text-left py-2.5 px-3 text-xs font-medium text-text-muted uppercase tracking-wide">
-                Player
-              </th>
-              <th className="text-right py-2.5 px-3 text-xs font-medium text-text-muted uppercase tracking-wide">
-                Win%
-              </th>
-              <th className="text-right py-2.5 px-3 text-xs font-medium text-text-muted uppercase tracking-wide hidden sm:table-cell">
-                W-L
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((entry, index) => (
-              <tr
-                key={entry.playerId}
-                className={`border-b border-border-muted last:border-b-0 transition-colors hover:bg-surface-muted ${
-                  index === 0 ? "bg-ball-yellow/5" : ""
-                }`}
-              >
-                <td className="py-2.5 px-3">
-                  <RankBadge rank={entry.rank} index={index} />
-                </td>
-                <td className="py-2.5 px-3">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: entry.color ?? "#94A3B8" }}
-                    />
-                    <span className="font-medium text-text-primary truncate">
-                      {entry.displayName}
-                    </span>
-                    {!entry.isQualified && (
-                      <span className="text-[10px] text-text-muted bg-surface-muted px-1.5 py-0.5 rounded">
-                        &lt;3 GP
-                      </span>
-                    )}
-                  </div>
-                </td>
-                <td className="py-2.5 px-3 text-right">
-                  <span
-                    className={`font-semibold tabular-nums ${
-                      entry.isQualified
-                        ? "text-text-primary"
-                        : "text-text-muted"
-                    }`}
-                  >
-                    {(entry.winRate * 100).toFixed(0)}%
-                  </span>
-                </td>
-                <td className="py-2.5 px-3 text-right hidden sm:table-cell">
-                  <span className="text-text-secondary tabular-nums">
-                    {entry.wins}-{entry.losses}
-                  </span>
-                </td>
-              </tr>
+      {entries.length === 0 ? (
+        <EmptyLeaderboard />
+      ) : (
+        <div className="rounded-xl border border-border bg-surface overflow-hidden">
+          <ul className="divide-y divide-border-muted">
+            {entries.map((entry, i) => (
+              <LeaderboardRow key={entry.playerId} entry={entry} index={i} />
             ))}
-          </tbody>
-        </table>
-      </div>
+          </ul>
+        </div>
+      )}
     </section>
   );
 }
 
-function RankBadge({
-  rank,
+// ─── Row ─────────────────────────────────────────────────────────────────────
+
+function LeaderboardRow({
+  entry,
   index,
 }: {
-  readonly rank: number | null;
+  readonly entry: LeaderboardEntry;
   readonly index: number;
 }) {
-  if (rank === 1) {
-    return (
-      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-ball-yellow/20 text-ball-yellow font-bold text-xs">
-        1
-      </span>
-    );
-  }
-  if (rank === 2) {
-    return (
-      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-200 text-text-secondary font-bold text-xs">
-        2
-      </span>
-    );
-  }
-  if (rank === 3) {
-    return (
-      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-hype-orange/15 text-hype-orange font-bold text-xs">
-        3
-      </span>
-    );
-  }
+  const isFirst = index === 0;
+
   return (
-    <span className="inline-flex items-center justify-center w-6 h-6 text-text-muted text-xs font-medium">
-      {rank ?? index + 1}
-    </span>
+    <li
+      className={[
+        "fade-rise flex items-center gap-3 px-4 py-3 transition-colors",
+        // #1 row: full bold gold background — unmistakably first place
+        isFirst
+          ? "bg-ball-yellow hover:bg-ball-yellow-light"
+          : "hover:bg-surface-muted",
+        `stagger-${Math.min(index + 1, 5)}`,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      {/* Rank badge */}
+      <RankBadge rank={entry.rank ?? index + 1} size="md" />
+
+      {/* Player color dot + name */}
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        <span
+          className="h-2.5 w-2.5 rounded-full shrink-0"
+          style={{ backgroundColor: entry.color ?? "#6f7a70" }}
+          aria-hidden="true"
+        />
+        <div className="min-w-0">
+          <span
+            className={[
+              "text-sm font-semibold truncate block",
+              isFirst ? "text-court-green-dark" : "text-text-primary",
+            ].join(" ")}
+          >
+            {entry.displayName}
+          </span>
+          {!entry.isQualified && (
+            <span className={["text-[10px]", isFirst ? "text-court-green-dark/60" : "text-text-muted"].join(" ")}>
+              {entry.wins + entry.losses} / 3 games
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Win% — Anton on #1, Archivo Narrow on others */}
+      <div className="text-right shrink-0">
+        <span
+          className={[
+            "tabular-nums leading-none",
+            isFirst
+              ? "font-display text-2xl text-court-green-dark"
+              : "font-score font-bold text-xl text-text-primary",
+            !entry.isQualified && !isFirst ? "opacity-50" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          {(entry.winRate * 100).toFixed(0)}%
+        </span>
+        <p
+          className={[
+            "text-[10px] tabular-nums mt-0.5",
+            isFirst ? "text-court-green-dark/60" : "text-text-muted",
+          ].join(" ")}
+        >
+          {entry.wins}W {entry.losses}L
+        </p>
+      </div>
+    </li>
+  );
+}
+
+// ─── Empty ────────────────────────────────────────────────────────────────────
+
+function EmptyLeaderboard() {
+  return (
+    <div className="rounded-xl bg-surface-muted border border-border-muted px-6 py-8 text-center">
+      <PodiumIcon className="w-8 h-8 text-text-muted mx-auto mb-2" />
+      <p className="text-sm font-medium text-text-secondary">No rankings yet</p>
+      <p className="text-xs text-text-muted mt-1">
+        Play a few games and the board lights up.
+      </p>
+    </div>
+  );
+}
+
+function PodiumIcon({ className }: { readonly className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" aria-hidden="true">
+      <rect x="2" y="13" width="6" height="9" rx="1" />
+      <rect x="9" y="9" width="6" height="13" rx="1" />
+      <rect x="16" y="11" width="6" height="11" rx="1" />
+    </svg>
   );
 }

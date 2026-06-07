@@ -210,8 +210,8 @@ export function LivePageClient({
 
   // Determine active match relationship for banner/view-only
   const activeMatchRelation = useMemo(() => {
-    if (!dbActiveMatch || !clerkUserId) return "none" as const;
-    if (dbActiveMatch.scorerClerkUserId === clerkUserId) return "scorer" as const;
+    if (!dbActiveMatch) return "none" as const;
+    if (clerkUserId && dbActiveMatch.scorerClerkUserId === clerkUserId) return "scorer" as const;
     return "viewer" as const;
   }, [dbActiveMatch, clerkUserId]);
 

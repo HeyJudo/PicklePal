@@ -497,11 +497,11 @@ Acceptance criteria:
 
 ---
 
-## Phase 5: Multi-Group Onboarding And Settings
+## Phase 5: Multi-Group Onboarding And Settings DONE
 
 Purpose: make multi-group creation and management first-class.
 
-### 5a. Create Group Flow
+### 5a. Create Group Flow DONE 
 
 Deliverables:
 
@@ -516,7 +516,7 @@ Acceptance criteria:
 - Slugs are unique and validated.
 - Created group is immediately usable.
 
-### 5b. Group Settings
+### 5b. Group Settings DONE
 
 Deliverables:
 
@@ -535,7 +535,7 @@ Acceptance criteria:
 - Changes affect future sessions without rewriting historical matches.
 - Mobile settings UI is clear and not cramped.
 
-### 5c. Player Avatar Rules
+### 5c. Player Avatar Rules done
 
 Deliverables:
 
@@ -553,11 +553,11 @@ Acceptance criteria:
 
 ---
 
-## Phase 6: Live Scoring Resilience And Viewer Mode
+## Phase 6: Live Scoring Resilience And Viewer Mode 
 
 Purpose: make live scoring reliable across navigation, auth, and public viewing.
 
-### 6a. Active DB Match At Scoring Start
+### 6a. Active DB Match At Scoring Start 
 
 Deliverables:
 
