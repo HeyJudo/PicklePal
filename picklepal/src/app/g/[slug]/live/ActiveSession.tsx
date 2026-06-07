@@ -86,25 +86,20 @@ export function ActiveSession({
   return (
     <div className="space-y-6">
       {/* Session Header */}
-      <div className="rounded-xl border border-primary/30 bg-primary/5 p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <div className="h-2.5 w-2.5 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-sm font-medium text-green-700">
-                Game Day Active
-              </span>
-            </div>
-            <h2 className="mt-1 text-xl font-bold text-text-primary">
-              {session.title ?? "Game Day"}
-            </h2>
-            <p className="text-sm text-text-muted mt-0.5">
-              Started at {timeStr} ·{" "}
-              {matchType === "doubles" ? "Doubles" : "Singles"}{" "}
-              · To {session.target_score}, win by {session.win_by}
-            </p>
-          </div>
+      <div className="rounded-xl border border-court-green/30 bg-court-green/5 px-5 py-4">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-court-green opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-court-green" />
+          </span>
+          <span className="text-xs font-semibold text-court-green">Game Day Active</span>
         </div>
+        <h2 className="font-display text-2xl text-text-primary leading-tight">
+          {session.title ?? "Game Day"}
+        </h2>
+        <p className="text-xs text-text-muted mt-1">
+          Started {timeStr} · {matchType === "doubles" ? "Doubles" : "Singles"} · To {session.target_score}, win by {session.win_by}
+        </p>
       </div>
 
       {/* Match Queue */}

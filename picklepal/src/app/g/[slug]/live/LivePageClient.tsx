@@ -445,9 +445,10 @@ export function LivePageClient({
 
   if (step === "overlay" && recapData && activeSession) {
     return (
-      <div className="fixed inset-0 z-[100] bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center px-4">
+      <div className="fixed inset-0 z-[100] bg-gradient-to-b from-court-green-dark via-[#1a3a26] to-[#0e2018] flex flex-col items-center justify-center px-4">
         <div className="mb-6 text-center">
-          <h2 className="text-xl font-bold text-white">Share Your Day</h2>
+          <p className="text-xs font-semibold text-ball-yellow/80 uppercase tracking-widest mb-2">DinkDay</p>
+          <h2 className="font-display text-3xl text-white">Share Your Day</h2>
           <p className="text-sm text-white/60 mt-1">Download the overlay and add it to your photo</p>
         </div>
         <OverlayRenderer data={{
@@ -469,9 +470,9 @@ export function LivePageClient({
     return (
       <div className="max-w-2xl">
         <header className="mb-6">
-          <h1 className="text-2xl font-bold text-text-primary">Live</h1>
+          <h1 className="font-display text-3xl text-text-primary leading-tight">Game Day</h1>
           <p className="text-text-secondary mt-1 text-sm">
-            Start a Game Day session and score matches in real time.
+            Start a session and score matches in real time.
           </p>
         </header>
         {players.length === 0 ? (
@@ -550,7 +551,7 @@ export function LivePageClient({
               <div className="flex items-center gap-2 pt-1">
                 <button
                   onClick={handleResumeFromDb}
-                  className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 transition-colors cursor-pointer"
+                  className="rounded-lg bg-court-green px-3 py-1.5 text-xs font-semibold text-white hover:bg-court-green-dark transition-colors cursor-pointer"
                 >
                   Resume Scoring
                 </button>
@@ -592,7 +593,7 @@ export function LivePageClient({
             <button
               type="button"
               onClick={handleRecordMatchClick}
-              className="w-full rounded-xl border border-dashed border-border px-4 py-3 text-sm font-medium text-text-secondary hover:bg-surface-muted hover:border-primary/40 transition-colors cursor-pointer"
+              className="w-full rounded-xl border border-dashed border-border px-4 py-3 text-sm font-medium text-text-secondary hover:bg-surface-muted hover:border-court-green/40 transition-colors cursor-pointer"
             >
               + Record Past Match
             </button>
@@ -665,7 +666,7 @@ export function LivePageClient({
               <p className="text-xs text-amber-700 mt-0.5">Resume or discard?</p>
             </div>
             <div className="flex gap-2 shrink-0">
-              <button onClick={handleResumeRecoveredMatch} className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 cursor-pointer">Resume</button>
+              <button onClick={handleResumeRecoveredMatch} className="rounded-lg bg-court-green px-3 py-1.5 text-xs font-semibold text-white hover:bg-court-green-dark cursor-pointer">Resume</button>
               <button onClick={handleDiscardRecoveredMatch} className="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 cursor-pointer">Discard</button>
             </div>
           </div>
@@ -739,7 +740,7 @@ export function LivePageClient({
             <div className="flex items-center gap-2 pt-1">
               <button
                 onClick={handleResumeFromDb}
-                className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 transition-colors cursor-pointer"
+                className="rounded-lg bg-court-green px-3 py-1.5 text-xs font-semibold text-white hover:bg-court-green-dark transition-colors cursor-pointer"
               >
                 Resume Scoring
               </button>
@@ -773,7 +774,7 @@ export function LivePageClient({
           <button
             type="button"
             onClick={handleRecordMatchClick}
-            className="w-full rounded-xl border border-dashed border-border px-4 py-3 text-sm font-medium text-text-secondary hover:bg-surface-muted hover:border-primary/40 transition-colors cursor-pointer"
+            className="w-full rounded-xl border border-dashed border-border px-4 py-3 text-sm font-medium text-text-secondary hover:bg-surface-muted hover:border-court-green/40 transition-colors cursor-pointer"
           >
             + Record Past Match
           </button>
@@ -829,7 +830,7 @@ function LiveLeaderboardPanel({ entries, groupSlug, sessionMatches, players }: L
       <div className="rounded-xl border border-border bg-surface overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h3 className="text-sm font-semibold text-text-primary">Standings</h3>
-          <Link href={`/g/${groupSlug}/board`} className="text-xs font-medium text-primary hover:text-primary/80 transition-colors">
+          <Link href={`/g/${groupSlug}/board`} className="text-xs font-semibold text-court-green hover:text-court-green-dark transition-colors">
             Full board →
           </Link>
         </div>
@@ -839,31 +840,41 @@ function LiveLeaderboardPanel({ entries, groupSlug, sessionMatches, players }: L
           </div>
         ) : (
           <ul className="divide-y divide-border-muted">
-            {entries.slice(0, 8).map((entry) => (
-              <li key={entry.playerId} className="flex items-center gap-2.5 px-4 py-2">
-                <span className="w-5 text-center shrink-0">
-                  {entry.isQualified && entry.rank !== null && entry.rank <= 3 ? (
-                    <span className="text-sm leading-none">{["🥇","🥈","🥉"][entry.rank - 1]}</span>
-                  ) : (
-                    <span className="text-[11px] font-semibold text-text-muted">
-                      {entry.isQualified && entry.rank !== null ? entry.rank : "—"}
-                    </span>
-                  )}
-                </span>
-                <div
-                  className="h-6 w-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
-                  style={{ backgroundColor: entry.color ?? "#64748B" }}
+            {entries.slice(0, 8).map((entry, i) => {
+              const isFirst = i === 0 && entry.isQualified;
+              return (
+                <li
+                  key={entry.playerId}
+                  className={`flex items-center gap-2.5 px-4 py-2 ${isFirst ? "bg-ball-yellow" : ""}`}
                 >
-                  {entry.displayName.charAt(0).toUpperCase()}
-                </div>
-                <span className="flex-1 text-xs font-medium text-text-primary truncate">{entry.displayName}</span>
-                <div className="text-right shrink-0">
-                  <span className="text-xs font-semibold text-text-primary">
-                    {entry.isQualified ? `${(entry.winRate * 100).toFixed(0)}%` : `${entry.gamesPlayed}gp`}
+                  <span className="w-5 text-center shrink-0">
+                    {entry.isQualified && entry.rank !== null && entry.rank <= 3 ? (
+                      <span className={`text-xs font-bold ${isFirst ? "text-court-green-dark" : entry.rank === 2 ? "text-text-muted" : "text-hype-orange/70"}`}>
+                        {["#1","#2","#3"][entry.rank - 1]}
+                      </span>
+                    ) : (
+                      <span className={`text-[11px] font-semibold ${isFirst ? "text-court-green-dark" : "text-text-muted"}`}>
+                        {entry.isQualified && entry.rank !== null ? entry.rank : "—"}
+                      </span>
+                    )}
                   </span>
-                </div>
-              </li>
-            ))}
+                  <div
+                    className="h-6 w-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
+                    style={{ backgroundColor: entry.color ?? "#64748B" }}
+                  >
+                    {entry.displayName.charAt(0).toUpperCase()}
+                  </div>
+                  <span className={`flex-1 text-xs font-semibold truncate ${isFirst ? "text-court-green-dark" : "text-text-primary"}`}>
+                    {entry.displayName}
+                  </span>
+                  <div className="text-right shrink-0">
+                    <span className={`tabular-nums ${isFirst ? "font-display text-base text-court-green-dark" : "text-xs font-semibold text-text-primary"}`}>
+                      {entry.isQualified ? `${(entry.winRate * 100).toFixed(0)}%` : `${entry.gamesPlayed}gp`}
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

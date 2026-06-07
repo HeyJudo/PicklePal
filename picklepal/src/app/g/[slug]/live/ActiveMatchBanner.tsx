@@ -97,11 +97,11 @@ export function ActiveMatchBanner({
 
         {/* Score */}
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-lg font-black tabular-nums text-text-primary">
+          <span className="font-display text-2xl leading-none tabular-nums text-text-primary">
             {snapshot?.teamAScore ?? 0}
           </span>
           <span className="text-sm text-text-muted">–</span>
-          <span className="text-lg font-black tabular-nums text-text-primary">
+          <span className="font-display text-2xl leading-none tabular-nums text-text-primary">
             {snapshot?.teamBScore ?? 0}
           </span>
         </div>

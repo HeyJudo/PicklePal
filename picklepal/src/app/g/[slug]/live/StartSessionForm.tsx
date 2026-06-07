@@ -92,20 +92,20 @@ export function StartSessionForm({
       {step === "players" && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-text-primary">
+            <h3 className="font-display text-2xl text-text-primary leading-tight">
               Who&apos;s playing today?
             </h3>
             <div className="flex gap-2">
               <button
                 onClick={selectAll}
-                className="text-xs text-primary hover:text-primary/80 cursor-pointer"
+                className="text-xs font-semibold text-court-green hover:text-court-green-dark cursor-pointer"
               >
                 All
               </button>
               <span className="text-text-muted">|</span>
               <button
                 onClick={deselectAll}
-                className="text-xs text-primary hover:text-primary/80 cursor-pointer"
+                className="text-xs font-semibold text-court-green hover:text-court-green-dark cursor-pointer"
               >
                 None
               </button>
@@ -121,8 +121,8 @@ export function StartSessionForm({
                   onClick={() => togglePlayer(player.id)}
                   className={`flex items-center gap-3 rounded-xl border p-3 transition-all cursor-pointer ${
                     isSelected
-                      ? "border-primary bg-primary/10 ring-1 ring-primary/30"
-                      : "border-border bg-surface hover:border-primary/40"
+                      ? "border-court-green bg-court-green/10 ring-1 ring-court-green/30"
+                      : "border-border bg-surface hover:border-court-green/40"
                   }`}
                 >
                   <PlayerAvatar
@@ -152,9 +152,9 @@ export function StartSessionForm({
           <button
             onClick={() => setStep("settings")}
             disabled={!canStart}
-            className="w-full rounded-xl bg-surface-muted border border-border px-4 py-3 text-sm font-medium text-text-primary hover:bg-surface transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full rounded-xl bg-court-green px-4 py-4 text-base font-bold text-white hover:bg-court-green-dark transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-court-green/20"
           >
-            Next: Game Settings →
+            Next: Game Settings
           </button>
         </div>
       )}
@@ -164,12 +164,12 @@ export function StartSessionForm({
         <div className="space-y-4">
           <button
             onClick={() => setStep("players")}
-            className="text-sm text-primary hover:text-primary/80 cursor-pointer"
+            className="text-sm text-court-green hover:text-court-green-dark cursor-pointer font-medium"
           >
             ← Back to player selection
           </button>
 
-          <h3 className="text-lg font-semibold text-text-primary">
+          <h3 className="font-display text-2xl text-text-primary leading-tight">
             Game Settings
           </h3>
 
@@ -185,8 +185,8 @@ export function StartSessionForm({
                   onClick={() => setMatchType(type)}
                   className={`flex-1 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors cursor-pointer ${
                     matchType === type
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border text-text-secondary hover:border-primary/40"
+                      ? "border-court-green bg-court-green/10 text-court-green"
+                      : "border-border text-text-secondary hover:border-court-green/40"
                   }`}
                 >
                   {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -207,8 +207,8 @@ export function StartSessionForm({
                   onClick={() => setTargetScore(score)}
                   className={`flex-1 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors cursor-pointer ${
                     targetScore === score
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border text-text-secondary hover:border-primary/40"
+                      ? "border-court-green bg-court-green/10 text-court-green"
+                      : "border-border text-text-secondary hover:border-court-green/40"
                   }`}
                 >
                   {score}
@@ -229,8 +229,8 @@ export function StartSessionForm({
                   onClick={() => setWinBy(wb)}
                   className={`flex-1 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors cursor-pointer ${
                     winBy === wb
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border text-text-secondary hover:border-primary/40"
+                      ? "border-court-green bg-court-green/10 text-court-green"
+                      : "border-border text-text-secondary hover:border-court-green/40"
                   }`}
                 >
                   {wb}
@@ -253,7 +253,7 @@ export function StartSessionForm({
               type="button"
               onClick={() => setTrackScorers(!trackScorers)}
               className={`relative h-6 w-11 rounded-full transition-colors cursor-pointer ${
-                trackScorers ? "bg-primary" : "bg-border"
+                trackScorers ? "bg-court-green" : "bg-border"
               }`}
               role="switch"
               aria-checked={trackScorers}
@@ -274,7 +274,7 @@ export function StartSessionForm({
           <button
             onClick={handleStartSession}
             disabled={isPending || !canStart}
-            className="w-full rounded-xl bg-primary px-4 py-3.5 text-base font-semibold text-white hover:bg-primary/90 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full rounded-xl bg-court-green px-4 py-4 text-base font-bold text-white hover:bg-court-green-dark transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-court-green/20"
           >
             {isPending
               ? "Starting..."

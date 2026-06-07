@@ -185,48 +185,81 @@ export function MatchResult({
     hasError: Boolean(error),
   });
 
+  const winnerScore = winner === "A" ? matchData.teamAScore : matchData.teamBScore;
+  const loserScore = winner === "A" ? matchData.teamBScore : matchData.teamAScore;
+
   return (
-    <div className="space-y-6">
-      {/* Winner Banner */}
-      <div className="rounded-xl border-2 border-primary bg-primary/5 p-8 text-center">
-        <p className="text-sm font-medium text-text-muted uppercase tracking-wide mb-2">
-          Winner
-        </p>
-        <div className="flex items-center justify-center gap-3 mb-3">
-          {winnerIds.map((id) => (
-            <div key={id} className="flex flex-col items-center gap-1">
-              <div
-                className="h-12 w-12 rounded-full flex items-center justify-center text-lg font-bold text-white"
-                style={{ backgroundColor: getPlayerColor(id) }}
-              >
-                {getPlayerName(id).charAt(0)}
-              </div>
-              <span className="text-sm font-semibold text-text-primary">
-                {getPlayerName(id)}
-              </span>
-            </div>
-          ))}
+    <div className="space-y-4">
+      {/* Win Celebration Banner */}
+      <div className="win-pop relative overflow-hidden rounded-2xl border-2 border-ball-yellow bg-gradient-to-br from-ball-yellow/20 via-surface to-court-green/5 p-8 text-center shadow-lg shadow-ball-yellow/10">
+        {/* Court lines watermark */}
+        <div className="absolute inset-0 opacity-[0.04]" aria-hidden="true">
+          <svg viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice" className="w-full h-full" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <rect x="20" y="20" width="360" height="160" rx="2" />
+            <line x1="200" y1="20" x2="200" y2="180" strokeWidth="2" />
+            <line x1="130" y1="20" x2="130" y2="180" strokeDasharray="4 4" />
+            <line x1="270" y1="20" x2="270" y2="180" strokeDasharray="4 4" />
+            <line x1="20" y1="100" x2="130" y2="100" />
+            <line x1="270" y1="100" x2="380" y2="100" />
+          </svg>
         </div>
-        <p className="text-4xl font-bold text-primary">
-          {matchData.teamAScore} - {matchData.teamBScore}
-        </p>
-        <p className="text-sm text-text-muted mt-2">
-          {matchData.totalRallies} rallies
-        </p>
+
+        <div className="relative">
+          {/* Star icon */}
+          <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-ball-yellow/25 mb-4">
+            <svg className="h-6 w-6 text-ball-yellow" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+          </div>
+
+          {/* Winner avatars */}
+          <div className="flex items-center justify-center gap-4 mb-5">
+            {winnerIds.map((id) => (
+              <div key={id} className="flex flex-col items-center gap-1.5">
+                <div
+                  className="h-14 w-14 rounded-full flex items-center justify-center text-xl font-bold text-white ring-4 ring-ball-yellow/40 shadow-lg"
+                  style={{ backgroundColor: getPlayerColor(id) }}
+                >
+                  {getPlayerName(id).charAt(0)}
+                </div>
+                <span className="text-sm font-bold text-text-primary">
+                  {getPlayerName(id)}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Big Anton score: winner vs loser */}
+          <div className="flex items-baseline justify-center gap-3 mb-2">
+            <span className="font-display text-6xl text-court-green leading-none tabular-nums">
+              {winnerScore}
+            </span>
+            <span className="font-score font-bold text-4xl text-text-muted/40 leading-none tabular-nums">
+              {loserScore}
+            </span>
+          </div>
+
+          <p className="font-display text-2xl text-court-green-dark">
+            {winnerIds.map((id) => getPlayerName(id).split(" ")[0]).join(" & ")} Win!
+          </p>
+          <p className="text-xs text-text-muted mt-2 tabular-nums">
+            {matchData.totalRallies} rallies played
+          </p>
+        </div>
       </div>
 
-      {/* Loser */}
-      <div className="rounded-xl border border-border bg-surface-muted p-4 text-center">
+      {/* Loser — faded */}
+      <div className="rounded-xl border border-border-muted bg-surface-muted px-4 py-3">
         <div className="flex items-center justify-center gap-3">
           {loserIds.map((id) => (
             <div key={id} className="flex items-center gap-2">
               <div
-                className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                className="h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold text-white/70 shrink-0"
                 style={{ backgroundColor: getPlayerColor(id) }}
               >
                 {getPlayerName(id).charAt(0)}
               </div>
-              <span className="text-sm text-text-secondary">
+              <span className="text-sm text-text-muted/70">
                 {getPlayerName(id)}
               </span>
             </div>
@@ -234,12 +267,11 @@ export function MatchResult({
         </div>
       </div>
 
-      {/* Save & Actions */}
+      {/* Sync status */}
       <div
-        className={`rounded-lg border px-3 py-2 text-xs font-medium ${getSyncToneClass(
-          syncDisplay.tone,
-        )}`}
+        className={`rounded-lg border px-3 py-2 text-xs font-medium flex items-center gap-1.5 ${getSyncToneClass(syncDisplay.tone)}`}
       >
+        <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${getSyncDotClass(syncDisplay.tone)}`} />
         {syncDisplay.label}
       </div>
 
@@ -250,25 +282,27 @@ export function MatchResult({
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="w-full rounded-xl bg-primary px-4 py-3.5 text-base font-semibold text-white hover:bg-primary/90 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full rounded-xl bg-court-green px-4 py-4 text-base font-bold text-white hover:bg-court-green-dark transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-court-green/20"
           >
-            {isSaving ? "Saving..." : retryAttempt > 0 ? "Retry Now" : "Save Match"}
+            {isSaving ? "Saving..." : retryAttempt > 0 ? "Retry Sync" : "Save Match"}
           </button>
           {!isOnline && (
             <p className="text-xs text-text-muted text-center">
-              Match is saved locally. Keep this screen open and it will retry when
-              you are back online.
+              Saved locally — will sync when back online.
             </p>
           )}
         </div>
       ) : (
         <div className="space-y-3">
-          <p className="text-sm text-green-600 text-center font-medium">
-            ✓ Match saved
-          </p>
+          <div className="flex items-center justify-center gap-1.5 text-sm text-court-green font-semibold">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
+            Match saved
+          </div>
           <button
             onClick={onNextMatch}
-            className="w-full rounded-xl bg-primary px-4 py-3.5 text-base font-semibold text-white hover:bg-primary/90 transition-colors cursor-pointer"
+            className="w-full rounded-xl bg-court-green px-4 py-4 text-base font-bold text-white hover:bg-court-green-dark transition-all active:scale-[0.98] cursor-pointer shadow-lg shadow-court-green/20"
           >
             Next Match
           </button>
@@ -287,7 +321,7 @@ export function MatchResult({
 function getSyncToneClass(tone: "success" | "pending" | "warning" | "error") {
   switch (tone) {
     case "success":
-      return "border-green-200 bg-green-50 text-green-700";
+      return "border-court-green/30 bg-court-green/5 text-court-green-dark";
     case "warning":
       return "border-amber-200 bg-amber-50 text-amber-700";
     case "error":
@@ -295,5 +329,19 @@ function getSyncToneClass(tone: "success" | "pending" | "warning" | "error") {
     case "pending":
     default:
       return "border-sky-blue/30 bg-sky-blue/10 text-sky-blue";
+  }
+}
+
+function getSyncDotClass(tone: "success" | "pending" | "warning" | "error") {
+  switch (tone) {
+    case "success":
+      return "bg-court-green";
+    case "warning":
+      return "bg-amber-500";
+    case "error":
+      return "bg-red-500";
+    case "pending":
+    default:
+      return "bg-sky-blue animate-pulse";
   }
 }

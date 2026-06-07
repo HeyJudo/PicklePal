@@ -104,7 +104,7 @@ export function SessionPlayerList({
           <h3 className="text-sm font-semibold text-text-primary">
             Players
           </h3>
-          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+          <span className="rounded-full bg-court-green/10 px-2 py-0.5 text-xs font-medium text-court-green">
             {activePlayers.length} active
           </span>
           {benchedPlayers.length > 0 && (
@@ -185,7 +185,7 @@ export function SessionPlayerList({
               {!showAddPlayer ? (
                 <button
                   onClick={() => setShowAddPlayer(true)}
-                  className="text-xs font-medium text-primary hover:text-primary/80 cursor-pointer"
+                  className="text-xs font-semibold text-court-green hover:text-court-green-dark cursor-pointer"
                 >
                   + Add late arrival
                 </button>
@@ -208,7 +208,7 @@ export function SessionPlayerList({
                         key={player.id}
                         onClick={() => handleAddLateArrival(player.id)}
                         disabled={isPending}
-                        className="flex items-center gap-1.5 rounded-full border border-dashed border-primary/40 bg-primary/5 px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors cursor-pointer disabled:opacity-50"
+                        className="flex items-center gap-1.5 rounded-full border border-dashed border-court-green/40 bg-court-green/5 px-2.5 py-1.5 text-xs font-medium text-court-green hover:bg-court-green/10 transition-colors cursor-pointer disabled:opacity-50"
                       >
                         <PlayerAvatar
                           displayName={player.display_name}
@@ -262,7 +262,7 @@ function PlayerChip({
     <div className="relative">
       <button
         onClick={() => setShowActions(!showActions)}
-        className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-colors ${chipStyles} cursor-pointer hover:border-primary/40`}
+        className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-colors ${chipStyles} cursor-pointer hover:border-court-green/40`}
       >
         <PlayerAvatar
           displayName={player.display_name}

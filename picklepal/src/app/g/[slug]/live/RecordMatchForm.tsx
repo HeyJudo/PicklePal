@@ -156,7 +156,7 @@ export function RecordMatchForm({
             onClick={() => handleMatchTypeChange("doubles")}
             className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors cursor-pointer ${
               matchType === "doubles"
-                ? "bg-primary text-white"
+                ? "bg-court-green text-white"
                 : "bg-surface-muted text-text-secondary hover:bg-surface-muted/80 border border-border"
             }`}
           >
@@ -167,7 +167,7 @@ export function RecordMatchForm({
             onClick={() => handleMatchTypeChange("singles")}
             className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors cursor-pointer ${
               matchType === "singles"
-                ? "bg-primary text-white"
+                ? "bg-court-green text-white"
                 : "bg-surface-muted text-text-secondary hover:bg-surface-muted/80 border border-border"
             }`}
           >
@@ -287,7 +287,7 @@ export function RecordMatchForm({
                     <button
                       type="button"
                       onClick={() => handleAddToTeamA(player.id)}
-                      className="text-[10px] font-semibold text-primary hover:text-primary/80 transition-colors cursor-pointer px-1"
+                      className="text-[10px] font-semibold text-court-green hover:text-court-green-dark transition-colors cursor-pointer px-1"
                       aria-label={`Add ${player.display_name} to Team A`}
                     >
                       → A
@@ -297,7 +297,7 @@ export function RecordMatchForm({
                     <button
                       type="button"
                       onClick={() => handleAddToTeamB(player.id)}
-                      className="text-[10px] font-semibold text-primary hover:text-primary/80 transition-colors cursor-pointer px-1"
+                      className="text-[10px] font-semibold text-court-green hover:text-court-green-dark transition-colors cursor-pointer px-1"
                       aria-label={`Add ${player.display_name} to Team B`}
                     >
                       → B
@@ -326,7 +326,7 @@ export function RecordMatchForm({
                   onClick={() => setTargetScore(target)}
                   className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer ${
                     targetScore === target
-                      ? "bg-primary text-white"
+                      ? "bg-court-green text-white"
                       : "bg-surface-muted text-text-secondary border border-border hover:bg-surface-muted/80"
                   }`}
                 >
@@ -349,7 +349,7 @@ export function RecordMatchForm({
                 value={teamAScore}
                 onChange={(e) => setTeamAScore(e.target.value)}
                 placeholder="0"
-                className="w-full rounded-lg border border-border bg-surface-muted px-3 py-2.5 text-center text-lg font-bold text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full rounded-lg border border-border bg-surface-muted px-3 py-2.5 text-center text-lg font-bold text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-court-green"
                 aria-label="Team A score"
               />
             </div>
@@ -364,7 +364,7 @@ export function RecordMatchForm({
                 value={teamBScore}
                 onChange={(e) => setTeamBScore(e.target.value)}
                 placeholder="0"
-                className="w-full rounded-lg border border-border bg-surface-muted px-3 py-2.5 text-center text-lg font-bold text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full rounded-lg border border-border bg-surface-muted px-3 py-2.5 text-center text-lg font-bold text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-court-green"
                 aria-label="Team B score"
               />
             </div>
@@ -390,7 +390,7 @@ export function RecordMatchForm({
           type="button"
           onClick={handleSubmit}
           disabled={!teamsReady || !teamAScore || !teamBScore || isSaving}
-          className="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white hover:bg-primary/90 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 rounded-xl bg-court-green px-4 py-3 text-sm font-bold text-white hover:bg-court-green-dark transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-court-green/20"
         >
           {isSaving ? "Saving..." : "Record Match"}
         </button>

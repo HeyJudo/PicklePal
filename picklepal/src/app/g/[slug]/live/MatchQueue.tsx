@@ -98,7 +98,7 @@ export function MatchQueue({
           <button
             onClick={generateNext}
             disabled={!hasEnoughPlayers}
-            className="w-full rounded-xl bg-primary px-4 py-3.5 text-base font-semibold text-white hover:bg-primary/90 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full rounded-xl bg-court-green px-4 py-4 text-base font-bold text-white hover:bg-court-green-dark transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-court-green/20"
           >
             Generate Next Match
           </button>
@@ -124,8 +124,8 @@ export function MatchQueue({
           {/* Teams */}
           <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-start">
             {/* Team A */}
-            <div className="rounded-xl border border-border bg-surface p-4 space-y-2">
-              <p className="text-xs font-medium text-text-muted uppercase tracking-wide text-center">
+            <div className="rounded-xl border border-court-green/25 bg-court-green/5 p-4 space-y-2">
+              <p className="text-xs font-semibold text-court-green text-center">
                 Team A
               </p>
               {currentMatchup.teamA.map((id) => (
@@ -147,11 +147,11 @@ export function MatchQueue({
             </div>
 
             {/* VS */}
-            <div className="text-lg font-bold text-text-muted pt-10">vs</div>
+            <div className="font-display text-xl text-text-muted pt-9">vs</div>
 
             {/* Team B */}
-            <div className="rounded-xl border border-border bg-surface p-4 space-y-2">
-              <p className="text-xs font-medium text-text-muted uppercase tracking-wide text-center">
+            <div className="rounded-xl border border-sky-blue/25 bg-sky-blue/5 p-4 space-y-2">
+              <p className="text-xs font-semibold text-sky-blue text-center">
                 Team B
               </p>
               {currentMatchup.teamB.map((id) => (
@@ -175,9 +175,9 @@ export function MatchQueue({
 
           {/* Sitting out */}
           {currentMatchup.sittingOut.length > 0 && (
-            <div className="rounded-xl border border-border bg-surface-muted p-3">
+            <div className="rounded-xl border border-border-muted bg-surface-muted px-3 py-2.5">
               <p className="text-xs font-medium text-text-muted mb-2">
-                Sitting out this round:
+                Sitting out this round
               </p>
               <div className="flex flex-wrap gap-2">
                 {currentMatchup.sittingOut.map((id) => (
@@ -204,9 +204,9 @@ export function MatchQueue({
           <div className="flex gap-3">
             <button
               onClick={handleConfirm}
-              className="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white hover:bg-primary/90 transition-colors cursor-pointer"
+              className="flex-1 rounded-xl bg-court-green px-4 py-3.5 text-sm font-bold text-white hover:bg-court-green-dark transition-all active:scale-[0.98] cursor-pointer shadow-lg shadow-court-green/20"
             >
-              Confirm & Start
+              Start Match
             </button>
             <button
               onClick={regenerate}
@@ -263,7 +263,7 @@ function PlayerSlot({
         className={`flex w-full items-center gap-2 rounded-lg transition-colors ${
           interactive
             ? isSwapping
-              ? "bg-primary/10 ring-1 ring-primary/40 px-2 py-1 cursor-pointer"
+              ? "bg-court-green/10 ring-1 ring-court-green/40 px-2 py-1 cursor-pointer"
               : "hover:bg-surface-muted px-2 py-1 cursor-pointer"
             : "cursor-default"
         }`}
@@ -280,7 +280,7 @@ function PlayerSlot({
         {interactive && (
           <svg
             className={`h-3.5 w-3.5 shrink-0 transition-colors ${
-              isSwapping ? "text-primary" : "text-text-muted"
+              isSwapping ? "text-court-green" : "text-text-muted"
             }`}
             fill="none"
             viewBox="0 0 24 24"
