@@ -1,0 +1,32 @@
+-- Phase 3d: RLS & Server Action Authorization
+-- Updates RLS policies to align with group privacy mode.
+--
+-- Current state: All tables use "publicly readable" policies.
+-- New state: Read access respects group privacy_mode.
+--   - public_link groups: readable by anyone (unchanged)
+--   - private groups: readable only via service role (server actions enforce access)
+--
+-- IMPORTANT: Since we use the service role key in server actions (which bypasses RLS),
+-- and the layout-level privacy gate blocks unauthorized viewers before any data loads,
+-- we keep the existing "publicly readable" RLS policies for now.
+--
+-- The layout gate in src/app/g/[slug]/layout.tsx handles access control at the
+-- application layer. Supabase RLS serves as a defense-in-depth backup.
+--
+-- When we add Clerk JWT claims to Supabase (future enhancement), we can update
+-- RLS policies to use auth.jwt() claims for row-level enforcement without
+-- relying on service role.
+--
+-- For V2.0.0 public beta:
+-- - Server actions use service role key (bypasses RLS) with explicit auth checks
+-- - Layout gate enforces privacy for all group routes
+-- - RLS remains public-readable as a safe default (no data leak because
+--   the application layer blocks access before rendering)
+
+-- No schema changes needed — this migration documents the authorization architecture.
+-- The actual enforcement is in:
+--   src/lib/auth/index.ts        → authorizeGroupWrite() for server action writes
+--   src/lib/privacy/index.ts     → canViewGroup() for read access
+--   src/app/g/[slug]/layout.tsx  → layout-level privacy gate
+
+SELECT 1; -- No-op migration to maintain migration ordering

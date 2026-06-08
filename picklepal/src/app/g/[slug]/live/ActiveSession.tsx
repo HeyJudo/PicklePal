@@ -1,8 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
-import { useHostAuth } from "@/hooks/useHostAuth";
-import { verifyHostPin } from "../actions";
+import { useMemo, useTransition } from "react";
 import { endSession } from "./actions";
 import { MatchQueue } from "./MatchQueue";
 import { SessionPlayerList } from "./SessionPlayerList";
@@ -36,6 +34,7 @@ interface ActiveSessionProps {
   readonly players: readonly Player[];
   readonly sessionPlayers: readonly SessionPlayerEntry[];
   readonly sessionMatches: readonly SessionMatchData[];
+  readonly isHost: boolean;
   readonly onSessionEnded: () => void;
   readonly onMatchConfirmed: (matchup: Matchup) => void;
   readonly onPlayerStatusChanged: (playerId: string, newStatus: SessionPlayerStatus) => void;
@@ -47,15 +46,12 @@ export function ActiveSession({
   players,
   sessionPlayers,
   sessionMatches,
+  isHost,
   onSessionEnded,
   onMatchConfirmed,
   onPlayerStatusChanged,
 }: ActiveSessionProps) {
-  const { isHost, grantAccess } = useHostAuth(groupSlug);
   const [isPending, startTransition] = useTransition();
-  const [showPinInput, setShowPinInput] = useState(false);
-  const [pin, setPin] = useState("");
-  const [pinError, setPinError] = useState("");
 
   // Filter to only active players for matchmaking
   const activePlayerIds = useMemo(
@@ -73,36 +69,12 @@ export function ActiveSession({
   );
 
   const handleEndSession = () => {
-    if (!isHost) {
-      setShowPinInput(true);
-      return;
-    }
-
     startTransition(async () => {
       const result = await endSession(session.id);
       if (result.success) {
         onSessionEnded();
       }
     });
-  };
-
-  const handlePinSubmit = async () => {
-    setPinError("");
-    const result = await verifyHostPin(groupSlug, pin);
-    if (result.success) {
-      grantAccess();
-      setShowPinInput(false);
-      setPin("");
-      // Now execute the end session action
-      startTransition(async () => {
-        const endResult = await endSession(session.id);
-        if (endResult.success) {
-          onSessionEnded();
-        }
-      });
-    } else {
-      setPinError(result.error ?? "Verification failed");
-    }
   };
 
   const startedAt = new Date(session.started_at);
@@ -116,25 +88,20 @@ export function ActiveSession({
   return (
     <div className="space-y-6">
       {/* Session Header */}
-      <div className="rounded-xl border border-primary/30 bg-primary/5 p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <div className="h-2.5 w-2.5 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-sm font-medium text-green-700">
-                Game Day Active
-              </span>
-            </div>
-            <h2 className="mt-1 text-xl font-bold text-text-primary">
-              {session.title ?? "Game Day"}
-            </h2>
-            <p className="text-sm text-text-muted mt-0.5">
-              Started at {timeStr} ·{" "}
-              {matchType === "doubles" ? "Doubles" : "Singles"}{" "}
-              · To {session.target_score}, win by {session.win_by}
-            </p>
-          </div>
+      <div className="rounded-xl border border-court-green/30 bg-court-green/5 px-5 py-4">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-court-green opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-court-green" />
+          </span>
+          <span className="text-xs font-semibold text-court-green">Game Day Active</span>
         </div>
+        <h2 className="font-display text-2xl text-text-primary leading-tight">
+          {session.title ?? "Game Day"}
+        </h2>
+        <p className="text-xs text-text-muted mt-1">
+          Started {timeStr} · {matchType === "doubles" ? "Doubles" : "Singles"} · To {session.target_score}, win by {session.win_by}
+        </p>
       </div>
 
       {/* Match Queue */}
@@ -158,46 +125,8 @@ export function ActiveSession({
       {/* Completed Matches */}
       <SessionMatchHistory matches={sessionMatches} players={players} />
 
-      {/* PIN Prompt */}
-      {showPinInput && (
-        <div className="rounded-xl border border-border bg-surface p-5 space-y-3">
-          <h3 className="text-sm font-semibold text-text-primary">
-            Enter Host PIN to end session
-          </h3>
-          <input
-            type="password"
-            inputMode="numeric"
-            value={pin}
-            onChange={(e) => setPin(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
-            placeholder="Enter PIN"
-            className="w-full rounded-lg border border-border bg-surface-muted px-4 py-2.5 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary"
-            autoFocus
-          />
-          {pinError && <p className="text-sm text-red-500">{pinError}</p>}
-          <div className="flex gap-3">
-            <button
-              onClick={handlePinSubmit}
-              className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors cursor-pointer"
-            >
-              Verify & End
-            </button>
-            <button
-              onClick={() => {
-                setShowPinInput(false);
-                setPin("");
-                setPinError("");
-              }}
-              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-muted transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* End Session — always visible */}
-      {!showPinInput && (
+      {/* End Session */}
+      {isHost && (
         <button
           onClick={handleEndSession}
           disabled={isPending}

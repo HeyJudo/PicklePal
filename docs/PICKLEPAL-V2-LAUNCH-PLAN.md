@@ -285,7 +285,7 @@ Acceptance criteria:
 
 Purpose: choose a public identity before public launch UI and metadata work.
 
-### 1a. Public Name Selection
+### 1a. Public Name Selection DONE 
 
 Deliverables:
 
@@ -300,7 +300,7 @@ Acceptance criteria:
 - Final name is approved before landing page implementation.
 - Internal codename vs public brand is documented.
 
-### 1b. Brand System
+### 1b. Brand System DONE 
 
 Deliverables:
 
@@ -316,7 +316,7 @@ Acceptance criteria:
 - Visual language avoids the current portal/table-first feeling.
 - Share cards and landing page can use the same identity.
 
-### 1c. Landing Page Plan
+### 1c. Landing Page Plan 
 
 Deliverables:
 
@@ -336,7 +336,7 @@ Acceptance criteria:
 
 Purpose: add account-based entry without changing player roster behavior.
 
-### 2a. Clerk Integration
+### 2a. Clerk Integration DONE 
 
 Deliverables:
 
@@ -352,7 +352,7 @@ Acceptance criteria:
 - Anonymous visitors can still view allowed public routes.
 - Auth state is available in server actions.
 
-### 2b. My Groups Dashboard
+### 2b. My Groups Dashboard DONE 
 
 Deliverables:
 
@@ -368,7 +368,7 @@ Acceptance criteria:
 - User with no groups is directed into onboarding/create group.
 - Desktop and mobile layouts are usable.
 
-### 2c. First-Group Onboarding Shell
+### 2c. First-Group Onboarding Shell DONE 
 
 Deliverables:
 
@@ -388,7 +388,7 @@ Acceptance criteria:
 
 Purpose: define public-launch ownership and access control.
 
-### 3a. Profiles And Memberships
+### 3a. Profiles And Memberships DONE
 
 Deliverables:
 
@@ -403,7 +403,7 @@ Acceptance criteria:
 - Owner/Admin checks are reusable in server actions.
 - Players remain roster records, not users.
 
-### 3b. Admin Invites
+### 3b. Admin Invites DONE 
 
 Deliverables:
 
@@ -418,7 +418,7 @@ Acceptance criteria:
 - Invited admin can sign in and gain group admin access.
 - Players are not invited as app users.
 
-### 3c. Group Privacy
+### 3c. Group Privacy DONE 
 
 Deliverables:
 
@@ -433,7 +433,7 @@ Acceptance criteria:
 - Private group pages block anonymous visitors.
 - Owner/Admin write permissions are unchanged by privacy mode.
 
-### 3d. RLS And Server Action Authorization
+### 3d. RLS And Server Action Authorization DONE
 
 Deliverables:
 
@@ -454,7 +454,7 @@ Acceptance criteria:
 
 Purpose: preserve the current group while removing the PIN model.
 
-### 4a. Current Group Ownership Migration
+### 4a. Current Group Ownership Migration DONE
 
 Deliverables:
 
@@ -468,7 +468,7 @@ Acceptance criteria:
 - Historical data remains attached to the group.
 - Counts match the baseline backup.
 
-### 4b. Post-Migration Stats Verification
+### 4b. Post-Migration Stats Verification DONE
 
 Deliverables:
 
@@ -480,7 +480,7 @@ Acceptance criteria:
 - Derived outputs match baseline.
 - No completed match data is lost.
 
-### 4c. PIN Flow Removal
+### 4c. PIN Flow Removal DONE
 
 Deliverables:
 
@@ -497,11 +497,11 @@ Acceptance criteria:
 
 ---
 
-## Phase 5: Multi-Group Onboarding And Settings
+## Phase 5: Multi-Group Onboarding And Settings DONE
 
 Purpose: make multi-group creation and management first-class.
 
-### 5a. Create Group Flow
+### 5a. Create Group Flow DONE 
 
 Deliverables:
 
@@ -516,7 +516,7 @@ Acceptance criteria:
 - Slugs are unique and validated.
 - Created group is immediately usable.
 
-### 5b. Group Settings
+### 5b. Group Settings DONE
 
 Deliverables:
 
@@ -535,7 +535,7 @@ Acceptance criteria:
 - Changes affect future sessions without rewriting historical matches.
 - Mobile settings UI is clear and not cramped.
 
-### 5c. Player Avatar Rules
+### 5c. Player Avatar Rules done
 
 Deliverables:
 
@@ -553,11 +553,11 @@ Acceptance criteria:
 
 ---
 
-## Phase 6: Live Scoring Resilience And Viewer Mode
+## Phase 6: Live Scoring Resilience And Viewer Mode 
 
 Purpose: make live scoring reliable across navigation, auth, and public viewing.
 
-### 6a. Active DB Match At Scoring Start
+### 6a. Active DB Match At Scoring Start 
 
 Deliverables:
 

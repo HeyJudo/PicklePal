@@ -3,12 +3,30 @@
  * Matches the schema defined in supabase/migrations/.
  */
 
+export interface GroupSettings {
+  default_match_type: "singles" | "doubles";
+  default_target_score: number;
+  default_win_by: number;
+  qualification_threshold: number;
+}
+
 export type SessionStatus = "active" | "completed" | "cancelled";
 export type MatchStatus = "queued" | "active" | "completed" | "cancelled";
 export type MatchType = "singles" | "doubles";
 export type MatchSource = "live" | "manual";
 export type QueueItemStatus = "pending" | "active" | "completed" | "skipped";
 export type SessionPlayerStatus = "active" | "benched" | "removed";
+
+/** Live scoring snapshot stored as JSONB on active matches */
+export interface MatchSnapshot {
+  readonly teamAScore: number;
+  readonly teamBScore: number;
+  readonly servingTeam: "A" | "B";
+  readonly serverPlayerId: string;
+  readonly serverNumber: number | null;
+  readonly rallyCount: number;
+  readonly updatedAt: string;
+}
 
 export interface Database {
   public: {
@@ -18,7 +36,7 @@ export interface Database {
           id: string;
           slug: string;
           name: string;
-          host_pin_hash: string | null;
+          settings: GroupSettings;
           created_at: string;
           updated_at: string;
         };
@@ -26,7 +44,7 @@ export interface Database {
           id?: string;
           slug: string;
           name: string;
-          host_pin_hash?: string | null;
+          settings?: Partial<GroupSettings>;
           created_at?: string;
           updated_at?: string;
         };
@@ -34,7 +52,7 @@ export interface Database {
           id?: string;
           slug?: string;
           name?: string;
-          host_pin_hash?: string | null;
+          settings?: Partial<GroupSettings>;
           updated_at?: string;
         };
       };
@@ -127,6 +145,9 @@ export interface Database {
           target_score: number;
           win_by: number;
           source: MatchSource;
+          scorer_clerk_user_id: string | null;
+          scorer_heartbeat_at: string | null;
+          current_snapshot: MatchSnapshot | null;
           started_at: string | null;
           completed_at: string | null;
           created_at: string;
@@ -147,6 +168,9 @@ export interface Database {
           target_score?: number;
           win_by?: number;
           source?: MatchSource;
+          scorer_clerk_user_id?: string | null;
+          scorer_heartbeat_at?: string | null;
+          current_snapshot?: MatchSnapshot | null;
           started_at?: string | null;
           completed_at?: string | null;
           created_at?: string;
@@ -167,6 +191,9 @@ export interface Database {
           target_score?: number;
           win_by?: number;
           source?: MatchSource;
+          scorer_clerk_user_id?: string | null;
+          scorer_heartbeat_at?: string | null;
+          current_snapshot?: MatchSnapshot | null;
           started_at?: string | null;
           completed_at?: string | null;
           updated_at?: string;

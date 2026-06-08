@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Settings, ChevronRight, Play } from "lucide-react";
 import type { ActiveSessionInfo } from "../actions";
 
 interface HeroSectionProps {
@@ -7,6 +8,7 @@ interface HeroSectionProps {
   readonly activeSession: ActiveSessionInfo | null;
   readonly totalGamesPlayed: number;
   readonly totalSessions: number;
+  readonly isAdmin?: boolean;
 }
 
 export function HeroSection({
@@ -15,33 +17,46 @@ export function HeroSection({
   activeSession,
   totalGamesPlayed,
   totalSessions,
+  isAdmin,
 }: HeroSectionProps) {
   return (
-    <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-court-green via-court-green-dark to-sky-blue-dark p-6 sm:p-8">
-      {/* Background pattern */}
-      <div className="absolute inset-0 opacity-10" aria-hidden="true">
-        <div className="absolute top-4 right-4 w-32 h-32 rounded-full border-4 border-white" />
-        <div className="absolute bottom-4 left-4 w-20 h-20 rounded-full border-2 border-white" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full border border-white" />
-      </div>
+    <section className="relative overflow-hidden rounded-2xl bg-court-green-dark p-6 sm:p-8 min-h-[200px]">
+      {/* Real pickleball court SVG — brand-specific, not generic grid */}
+      <CourtSvgBackground />
+
+      {/* Gradient overlay — keeps text readable over the court */}
+      <div
+        className="absolute inset-0 bg-gradient-to-br from-court-green-dark/95 via-court-green/80 to-sky-blue-dark/70"
+        aria-hidden="true"
+      />
 
       <div className="relative z-10">
-        {/* Group name & tagline */}
-        <div className="mb-4">
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            {groupName}
-          </h1>
-          <p className="text-white/70 text-sm sm:text-base mt-1 font-medium">
-            Your pickleball crew scoreboard
-          </p>
+        {/* Top row */}
+        <div className="flex items-start justify-between gap-3 mb-5">
+          <div>
+            <p className="text-white/50 text-[11px] font-label font-semibold uppercase tracking-widest mb-1">
+              DinkDay
+            </p>
+            {/* Anton — display font for the group name */}
+            <h1 className="font-display text-3xl sm:text-4xl text-white leading-tight">
+              {groupName}
+            </h1>
+          </div>
+
+          {isAdmin && (
+            <Link
+              href={`/g/${groupSlug}/settings`}
+              className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-white/15 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-white border border-white/25 transition-all hover:bg-white/25"
+              aria-label="Group settings"
+            >
+              <Settings className="h-3.5 w-3.5" />
+              Settings
+            </Link>
+          )}
         </div>
 
-        {/* Active session banner OR idle state */}
         {activeSession ? (
-          <ActiveSessionBanner
-            activeSession={activeSession}
-            groupSlug={groupSlug}
-          />
+          <ActiveSessionBanner activeSession={activeSession} groupSlug={groupSlug} />
         ) : (
           <IdleState
             groupSlug={groupSlug}
@@ -54,7 +69,48 @@ export function HeroSection({
   );
 }
 
-// ─── Active Session Banner ───────────────────────────────────────────────────
+// ─── Pickleball court SVG background ─────────────────────────────────────────
+// Top-down view: baselines, sidelines, NVZ (kitchen) lines, center line.
+// Simplified for decorative use — proportions evoke the court.
+
+function CourtSvgBackground() {
+  return (
+    <div className="absolute inset-0 opacity-25" aria-hidden="true">
+      <svg
+        viewBox="0 0 400 200"
+        preserveAspectRatio="xMidYMid slice"
+        className="w-full h-full"
+        fill="none"
+        stroke="white"
+        strokeWidth="1.5"
+      >
+        {/* Outer court boundary */}
+        <rect x="20" y="20" width="360" height="160" rx="2" />
+
+        {/* Center line (net) */}
+        <line x1="200" y1="20" x2="200" y2="180" strokeWidth="2" />
+
+        {/* NVZ / Kitchen lines — 7ft from net each side */}
+        <line x1="130" y1="20" x2="130" y2="180" strokeDasharray="4 4" />
+        <line x1="270" y1="20" x2="270" y2="180" strokeDasharray="4 4" />
+
+        {/* Center service lines (horizontal) */}
+        <line x1="20" y1="100" x2="130" y2="100" />
+        <line x1="270" y1="100" x2="380" y2="100" />
+
+        {/* Pickleball (ball) — top right decorative */}
+        <circle cx="350" cy="50" r="18" strokeWidth="1.5" />
+        <circle cx="344" cy="46" r="2.5" fill="white" stroke="none" />
+        <circle cx="356" cy="46" r="2.5" fill="white" stroke="none" />
+        <circle cx="344" cy="54" r="2.5" fill="white" stroke="none" />
+        <circle cx="356" cy="54" r="2.5" fill="white" stroke="none" />
+        <circle cx="350" cy="50" r="2.5" fill="white" stroke="none" />
+      </svg>
+    </div>
+  );
+}
+
+// ─── Active Session Banner ────────────────────────────────────────────────────
 
 function ActiveSessionBanner({
   activeSession,
@@ -66,20 +122,17 @@ function ActiveSessionBanner({
   return (
     <Link
       href={`/g/${groupSlug}/live`}
-      className="group block mt-4 rounded-xl bg-white/15 backdrop-blur-sm border border-white/20 p-4 transition-all duration-200 hover:bg-white/20 cursor-pointer"
+      className="group block rounded-xl bg-white/12 backdrop-blur-sm border border-white/20 p-4 transition-all hover:bg-white/18"
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {/* Pulsing live indicator */}
-          <span className="relative flex h-3 w-3" aria-label="Live">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="relative flex h-3 w-3 shrink-0" aria-label="Live">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-hype-orange opacity-75" />
             <span className="relative inline-flex rounded-full h-3 w-3 bg-hype-orange" />
           </span>
-          <div>
-            <p className="text-white font-bold text-sm sm:text-base">
-              Game Day Live
-            </p>
-            <p className="text-white/70 text-xs sm:text-sm">
+          <div className="min-w-0">
+            <p className="text-white font-bold text-sm leading-tight">Game Day Live</p>
+            <p className="text-white/60 text-xs mt-0.5 truncate">
               {activeSession.title ?? "Session in progress"}
               {" · "}
               {activeSession.matchesPlayed} match
@@ -88,25 +141,25 @@ function ActiveSessionBanner({
           </div>
         </div>
 
-        {/* Live score or arrow */}
         {activeSession.activeMatch ? (
-          <div className="text-right">
-            <p className="text-white font-extrabold text-xl tabular-nums">
+          <div className="text-right shrink-0">
+            {/* Anton for live match score */}
+            <p className="font-display text-white text-3xl leading-none tabular-nums">
               {activeSession.activeMatch.teamAScore}
-              {" – "}
+              <span className="text-white/35 text-xl mx-1">-</span>
               {activeSession.activeMatch.teamBScore}
             </p>
-            <p className="text-white/60 text-xs">Match in progress</p>
+            <p className="text-white/50 text-[10px] mt-1">in progress</p>
           </div>
         ) : (
-          <ArrowRightIcon className="w-5 h-5 text-white/60 group-hover:text-white transition-colors" />
+          <ChevronRight className="w-5 h-5 text-white/50 group-hover:text-white transition-colors shrink-0" />
         )}
       </div>
     </Link>
   );
 }
 
-// ─── Idle State ──────────────────────────────────────────────────────────────
+// ─── Idle State ───────────────────────────────────────────────────────────────
 
 function IdleState({
   groupSlug,
@@ -118,22 +171,22 @@ function IdleState({
   readonly totalSessions: number;
 }) {
   return (
-    <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      {/* Quick stats */}
-      <div className="flex gap-6">
+    <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5">
+      {/* Quick stats — Anton numbers */}
+      <div className="flex gap-8">
         <div>
-          <p className="text-white font-extrabold text-2xl tabular-nums">
+          <p className="font-display text-white text-4xl leading-none tabular-nums">
             {totalGamesPlayed}
           </p>
-          <p className="text-white/60 text-xs font-medium uppercase tracking-wide">
+          <p className="text-white/55 text-[11px] font-label font-semibold uppercase tracking-widest mt-1.5">
             Games
           </p>
         </div>
         <div>
-          <p className="text-white font-extrabold text-2xl tabular-nums">
+          <p className="font-display text-white text-4xl leading-none tabular-nums">
             {totalSessions}
           </p>
-          <p className="text-white/60 text-xs font-medium uppercase tracking-wide">
+          <p className="text-white/55 text-[11px] font-label font-semibold uppercase tracking-widest mt-1.5">
             Sessions
           </p>
         </div>
@@ -142,45 +195,12 @@ function IdleState({
       {/* CTA */}
       <Link
         href={`/g/${groupSlug}/live`}
-        className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-bold text-court-green-dark shadow-lg transition-all duration-200 hover:bg-ball-yellow hover:text-court-green-dark hover:shadow-xl cursor-pointer"
+        className="inline-flex items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-bold text-court-green-dark shadow-lg transition-all hover:bg-ball-yellow active:scale-[0.97] w-fit"
       >
-        <PlayIcon className="w-4 h-4" />
+        <Play className="w-4 h-4" fill="currentColor" />
         Start Game Day
+        <ChevronRight className="w-4 h-4 opacity-70" />
       </Link>
     </div>
-  );
-}
-
-// ─── Inline SVG Icons ────────────────────────────────────────────────────────
-
-function ArrowRightIcon({ className }: { readonly className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={2}
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"
-      />
-    </svg>
-  );
-}
-
-function PlayIcon({ className }: { readonly className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="currentColor"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path d="M8 5v14l11-7z" />
-    </svg>
   );
 }

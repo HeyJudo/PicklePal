@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { PlayerAvatar } from "@/components/players";
 import {
   createMatchHistory,
@@ -21,6 +21,7 @@ import {
   getSyncDisplay,
   removeLastOfflineRallyEvent,
 } from "@/lib/offline";
+import { updateMatchSnapshot } from "./active-match-actions";
 import type { MatchStartConfig } from "./PositionConfirmation";
 
 interface Player {
@@ -39,6 +40,7 @@ interface LiveScoringProps {
   readonly targetScore: number;
   readonly winBy: number;
   readonly trackScorers?: boolean;
+  readonly activeMatchId: string | null;
   readonly onMatchComplete: (history: MatchHistory) => void;
 }
 
@@ -51,6 +53,7 @@ export function LiveScoring({
   targetScore,
   winBy,
   trackScorers = false,
+  activeMatchId,
   onMatchComplete,
 }: LiveScoringProps) {
   const [history, setHistory] = useState<MatchHistory>(() => {
@@ -97,13 +100,51 @@ export function LiveScoring({
     };
   }, []);
 
+  const state = history.currentState;
+  const isDoubles = isDoublesState(state);
+
+  // Sync snapshot to DB every 5 seconds while match is active
+  const lastSnapshotRef = useRef<string>("");
+  useEffect(() => {
+    if (!activeMatchId || history.currentState.isComplete) return;
+
+    const syncSnapshot = async () => {
+      const currentState = history.currentState;
+      const serverState = isDoublesState(currentState)
+        ? (currentState as DoublesMatchState).serverState
+        : (currentState as SinglesMatchState).serverState;
+
+      const snapshot = {
+        teamAScore: currentState.teamAScore,
+        teamBScore: currentState.teamBScore,
+        servingTeam: serverState.servingTeam,
+        serverPlayerId: serverState.serverPlayerId,
+        serverNumber: isDoublesState(currentState)
+          ? (serverState as DoublesMatchState["serverState"]).serverNumber
+          : null,
+        rallyCount: history.rallyWinners.length,
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Only sync if state actually changed
+      const snapshotKey = `${snapshot.teamAScore}-${snapshot.teamBScore}-${snapshot.rallyCount}`;
+      if (snapshotKey === lastSnapshotRef.current) return;
+      lastSnapshotRef.current = snapshotKey;
+
+      await updateMatchSnapshot(activeMatchId, snapshot);
+    };
+
+    const intervalId = setInterval(syncSnapshot, 5000);
+    // Also sync immediately on first render / state change
+    syncSnapshot();
+
+    return () => clearInterval(intervalId);
+  }, [activeMatchId, history]);
+
   const playerMap = new Map(players.map((p) => [p.id, p]));
   const getPlayer = (id: string) => playerMap.get(id);
   const getPlayerName = (id: string) =>
     playerMap.get(id)?.display_name ?? "?";
-
-  const state = history.currentState;
-  const isDoubles = isDoublesState(state);
 
   const handleRallyWinner = useCallback(
     (winner: Team, scorerPlayerId: string | null = null) => {
@@ -369,18 +410,18 @@ export function LiveScoring({
         </div>
 
         {/* Scoreboard overlay — floating on top of court */}
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-black/70 backdrop-blur-sm px-4 py-1.5 shadow-lg">
-          <span className={`text-xl font-black tabular-nums ${servingTeam === "A" ? "text-ball-yellow" : "text-white"}`}>
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-black/75 backdrop-blur-sm px-5 py-2 shadow-lg">
+          <span className={`font-display text-3xl leading-none tabular-nums ${servingTeam === "A" ? "text-ball-yellow" : "text-white"}`}>
             {state.teamAScore}
           </span>
-          <span className="text-white/50 text-sm font-medium">–</span>
-          <span className={`text-xl font-black tabular-nums ${servingTeam === "B" ? "text-ball-yellow" : "text-white"}`}>
+          <span className="text-white/40 text-base font-medium">–</span>
+          <span className={`font-display text-3xl leading-none tabular-nums ${servingTeam === "B" ? "text-ball-yellow" : "text-white"}`}>
             {state.teamBScore}
           </span>
           {isDoubles && (
             <>
               <span className="text-white/30 text-xs">|</span>
-              <span className="text-[10px] font-mono text-white/70">{scoreCall}</span>
+              <span className="text-[10px] font-mono text-white/60">{scoreCall}</span>
             </>
           )}
           {streak && streak.count >= 3 && (
@@ -410,10 +451,7 @@ export function LiveScoring({
               onClick={() => handleRallyWinner("A")}
               className="relative rounded-2xl bg-gradient-to-br from-court-green to-court-green-dark px-4 py-7 text-center transition-all active:scale-[0.97] cursor-pointer shadow-lg shadow-court-green/20 hover:shadow-xl hover:shadow-court-green/30"
             >
-              <span className="text-lg font-bold text-white drop-shadow-sm">
-                Team A Point
-              </span>
-              <div className="mt-1 flex items-center justify-center gap-1">
+              <div className="flex items-center justify-center gap-1.5 mb-2">
                 {config.teamA.map((id) => {
                   const player = getPlayer(id);
                   return (
@@ -422,20 +460,23 @@ export function LiveScoring({
                       displayName={player?.display_name ?? "?"}
                       color={player?.color ?? null}
                       avatarUrl={player?.avatar_url ?? null}
-                      size="xs"
+                      size="sm"
                     />
                   );
                 })}
               </div>
+              <span className="text-sm font-bold text-white/90 leading-tight block truncate">
+                {config.teamA.map((id) => getPlayerName(id).split(" ")[0]).join(" & ")}
+              </span>
+              <span className="text-[10px] font-semibold text-white/60 uppercase tracking-widest mt-0.5 block">
+                Point
+              </span>
             </button>
             <button
               onClick={() => handleRallyWinner("B")}
               className="relative rounded-2xl bg-gradient-to-br from-sky-blue to-sky-blue-dark px-4 py-7 text-center transition-all active:scale-[0.97] cursor-pointer shadow-lg shadow-sky-blue/20 hover:shadow-xl hover:shadow-sky-blue/30"
             >
-              <span className="text-lg font-bold text-white drop-shadow-sm">
-                Team B Point
-              </span>
-              <div className="mt-1 flex items-center justify-center gap-1">
+              <div className="flex items-center justify-center gap-1.5 mb-2">
                 {config.teamB.map((id) => {
                   const player = getPlayer(id);
                   return (
@@ -444,11 +485,17 @@ export function LiveScoring({
                       displayName={player?.display_name ?? "?"}
                       color={player?.color ?? null}
                       avatarUrl={player?.avatar_url ?? null}
-                      size="xs"
+                      size="sm"
                     />
                   );
                 })}
               </div>
+              <span className="text-sm font-bold text-white/90 leading-tight block truncate">
+                {config.teamB.map((id) => getPlayerName(id).split(" ")[0]).join(" & ")}
+              </span>
+              <span className="text-[10px] font-semibold text-white/60 uppercase tracking-widest mt-0.5 block">
+                Point
+              </span>
             </button>
           </div>
 
@@ -504,30 +551,36 @@ export function LiveScoring({
 
       {/* Match Complete */}
       {state.isComplete && (
-        <div className="rounded-2xl border-2 border-ball-yellow bg-gradient-to-br from-ball-yellow/10 via-surface to-court-green/5 p-8 text-center shadow-lg">
-          <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-ball-yellow/20 mb-3">
-            <svg className="h-6 w-6 text-ball-yellow" fill="currentColor" viewBox="0 0 24 24">
+        <div className="win-pop relative overflow-hidden rounded-2xl border-2 border-ball-yellow bg-gradient-to-br from-ball-yellow/15 via-surface to-court-green/5 p-8 text-center shadow-lg shadow-ball-yellow/10">
+          <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-ball-yellow/25 mb-4">
+            <svg className="h-6 w-6 text-ball-yellow" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
             </svg>
           </div>
-          <p className="text-3xl font-black text-text-primary">
-            {state.winner === "A" ? "Team A" : "Team B"} Wins!
+          <p className="font-display text-4xl text-court-green-dark">
+            {state.winner === "A"
+              ? config.teamA.map((id) => getPlayerName(id).split(" ")[0]).join(" & ")
+              : config.teamB.map((id) => getPlayerName(id).split(" ")[0]).join(" & ")} Win!
           </p>
-          <p className="text-xl font-bold text-text-secondary mt-1 tabular-nums">
-            {state.teamAScore} – {state.teamBScore}
-          </p>
-          <div className="mt-3 flex items-center justify-center gap-2">
+          <div className="flex items-baseline justify-center gap-3 mt-2">
+            <span className="font-display text-5xl text-court-green leading-none tabular-nums">
+              {state.winner === "A" ? state.teamAScore : state.teamBScore}
+            </span>
+            <span className="font-score font-bold text-3xl text-text-muted/40 leading-none tabular-nums">
+              {state.winner === "A" ? state.teamBScore : state.teamAScore}
+            </span>
+          </div>
+          <div className="mt-4 flex items-center justify-center gap-2">
             {(state.winner === "A" ? config.teamA : config.teamB).map((id) => {
               const player = getPlayer(id);
               return (
-                <div key={id} className="flex items-center gap-1.5">
-                  <PlayerAvatar
-                    displayName={player?.display_name ?? "?"}
-                    color={player?.color ?? null}
-                    avatarUrl={player?.avatar_url ?? null}
-                    size="md"
-                  />
-                </div>
+                <PlayerAvatar
+                  key={id}
+                  displayName={player?.display_name ?? "?"}
+                  color={player?.color ?? null}
+                  avatarUrl={player?.avatar_url ?? null}
+                  size="md"
+                />
               );
             })}
           </div>

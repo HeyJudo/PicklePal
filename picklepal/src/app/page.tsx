@@ -1,9 +1,19 @@
+import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { getUserGroups } from "@/lib/membership";
+import { LandingPage } from "@/components/landing/LandingPage";
 
-/**
- * Root page redirects to the default group.
- * In V1 there's only one group — this avoids a dead landing page.
- */
-export default function RootPage() {
-  redirect("/g/default");
+export default async function RootPage() {
+  const user = await currentUser();
+
+  if (user) {
+    // Check if user has any groups — new users go to onboarding
+    const groups = await getUserGroups(user.id);
+    if (groups.length === 0) {
+      redirect("/onboarding");
+    }
+    redirect("/app");
+  }
+
+  return <LandingPage />;
 }

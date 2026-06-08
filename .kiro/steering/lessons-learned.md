@@ -159,6 +159,41 @@ const teamACount = players.filter(
 ```
 Applies anywhere you check "is there room?" before assigning an item to a slot, inside a state updater that also changes that item.
 
+### Root Page Must Be a Server Component That Routes by Auth State
+The root `/` page must check auth state server-side and redirect signed-in users based on their account status. If it's a client component showing just the landing page, signed-in users get stuck in a redirect loop when clicking "Sign in" (Clerk sees they're already authenticated and bounces them back to `/`). Additionally, new users (no groups) should go to `/onboarding`, not `/app` with an empty state. Pattern:
+```tsx
+// src/app/page.tsx — server component
+import { currentUser } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+import { getUserGroups } from "@/lib/membership";
+
+export default async function RootPage() {
+  const user = await currentUser();
+  if (user) {
+    const groups = await getUserGroups(user.id);
+    if (groups.length === 0) redirect("/onboarding");
+    redirect("/app");
+  }
+  return <LandingPage />;
+}
+```
+The landing page content lives in a separate `'use client'` component. This three-way routing (anonymous → landing, new user → onboarding, existing user → dashboard) applies to any SaaS app with public marketing + authenticated product.
+
+### Privacy/Access Gates Belong in `layout.tsx`, Not Individual Pages
+To enforce access control across an entire route segment (e.g., all `/g/[slug]/*` pages), add the gate in the layout, not in each page. This ensures every nested route — including dynamically added future pages — is automatically protected. The layout renders the gate component (e.g., `PrivateGroupGate`) instead of the children when access is denied. Pattern:
+```tsx
+// layout.tsx — gates ALL child routes
+const access = await canViewGroup(slug, user?.id ?? null);
+if (!access.canView) {
+  return <PrivateGroupGate reason={access.reason} />;
+}
+return <div>{children}</div>;
+```
+This prevents the common mistake of forgetting to add access checks when new pages are created under the segment.
+
+### Admin-Only UI Must Appear in Both Empty and Populated States
+The group dashboard has two render paths: `EmptyDashboard` (0 games) and `HeroSection` (1+ games). Any admin-visible UI (settings gear, admin badges, management links) must be added to **both** components, not just the populated one. New groups spend their entire early life in the empty state, so admins will never see settings if it's only in `HeroSection`. Pattern: when adding admin-conditional UI to a page with an empty/populated split, always check both branches.
+
 ### Desktop 3-Column Layouts: Split Monolithic Components, Don't Nest Them
 When adapting a mobile-first component (like `ActiveSession`) into a multi-column desktop layout, **don't render the monolithic component in one column** and leave others empty. Instead, render its sub-components (`MatchQueue`, `SessionPlayerList`, etc.) directly into their appropriate columns at the parent level. Keep the monolithic component for mobile only via `lg:hidden`. Pattern:
 ```tsx
@@ -185,9 +220,61 @@ When adding an alternative entry path to an existing flow (e.g., "Pick Teams" as
 
 ---
 
+### Clerk v7 `UserButton` Has No `afterSignOutUrl` Prop
+In `@clerk/nextjs` v7+, the `UserButton` component no longer accepts `afterSignOutUrl` as a prop (it did in v5/v6). Sign-out redirect behavior is configured either in the Clerk dashboard or via `ClerkProvider`'s `afterSignOutUrl` prop at the layout level. When checking Clerk component APIs, always verify against the installed major version — their API surface changes significantly between majors.
+
+### Next.js 16 Deprecates `middleware.ts` in Favor of `proxy.ts`
+Next.js 16 shows a warning: `The "middleware" file convention is deprecated. Please use "proxy" instead.` The current `src/middleware.ts` with Clerk's `clerkMiddleware` still works but will need migration to the `proxy` convention in a future pass. When that happens, check Clerk's docs for their updated Next.js 16+ integration pattern before renaming the file — the API surface may change.
+
 ## Architecture Decisions
 
 *Document key architectural decisions and their rationale.*
+
+### Membership Queries Need a Fallback for Pre-Migration Data
+When switching from "show all groups" to "show groups by membership," always include a fallback path for the pre-migration state where the `group_memberships` table exists but has no rows for the current user. The pattern in `src/app/app/actions.ts`:
+```typescript
+const userGroups = await getUserGroups(clerkUserId);
+if (userGroups.length > 0) {
+  // Use membership-based filtering
+} else {
+  // Fallback: show all groups (pre-migration compatibility)
+}
+```
+This prevents the dashboard from appearing empty for the existing friend group until Phase 4 migration assigns ownership. Remove the fallback after Phase 4 is complete.
+
+### Slug Renames Require Codebase-Wide Hardcoded Reference Sweeps
+When renaming a group slug (e.g., `default` → `picklepal`), the migration SQL is not enough. Hardcoded slug references exist in:
+- Landing page links (`/g/default` → `/g/picklepal`)
+- Reserved slug lists in onboarding validation
+- Seed data files
+- Potentially in test fixtures or E2E test URLs
+
+Always `grep` for the old slug across `**/*.{ts,tsx,sql}` after writing the migration and update all matches. The build won't catch stale slugs — they'll just 404 at runtime.
+
+### `authorizeGroupWrite` Accepts Both Slugs and UUIDs
+The `authorizeGroupWrite(slugOrGroupId)` helper auto-detects whether the input is a UUID (via regex) or a slug, and resolves accordingly. This means server actions can call it with whatever identifier they have on hand — slug from the URL params, or groupId from a DB query. Pattern:
+```typescript
+const auth = await authorizeGroupWrite(slug); // from URL
+const auth = await authorizeGroupWrite(group.id); // from prior query
+if (!auth.authorized) return { success: false, error: auth.error };
+```
+All new write server actions should use this as their first line. It replaces the old manual `currentUser()` → `isGroupAdmin()` dance and the legacy PIN checks.
+
+### Clerk Auth Is Separate From Supabase — Bridge via `profiles` Table
+Clerk handles organizer/admin authentication (sign-up, sign-in, session tokens). Supabase remains the database. They are **not coupled** — Clerk doesn't write to Supabase directly. The bridge is a `profiles` table (Phase 3a) that maps `clerk_user_id` → app identity. Server actions use `currentUser()` from Clerk to identify the caller, then query Supabase with the service role key. RLS policies will later use Clerk's JWT claims for row-level access, but that's Phase 3d.
+
+### Token-Based Invite Pattern: Hash in DB, Raw in URL
+For invite/reset/verification tokens, generate with `crypto.randomBytes(32).toString("base64url")`, store only the SHA-256 hash in the database, and put the raw token in the shareable URL. This means:
+- DB leak doesn't compromise active tokens
+- Lookup is still fast via unique index on `token_hash`
+- Token validation: hash the URL param and query by hash
+- Use `base64url` encoding (not `hex`) for shorter URLs
+```typescript
+import { randomBytes, createHash } from "crypto";
+const token = randomBytes(32).toString("base64url");        // share this
+const tokenHash = createHash("sha256").update(token).digest("hex"); // store this
+```
+This pattern applies to any feature that needs secure, one-time-use links (invites, password resets, email verification).
 
 ### Example: State Management
 - **Decision**: Use Zustand for global state, React Context for component trees
@@ -202,3 +289,42 @@ When adding an alternative entry path to an existing flow (e.g., "Pick Teams" as
 - Remove patterns that are no longer relevant
 - Update patterns as the project evolves
 - Focus on what's unique to this project
+
+### Graceful Degradation for DB-Backed Live Features
+When adding DB persistence to real-time flows (live scoring, heartbeats, viewer sync), always let the flow continue locally if the server call fails. Pattern: attempt the DB write, store the returned ID if successful, but proceed with local state regardless. On completion, use the DB-backed completion path if the ID exists, else fall back to the legacy save path. This avoids blocking courtside scoring on network hiccups while still getting the benefits of DB-backed state when online.
+
+```typescript
+// Good: non-blocking DB write at scoring start
+const result = await createActiveMatch({ ... });
+if (result.success && result.data) {
+  setActiveMatchId(result.data.matchId);
+}
+// Proceed to scoring regardless of success/failure
+setStep("scoring");
+```
+
+### Piggyback Heartbeats on Existing Sync Intervals
+When adding heartbeat/presence tracking, don't create a separate interval if an existing periodic sync already exists. The scorer heartbeat piggybacks on the 5-second snapshot sync (`updateMatchSnapshot` also sets `scorer_heartbeat_at = now()` server-side). This halves the network traffic, eliminates drift between two timers, and means "is scorer alive?" is answered by the same mechanism that answers "what's the current score?". Apply this pattern whenever adding liveness detection to a feature that already has periodic DB writes.
+
+### Server Component Props as the Auth Gateway for Client Components
+When a client component needs to know the user's identity/role (e.g., "am I the scorer?" or "am I an admin?"), resolve that in the page.tsx server component and pass it as a prop (`clerkUserId`, `isAdmin`, `initialActiveMatch`). Don't call `currentUser()` from client components or repeat auth checks in multiple places. The server component is the single source of truth for "who is viewing this page and what can they do?" — client components just consume the pre-resolved identity.
+
+### Never Hardcode `isHost={true}` — Always Thread the Server-Resolved Permission
+When child components accept an `isHost` or `isAdmin` prop, always pass the actual computed value from the parent. Hardcoding `true` during development is a security debt that's easy to ship — TypeScript won't catch it since `true` satisfies `boolean`. Audit pattern: search for `isHost={true}` or `isAdmin={true}` in JSX to find unresolved permission bypasses. The prop value should always trace back to a server-resolved permission (from `page.tsx` → parent → child), never a literal boolean.
+
+### Use DB Record ID as the Local Storage Key for Offline Recovery
+When a feature stores local recovery data keyed by a match/session ID, always use the **DB record ID** (from the server response) as the key — not a locally-generated random UUID. The auto-resume flow looks up local recovery data using the DB match ID fetched from the server. If the local key was a different random UUID, the lookup fails silently and state resets to zero. Pattern: `matchLocalId = dbResult.success ? dbResult.data.matchId : createLocalMatchId()`.
+
+### Verify Row Affected on Ownership-Gated Updates
+When an update query filters by both record ID and the current user's ownership (e.g., `.eq("id", matchId).eq("scorer_clerk_user_id", user.id)`), Supabase returns no error for zero-row matches. Always chain `.select("id").maybeSingle()` and check `if (!data)` to detect ownership loss. Without this, the function returns `success: true` while writes silently drop. This applies to any "update where owner = me" pattern:
+```typescript
+const { data, error } = await supabase
+  .from("table")
+  .update({ ... })
+  .eq("id", recordId)
+  .eq("owner_id", currentUserId)
+  .select("id")
+  .maybeSingle();
+
+if (!data) return { success: false, error: "Ownership lost" };
+```

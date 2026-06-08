@@ -81,12 +81,12 @@ export function PositionConfirmation({
       <div className="flex items-center justify-between">
         <button
           onClick={onBack}
-          className="text-sm text-primary hover:text-primary/80 cursor-pointer"
+          className="text-sm font-medium text-court-green hover:text-court-green-dark cursor-pointer"
         >
           ← Back
         </button>
-        <h3 className="text-lg font-semibold text-text-primary">
-          Confirm Positions
+        <h3 className="font-display text-2xl text-text-primary leading-tight">
+          Court Positions
         </h3>
         <div className="w-12" />
       </div>
@@ -96,8 +96,8 @@ export function PositionConfirmation({
         {/* Court visualization */}
         <div className="grid grid-cols-[1fr_auto_1fr] items-stretch min-h-[200px]">
           {/* Team A Side */}
-          <div className="p-4 flex flex-col items-center justify-center gap-3 bg-primary/5">
-            <p className="text-xs font-medium text-text-muted uppercase tracking-wide">
+          <div className="p-4 flex flex-col items-center justify-center gap-3 bg-court-green/8">
+            <p className="text-xs font-semibold text-court-green">
               Team A
             </p>
             {/* Team A: reversed visual order (idx 0 = right = bottom, idx 1 = left = top) */}
@@ -127,7 +127,7 @@ export function PositionConfirmation({
             {matchType === "doubles" && (
               <button
                 onClick={swapTeamA}
-                className="text-[10px] text-primary hover:text-primary/80 cursor-pointer mt-1"
+                className="text-[10px] text-court-green hover:text-court-green-dark cursor-pointer mt-1"
               >
                 Swap positions
               </button>
@@ -138,7 +138,7 @@ export function PositionConfirmation({
           <div className="w-px bg-border relative flex items-center justify-center">
             <button
               onClick={swapTeams}
-              className="absolute bg-surface border-2 border-primary/30 rounded-full p-2 text-primary hover:bg-primary/10 hover:border-primary hover:scale-110 active:scale-95 transition-all cursor-pointer shadow-sm"
+              className="absolute bg-surface border-2 border-court-green/30 rounded-full p-2 text-court-green hover:bg-court-green/10 hover:border-court-green hover:scale-110 active:scale-95 transition-all cursor-pointer shadow-sm"
               aria-label="Swap teams"
               title="Swap Team A and Team B sides"
             >
@@ -150,7 +150,7 @@ export function PositionConfirmation({
 
           {/* Team B Side */}
           <div className="p-4 flex flex-col items-center justify-center gap-3 bg-sky-blue/5">
-            <p className="text-xs font-medium text-text-muted uppercase tracking-wide">
+            <p className="text-xs font-semibold text-sky-blue">
               Team B
             </p>
             {teamB.map((id, idx) => (
@@ -179,7 +179,7 @@ export function PositionConfirmation({
             {matchType === "doubles" && (
               <button
                 onClick={swapTeamB}
-                className="text-[10px] text-primary hover:text-primary/80 cursor-pointer mt-1"
+                className="text-[10px] text-court-green hover:text-court-green-dark cursor-pointer mt-1"
               >
                 Swap positions
               </button>
@@ -200,8 +200,8 @@ export function PositionConfirmation({
               onClick={() => setStartingServer(id)}
               className={`flex items-center gap-2 rounded-lg border p-2.5 transition-all cursor-pointer ${
                 startingServer === id
-                  ? "border-primary bg-primary/10 ring-1 ring-primary/30"
-                  : "border-border hover:border-primary/40"
+                  ? "border-ball-yellow bg-ball-yellow/15 ring-1 ring-ball-yellow/40"
+                  : "border-border hover:border-ball-yellow/40"
               }`}
             >
               <div
@@ -221,7 +221,7 @@ export function PositionConfirmation({
       {/* Start Match Button */}
       <button
         onClick={handleConfirm}
-        className="w-full rounded-xl bg-primary px-4 py-3.5 text-base font-semibold text-white hover:bg-primary/90 transition-colors cursor-pointer"
+        className="w-full rounded-xl bg-court-green px-4 py-4 text-base font-bold text-white hover:bg-court-green-dark transition-all active:scale-[0.98] cursor-pointer shadow-lg shadow-court-green/20"
       >
         Start Match
       </button>
