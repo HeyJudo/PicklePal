@@ -137,7 +137,7 @@ export async function updateMatchSnapshot(
 
   const supabase = getSupabase();
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("matches")
     .update({
       current_snapshot: snapshot,
@@ -148,10 +148,16 @@ export async function updateMatchSnapshot(
     })
     .eq("id", matchId)
     .eq("status", "active")
-    .eq("scorer_clerk_user_id", user.id);
+    .eq("scorer_clerk_user_id", user.id)
+    .select("id")
+    .maybeSingle();
 
   if (error) {
     return { success: false, error: error.message };
+  }
+
+  if (!data) {
+    return { success: false, error: "Scorer ownership lost" };
   }
 
   return { success: true };
@@ -230,7 +236,12 @@ export async function completeActiveMatch(
       .insert(rallyRows);
 
     if (rallyError) {
-      console.error("Failed to save rally events:", rallyError);
+      // Rally save failed — revert match to active so scorer can retry
+      await supabase
+        .from("matches")
+        .update({ status: "active", completed_at: null, updated_at: new Date().toISOString() })
+        .eq("id", input.matchId);
+      return { success: false, error: "Failed to save rally events. Match not completed." };
     }
   }
 

@@ -11,8 +11,8 @@ ALTER TABLE public.matches
 ALTER TABLE public.matches
   ADD COLUMN IF NOT EXISTS current_snapshot JSONB;
 
--- Index for finding the active match in a session quickly
-CREATE INDEX IF NOT EXISTS idx_matches_session_active
+-- Index for enforcing only one active match per session
+CREATE UNIQUE INDEX IF NOT EXISTS idx_matches_session_active
   ON public.matches (session_id)
   WHERE status = 'active';
 

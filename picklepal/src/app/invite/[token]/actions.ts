@@ -18,10 +18,16 @@ export async function acceptInviteAction(token: string): Promise<{
     ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}`
     : user.emailAddresses[0]?.emailAddress?.split("@")[0] ?? "User";
 
+  // Collect only verified email addresses for ownership check
+  const verifiedEmails = user.emailAddresses
+    .filter((e) => e.verification?.status === "verified")
+    .map((e) => e.emailAddress);
+
   const result = await acceptInvite(
     token,
     user.id,
     displayName,
+    verifiedEmails,
     user.imageUrl ?? null,
   );
 

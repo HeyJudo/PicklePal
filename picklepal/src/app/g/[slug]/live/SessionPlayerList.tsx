@@ -84,6 +84,7 @@ export function SessionPlayerList({
   };
 
   const handleAddLateArrival = (playerId: string) => {
+    if (!isHost) return;
     startTransition(async () => {
       const result = await activatePlayer(sessionId, playerId);
       if (result.success) {
@@ -180,7 +181,7 @@ export function SessionPlayerList({
           )}
 
           {/* Add Late Arrival */}
-          {availableToAdd.length > 0 && (
+          {isHost && availableToAdd.length > 0 && (
             <div className="pt-2 border-t border-border">
               {!showAddPlayer ? (
                 <button
@@ -261,8 +262,8 @@ function PlayerChip({
   return (
     <div className="relative">
       <button
-        onClick={() => setShowActions(!showActions)}
-        className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-colors ${chipStyles} cursor-pointer hover:border-court-green/40`}
+        onClick={() => isHost && setShowActions(!showActions)}
+        className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-colors ${chipStyles} ${isHost ? "cursor-pointer hover:border-court-green/40" : "cursor-default"}`}
       >
         <PlayerAvatar
           displayName={player.display_name}

@@ -1,34 +1,30 @@
 "use server";
 
 import { createClient } from "@supabase/supabase-js";
+import { currentUser } from "@clerk/nextjs/server";
 import { getUserGroups } from "@/lib/membership";
 
 /**
  * Fetch groups for the My Groups dashboard.
- * Uses group_memberships to find groups owned/admined by the current user.
- * Falls back to all groups if no memberships exist yet (pre-migration state).
+ * Resolves identity server-side to prevent confused-deputy attacks.
+ * Returns only groups the authenticated user is a member of.
  */
-export async function getMyGroups(clerkUserId: string) {
+export async function getMyGroups() {
+  const user = await currentUser();
+  if (!user) {
+    return { groups: [], error: "Unauthorized" };
+  }
+
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false, autoRefreshToken: false } },
   );
 
-  // Try membership-based lookup first
-  const userGroups = await getUserGroups(clerkUserId);
+  // Membership-based lookup only — no fallback to all groups
+  const userGroups = await getUserGroups(user.id);
 
-  let groupIds: string[];
-
-  if (userGroups.length > 0) {
-    groupIds = userGroups.map((g) => g.groupId);
-  } else {
-    // Fallback: show all groups (pre-migration compatibility)
-    const { data: allGroups } = await supabase
-      .from("groups")
-      .select("id");
-    groupIds = allGroups?.map((g) => g.id) ?? [];
-  }
+  const groupIds = userGroups.map((g) => g.groupId);
 
   if (groupIds.length === 0) {
     return { groups: [], error: null };

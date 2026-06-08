@@ -188,6 +188,7 @@ export async function acceptInvite(
   token: string,
   clerkUserId: string,
   displayName: string,
+  verifiedEmails: readonly string[],
   avatarUrl?: string | null,
 ): Promise<AcceptInviteResult> {
   const supabase = getSupabase();
@@ -210,6 +211,18 @@ export async function acceptInvite(
       .update({ status: "expired" })
       .eq("id", invite.id);
     return { success: false, error: "This invite has expired" };
+  }
+
+  // Verify the accepting user owns the invited email
+  const inviteEmailLower = invite.email.toLowerCase();
+  const ownsEmail = verifiedEmails.some(
+    (e) => e.toLowerCase() === inviteEmailLower,
+  );
+  if (!ownsEmail) {
+    return {
+      success: false,
+      error: "This invite was sent to a different email address",
+    };
   }
 
   // Get or create profile for the accepting user
@@ -267,8 +280,10 @@ export async function acceptInvite(
 
 /**
  * Revoke a pending invite.
+ * Scoped to groupId to prevent cross-group revocation.
  */
 export async function revokeInvite(
+  groupId: string,
   inviteId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = getSupabase();
@@ -277,6 +292,7 @@ export async function revokeInvite(
     .from("admin_invites")
     .update({ status: "revoked" })
     .eq("id", inviteId)
+    .eq("group_id", groupId)
     .eq("status", "pending");
 
   if (error) {

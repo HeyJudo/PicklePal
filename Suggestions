@@ -1,0 +1,1335 @@
+
+<details>
+<summary>🟠 Major comments (27)</summary><blockquote>
+
+<details>
+<summary>picklepal/src/app/app/actions.ts-25-31 (1)</summary><blockquote>
+
+`25-31`: _⚠️ Potential issue_ | _🟠 Major_ | _⚡ Quick win_
+
+**Remove the “show all groups” fallback for users with no memberships.**
+
+Line 26 falls back to querying all groups when membership lookup is empty. That exposes group metadata (slug/name/activity) to non-members in `/app`, which breaks privacy boundaries.
+
+
+
+
+
+<details>
+<summary>Suggested fix</summary>
+
+```diff
+   if (userGroups.length > 0) {
+     groupIds = userGroups.map((g) => g.groupId);
+   } else {
+-    // Fallback: show all groups (pre-migration compatibility)
+-    const { data: allGroups } = await supabase
+-      .from("groups")
+-      .select("id");
+-    groupIds = allGroups?.map((g) => g.id) ?? [];
++    // No memberships: return empty and let UI route to onboarding/create flow.
++    groupIds = [];
+   }
+```
+</details>
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/src/app/app/actions.ts` around lines 25 - 31, The current else
+branch in actions.ts falls back to fetching all groups via
+supabase.from("groups") when a user has no memberships; remove that query and
+instead set groupIds to an empty array so non-members are not exposed to group
+metadata—specifically update the else block that references groupIds and the
+supabase.from("groups").select("id") call to simply assign groupIds = [] and
+ensure no further code relies on the all-groups result.
+```
+
+</details>
+
+<!-- cr-comment:v1:1d132a4d8aa02dde9f4a7839 -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/src/app/app/actions.ts-11-19 (1)</summary><blockquote>
+
+`11-19`: _⚠️ Potential issue_ | _🟠 Major_ | _⚡ Quick win_
+
+**Bind identity inside the server action, not via function input.**
+
+Line 11 accepts `clerkUserId` from the caller while Lines 12-15 use service-role DB access. That creates a confused-deputy path if this action is ever invoked with a forged user ID. Resolve the user from Clerk inside this action and ignore external identity input.
+
+
+
+
+
+<details>
+<summary>Suggested fix</summary>
+
+```diff
+ "use server";
+ 
+ import { createClient } from "`@supabase/supabase-js`";
++import { currentUser } from "`@clerk/nextjs/server`";
+ import { getUserGroups } from "`@/lib/membership`";
+@@
+-export async function getMyGroups(clerkUserId: string) {
++export async function getMyGroups() {
++  const user = await currentUser();
++  if (!user) {
++    return { groups: [], error: "Unauthorized" };
++  }
++
+   const supabase = createClient(
+@@
+-  const userGroups = await getUserGroups(clerkUserId);
++  const userGroups = await getUserGroups(user.id);
+```
+</details>
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/src/app/app/actions.ts` around lines 11 - 19, The getMyGroups
+function currently accepts a clerkUserId from the caller which creates a
+confused-deputy risk; change getMyGroups to resolve the authenticated user
+inside the server action (use the server-side Clerk auth/session API you use
+elsewhere) and drop/ignore the external clerkUserId parameter, then pass the
+resolved clerk user id into getUserGroups (and any other internal lookups)
+before performing service-role DB queries; update call sites to no longer supply
+clerkUserId and adjust the function signature and any types accordingly.
+```
+
+</details>
+
+<!-- cr-comment:v1:68dd103c9399cced981a7584 -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/supabase/migrations/009_ownership_migration.sql-20-27 (1)</summary><blockquote>
+
+`20-27`: _⚠️ Potential issue_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Owner backfill logic can assign the wrong user.**
+
+Choosing the globally oldest profile as owner is not a safe ownership mapping strategy and can mis-assign control in real datasets.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/supabase/migrations/009_ownership_migration.sql` around lines 20 -
+27, The migration currently picks the globally oldest profile (SELECT p FROM
+public.profiles ORDER BY p.created_at) which can misassign ownership; restrict
+the candidate pool to profiles belonging to the same context as the target group
+by joining to the group record and filtering (e.g., JOIN public.groups g ON g.id
+= 'a0000000-0000-0000-0000-000000000001' and add WHERE p.organization_id =
+g.organization_id or another group-scoped linkage) before ordering by
+p.created_at and LIMIT 1 so the owner backfill picks the oldest profile within
+the correct group/organization context rather than the global oldest profile.
+```
+
+</details>
+
+<!-- cr-comment:v1:99c2471f988ea8113cc64270 -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/supabase/migrations/009_ownership_migration.sql-45-53 (1)</summary><blockquote>
+
+`45-53`: _⚠️ Potential issue_ | _🟠 Major_ | _⚡ Quick win_
+
+**Migration checks should fail closed, not warn and commit.**
+
+If slug/owner expectations fail, this still commits and leaves inconsistent state. Use exceptions so the transaction rolls back.
+
+
+
+
+
+
+<details>
+<summary>Suggested patch</summary>
+
+```diff
+-  IF v_slug != 'picklepal' THEN
+-    RAISE WARNING 'Migration check: slug is "%" instead of "picklepal"', v_slug;
+-  END IF;
++  IF v_slug IS DISTINCT FROM 'picklepal' THEN
++    RAISE EXCEPTION 'Migration check failed: slug is "%" instead of "picklepal"', v_slug;
++  END IF;
+
+   IF v_owner_count = 0 THEN
+-    RAISE WARNING 'Migration check: no owner assigned to group';
++    RAISE EXCEPTION 'Migration check failed: no owner assigned to group';
+   ELSE
+     RAISE NOTICE 'Migration OK: group slug=%, owner_count=%', v_slug, v_owner_count;
+   END IF;
+```
+</details>
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/supabase/migrations/009_ownership_migration.sql` around lines 45 -
+53, The migration currently uses RAISE WARNING/NOTICE which allows the
+transaction to commit on failures; change the checks to raise exceptions to
+force a rollback: replace the RAISE WARNING in the v_slug check with a RAISE
+EXCEPTION (e.g., include v_slug in the message) and replace the RAISE WARNING
+when v_owner_count = 0 with a RAISE EXCEPTION; you can keep the RAISE NOTICE in
+the ELSE branch ('Migration OK...') but any failing condition must use RAISE
+EXCEPTION so the transaction aborts and inconsistent state is not committed.
+```
+
+</details>
+
+<!-- cr-comment:v1:8b09b56986a981122acbe9f8 -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/src/app/g/[slug]/settings/GameDefaultsSettings.tsx-32-46 (1)</summary><blockquote>
+
+`32-46`: _⚠️ Potential issue_ | _🟠 Major_ | _⚡ Quick win_
+
+**Handle thrown server-action failures in the save transition.**
+
+`updateGameDefaults` is awaited without a `try/catch`. If it throws, the UI never sets an error message and the failure path becomes silent/unhandled.
+
+
+
+
+
+
+<details>
+<summary>Suggested patch</summary>
+
+```diff
+     startTransition(async () => {
+-      const result = await updateGameDefaults(slug, {
+-        default_match_type: matchType,
+-        default_target_score: targetScore,
+-        default_win_by: winBy,
+-        qualification_threshold: threshold,
+-      });
+-
+-      if (result.success) {
+-        setSaved(true);
+-        setTimeout(() => setSaved(false), 2000);
+-      } else {
+-        setError(result.error ?? "Failed to save settings");
+-      }
++      try {
++        const result = await updateGameDefaults(slug, {
++          default_match_type: matchType,
++          default_target_score: targetScore,
++          default_win_by: winBy,
++          qualification_threshold: threshold,
++        });
++
++        if (result.success) {
++          setSaved(true);
++          setTimeout(() => setSaved(false), 2000);
++        } else {
++          setError(result.error ?? "Failed to save settings");
++        }
++      } catch {
++        setError("Failed to save settings");
++      }
+     });
+```
+</details>
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/src/app/g/`[slug]/settings/GameDefaultsSettings.tsx around lines 32
+- 46, The save transition currently awaits updateGameDefaults(slug, ...) inside
+startTransition without try/catch so thrown errors are unhandled; wrap the
+awaited call in a try/catch inside the startTransition callback (the block that
+calls updateGameDefaults), on success keep the existing setSaved logic
+(setSaved(true); setTimeout(...)) and on any thrown error catch it and call
+setError(error?.message ?? "Failed to save settings") (and ensure setSaved is
+not set true in the catch path). Also consider clearing previous errors before
+starting the save by calling setError(undefined) at the top of the transition.
+```
+
+</details>
+
+<!-- cr-comment:v1:96b22db8ad6cd76717c60ba6 -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/supabase/migrations/011_group_settings.sql-3-9 (1)</summary><blockquote>
+
+`3-9`: _⚠️ Potential issue_ | _🟠 Major_ | _⚡ Quick win_
+
+**Enforce `groups.settings` schema at the database layer.**
+
+`NOT NULL` + default is good, but without a JSON shape/value constraint, malformed settings can still be written and corrupt downstream assumptions.
+
+
+
+
+
+
+<details>
+<summary>Suggested patch</summary>
+
+```diff
+ ALTER TABLE public.groups
+ ADD COLUMN IF NOT EXISTS settings JSONB NOT NULL DEFAULT '{
+   "default_match_type": "doubles",
+   "default_target_score": 11,
+   "default_win_by": 2,
+   "qualification_threshold": 3
+ }'::jsonb;
++
++ALTER TABLE public.groups
++ADD CONSTRAINT groups_settings_valid_chk
++CHECK (
++  jsonb_typeof(settings) = 'object'
++  AND settings ?& ARRAY[
++    'default_match_type',
++    'default_target_score',
++    'default_win_by',
++    'qualification_threshold'
++  ]
++  AND (settings->>'default_match_type') IN ('singles', 'doubles')
++  AND ((settings->>'default_target_score')::int BETWEEN 1 AND 50)
++  AND ((settings->>'default_win_by')::int BETWEEN 1 AND 10)
++  AND ((settings->>'qualification_threshold')::int BETWEEN 1 AND 20)
++);
+```
+</details>
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/supabase/migrations/011_group_settings.sql` around lines 3 - 9, Add
+a DB-level CHECK constraint on the public.groups.settings JSONB column to
+enforce the expected shape and types: validate required keys exist and have the
+correct primitive types/values (e.g., settings->>'default_match_type' is one of
+the allowed strings, settings->>'default_target_score' and
+settings->>'default_win_by' are integers, and
+settings->>'qualification_threshold' is an integer >= 0). Implement this in the
+migration that adds the settings column by issuing an ALTER TABLE public.groups
+ADD CONSTRAINT ... CHECK (...) using JSONB operators/functions (jsonb_typeof,
+->>, casting where needed, or jsonb_path_exists) so malformed JSON cannot be
+inserted or updated.
+```
+
+</details>
+
+<!-- cr-comment:v1:c37c4b9034a13a0bf44710c4 -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/src/app/g/[slug]/live/LivePageClient.tsx-310-320 (1)</summary><blockquote>
+
+`310-320`: _⚠️ Potential issue_ | _🟠 Major_ | _⚡ Quick win_
+
+**Handle `completeActiveMatch` failures explicitly.**
+
+If completion fails/throws, the flow can leave DB active-match state inconsistent while the UI proceeds. Add explicit error handling and a recovery path before moving on.
+
+
+
+
+<details>
+<summary>Suggested fix</summary>
+
+```diff
+     if (activeMatchId) {
+       const rallyEvents = buildRallyEvents(completedHistory);
+-      await completeActiveMatch({
++      const completeResult = await completeActiveMatch({
+         matchId: activeMatchId,
+         teamAScore: matchData.teamAScore,
+         teamBScore: matchData.teamBScore,
+         winningTeam: matchData.winner,
+         losingTeam: matchData.winner === "A" ? "B" : "A",
+         rallyEvents,
+       });
++      if (!completeResult.success) {
++        // keep user informed and avoid silent desync
++        alert(completeResult.error ?? "Failed to finalize match. Please retry.");
++        return;
++      }
+     }
+```
+</details>
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/src/app/g/`[slug]/live/LivePageClient.tsx around lines 310 - 320,
+The completion call for an in-progress match can throw and leave DB/UI state
+inconsistent; wrap the completeActiveMatch(...) call (the block that uses
+activeMatchId, buildRallyEvents(completedHistory), and
+matchData.teamAScore/teamBScore/winner) in a try/catch, and on failure attempt a
+recovery: call your rollback/reset helper (e.g. revertActiveMatch or
+setActiveMatchState/inactivateActiveMatch with activeMatchId) to restore DB
+state, log the error, surface an error to the user (toast/modal) and abort
+further UI transitions or retries, and only continue if the rollback succeeds or
+the user explicitly retries—ensure the catch rethrows or returns so the rest of
+the flow does not proceed blindly.
+```
+
+</details>
+
+<!-- cr-comment:v1:1ffbe6e615137aa81be3d55d -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/src/app/g/[slug]/live/active-match-actions.ts-48-54 (1)</summary><blockquote>
+
+`48-54`: _⚠️ Potential issue_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**These service-role actions still need membership and role checks.**
+
+Every action here runs with the service-role key, which bypasses RLS. `currentUser()` only proves the caller is signed in, and `getActiveMatch()` skips even that. As written, anyone who learns a session or match ID can read a live snapshot or create, complete, cancel, or take over another group's active match. Gate each path with the same session/group membership plus admin/scorer authorization used elsewhere before issuing service-role queries.
+   
+
+
+Also applies to: 63-119, 185-210, 246-266, 275-361
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/src/app/g/`[slug]/live/active-match-actions.ts around lines 48 -
+54, The service-role Supabase client created in getSupabase() is being used in
+multiple action handlers (including the flows around getActiveMatch(), and the
+create/complete/cancel/takeover handlers referenced in the diff ranges) which
+bypass RLS — before calling getSupabase() or performing any service-role
+queries, validate the caller's identity and authorization: call currentUser(),
+then verify session/group membership and the caller's role (admin or scorer as
+required by your app) against the match/session/group via the same membership
+checks used elsewhere; only after these checks pass invoke getSupabase() and run
+the service-role queries; apply this gating in the functions that read the live
+snapshot and in the action handlers that create, complete, cancel, or take over
+an active match (and any other code paths that use getSupabase()).
+```
+
+</details>
+
+<!-- cr-comment:v1:06b9d955aa88c852d2e39b08 -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/src/app/g/[slug]/live/active-match-actions.ts-195-235 (1)</summary><blockquote>
+
+`195-235`: _⚠️ Potential issue_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Don't report success after the match row commits but rally-event inserts fail.**
+
+`completeActiveMatch()` marks the match as completed before writing `rally_events`, and an insert failure is only logged. That leaves a permanently partial save: the UI moves on, but the match has no rally history. Wrap both writes in a single transaction/RPC, or at minimum fail the action instead of returning success after a partial commit.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/src/app/g/`[slug]/live/active-match-actions.ts around lines 195 -
+235, The current completeActiveMatch flow updates the matches row first (via
+supabase.from("matches").update(...).eq("id", input.matchId)) then separately
+inserts rally rows (supabase.from("rally_events").insert(rallyRows)), but on
+rally insert failure only logs an error leaving the match marked completed;
+change this to make the two operations atomic: either perform both writes inside
+a single transaction/RPC, or if a DB-level transaction is not possible,
+rollback/fail the whole action when the rally insert returns an error (i.e.,
+return { success: false, error: rallyError.message } instead of logging),
+ensuring the function (completeActiveMatch) does not report success after a
+partial commit.
+```
+
+</details>
+
+<!-- cr-comment:v1:e29f88352907d31fe1455f06 -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/src/app/g/[slug]/live/active-match-actions.ts-140-157 (1)</summary><blockquote>
+
+`140-157`: _⚠️ Potential issue_ | _🟠 Major_ | _⚡ Quick win_
+
+**Detect lost scorer ownership instead of returning a false success.**
+
+This update is filtered by `status` and `scorer_clerk_user_id`, but the action never verifies that a row was actually updated. After a takeover or completion, Supabase can return no error for a zero-row update, so the old scorer keeps getting `{ success: true }` even though heartbeat and snapshot writes are being dropped. Check the affected row count or select the updated row and fail when nothing matched.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/src/app/g/`[slug]/live/active-match-actions.ts around lines 140 -
+157, The update currently assumes success if Supabase returns no error, but a
+zero-row update (e.g., lost scorer ownership) still yields success; modify the
+supabase update against the "matches" table (the .update(...) call setting
+current_snapshot, team_a_score, team_b_score, scorer_heartbeat_at, updated_at
+with .eq("id", matchId).eq("status","active").eq("scorer_clerk_user_id",
+user.id)) to verify an actual row was changed — either request the updated row
+back (use .select()/.single() on the update) or inspect the returned row count
+and, if no row was returned/updated, return { success: false, error: "scorer
+lost ownership" } (or similar) instead of { success: true } so
+heartbeat/snapshot drops are detected.
+```
+
+</details>
+
+<!-- cr-comment:v1:a7b48491509d48a21f2ec13d -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/src/app/g/[slug]/live/LiveScoring.tsx-117-127 (1)</summary><blockquote>
+
+`117-127`: _⚠️ Potential issue_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Persist live court positions in the snapshot contract.**
+
+This payload only captures score and serving metadata. `ViewOnlyScoring` therefore has to fall back to static player order, so after the first doubles rotation spectators and takeover admins will see players on the wrong halves of the court. Add the current left/right positions to `MatchSnapshot` and sync them here with the rest of the live state.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/src/app/g/`[slug]/live/LiveScoring.tsx around lines 117 - 127, The
+snapshot currently only contains score and serving metadata; update the
+MatchSnapshot contract to include left/right court positions (e.g., add
+properties like leftSidePlayerIds and rightSidePlayerIds or a playerPositions
+map) and then populate those fields here from the live state (use currentState's
+court position data — e.g., currentState.playerPositions or
+currentState.left/right roles) so the snapshot includes current left/right
+assignments; also update any types/interfaces (MatchSnapshot, and where
+DoublesMatchState or isDoublesState expect positions) and ensure the UI consumer
+(ViewOnlyScoring) reads the new fields.
+```
+
+</details>
+
+<!-- cr-comment:v1:e3c11cc53956cfd1b0fc5329 -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/src/lib/auth/index.ts-59-61 (1)</summary><blockquote>
+
+`59-61`: _⚠️ Potential issue_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Don't overload `slugOrGroupId` with regex-based detection.**
+
+These lines treat any UUID-shaped string as a group ID. `GroupInfoSettings` currently allows UUID-form slugs, so a routed call like `/g/<uuid-looking-slug>/...` can authorize against one group while the later mutation still updates by `eq("slug", ...)`. Split this into explicit `authorizeGroupWriteBySlug` / `authorizeGroupWriteById` entrypoints, or pass an explicit discriminator instead of guessing from the string shape.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/src/lib/auth/index.ts` around lines 59 - 61, Don't infer type by
+regex on slugOrGroupId; instead stop using isUuid and groupId derived by regex
+and add explicit entrypoints or a discriminator: implement
+authorizeGroupWriteBySlug(slug: string, ...) and
+authorizeGroupWriteById(groupId: string, ...) (or change authorizeGroupWrite to
+accept a second param type: "slug" | "id") and move resolveGroupId usage into
+the explicit id-path only; update callers that currently pass slugOrGroupId to
+call the appropriate new function or pass the explicit discriminator, and remove
+the /^[0-9a-f...]/ test and conditional assignment of groupId in this module
+(references: slugOrGroupId, resolveGroupId, authorizeGroupWrite).
+```
+
+</details>
+
+<!-- cr-comment:v1:dcf26870726d0b87fb260ca2 -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/supabase/seed.sql-20-25 (1)</summary><blockquote>
+
+`20-25`: _⚠️ Potential issue_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Seed an owner/admin for the demo group.**
+
+`authorizeGroupWrite` now gates settings and live-scoring mutations on Clerk-backed membership checks, but this seed only creates the `groups` row. In a fresh seeded environment, `/g/picklepal` has no owner/admin mapping, so every write path is effectively locked out until profile/membership data is provisioned separately.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/supabase/seed.sql` around lines 20 - 25, Add a seed row that
+creates an owner/admin mapping for the demo group so authorizeGroupWrite has a
+member to check; insert into the group membership table (e.g.,
+public.group_members or public.group_memberships) a record linking the demo user
+id (create a stable demo user UUID, e.g. 'a0000000-0000-0000-0000-000000000002')
+to the existing group id 'a0000000-0000-0000-0000-000000000001' with an
+owner/admin role (e.g., role = 'owner' or 'admin'), so the /g/picklepal group
+(slug 'picklepal') has an initial admin account after seeding.
+```
+
+</details>
+
+<!-- cr-comment:v1:417f808cc0c226d01a636a25 -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/supabase/migrations/012_active_match_tracking.sql-15-17 (1)</summary><blockquote>
+
+`15-17`: _⚠️ Potential issue_ | _🟠 Major_ | _⚡ Quick win_
+
+**Make the active-match index unique.**
+
+The live flow reads a single active match per session, but this migration only speeds that lookup up; it doesn't prevent two concurrent start operations from creating multiple `status = 'active'` rows for the same session. Once that happens, viewers and scorer-takeover logic can bind to an arbitrary row.
+
+   
+
+<details>
+<summary>Suggested migration change</summary>
+
+```diff
+-CREATE INDEX IF NOT EXISTS idx_matches_session_active
++CREATE UNIQUE INDEX IF NOT EXISTS idx_matches_session_active
+   ON public.matches (session_id)
+   WHERE status = 'active';
+```
+</details>
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/supabase/migrations/012_active_match_tracking.sql` around lines 15
+- 17, Change the non-unique partial index to a unique partial index so only one
+active match per session can exist: update the migration to create a UNIQUE
+INDEX named idx_matches_session_active on public.matches over session_id with
+the WHERE status = 'active' predicate, and before creating it add a
+deduplication step to resolve any existing rows with the same session_id and
+status='active' (e.g., keep the most recent row by id/created_at or fail the
+migration) so the unique index creation will succeed.
+```
+
+</details>
+
+<!-- cr-comment:v1:f7b86ff9cf4afbc5ec5101a7 -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/src/app/g/[slug]/settings/PrivacySettings.tsx-18-25 (1)</summary><blockquote>
+
+`18-25`: _⚠️ Potential issue_ | _🟠 Major_ | _⚡ Quick win_
+
+**Don't leave privacy settings stuck in `Loading...` on fetch failures.**
+
+If `getGroupPrivacyMode(slug)` throws, this effect never clears `loading`, so the entire section becomes unrecoverable until reload. This needs a `finally` path.
+   
+
+<details>
+<summary>💡 Suggested fix</summary>
+
+```diff
+   useEffect(() => {
+     async function load() {
+-      const result = await getGroupPrivacyMode(slug);
+-      setMode(result.privacyMode);
+-      setLoading(false);
++      try {
++        const result = await getGroupPrivacyMode(slug);
++        setMode(result.privacyMode);
++      } finally {
++        setLoading(false);
++      }
+     }
+     load();
+   }, [slug]);
+```
+</details>
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/src/app/g/`[slug]/settings/PrivacySettings.tsx around lines 18 -
+25, The effect that calls getGroupPrivacyMode(slug) can throw and never clears
+loading; update the async load function inside the useEffect (the load() invoked
+in the effect that uses getGroupPrivacyMode, setMode and setLoading) to wrap the
+fetch in try/catch/finally: in try await getGroupPrivacyMode and setMode, in
+catch handle/log the error (optional set a safe default mode or leave mode
+unchanged), and in finally call setLoading(false) so the UI never remains stuck;
+keep the dependency on slug unchanged.
+```
+
+</details>
+
+<!-- cr-comment:v1:1007f7ebd637a989580dd2d4 -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/src/lib/invites/index.ts-271-280 (1)</summary><blockquote>
+
+`271-280`: _⚠️ Potential issue_ | _🟠 Major_ | _⚡ Quick win_
+
+**Scope revocation to the authorized group.**
+
+This update only filters by invite ID. Because callers authorize against a group before delegating here, an admin from group A can still revoke a pending invite from group B if they learn that invite ID.
+   
+
+<details>
+<summary>💡 Suggested fix</summary>
+
+```diff
+ export async function revokeInvite(
++  groupId: string,
+   inviteId: string,
+ ): Promise<{ success: boolean; error?: string }> {
+   const supabase = getSupabase();
+
+   const { error } = await supabase
+     .from("admin_invites")
+     .update({ status: "revoked" })
++    .eq("group_id", groupId)
+     .eq("id", inviteId)
+     .eq("status", "pending");
+```
+
+Then thread `groupId` through `revokeAdminInvite()`.
+</details>
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/src/lib/invites/index.ts` around lines 271 - 280, The revokeInvite
+function currently updates admin_invites by id only, allowing cross-group
+revocation; change the function signature (revokeInvite) to accept a groupId and
+add an additional .eq("group_id", groupId) (or whatever column is used) to the
+supabase update query to scope the operation to the authorized group, and
+propagate/thread the groupId into any callers (e.g., revokeAdminInvite) so the
+caller passes the groupId through to revokeInvite.
+```
+
+</details>
+
+<!-- cr-comment:v1:2c2210cbaa0a0e2b737efeda -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/src/app/g/[slug]/settings/InviteManager.tsx-31-39 (1)</summary><blockquote>
+
+`31-39`: _⚠️ Potential issue_ | _🟠 Major_ | _⚡ Quick win_
+
+**Clear the loading state on failed invite fetches.**
+
+If `getGroupInvites(slug)` rejects here, `loadingInvites` never flips to `false`, so this panel stays stuck on the spinner. Wrap the fetch in `try/finally` and surface the failure separately.
+   
+
+<details>
+<summary>💡 Suggested fix</summary>
+
+```diff
+   useEffect(() => {
+     async function load() {
+-      const result = await getGroupInvites(slug);
+-      if (result.invites) {
+-        setInvites(result.invites);
++      try {
++        const result = await getGroupInvites(slug);
++        setInvites(result.invites ?? []);
++      } finally {
++        setLoadingInvites(false);
+       }
+-      setLoadingInvites(false);
+     }
+     load();
+   }, [slug]);
+```
+</details>
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/src/app/g/`[slug]/settings/InviteManager.tsx around lines 31 - 39,
+The useEffect's async load function calling getGroupInvites(slug) can throw and
+never clears loadingInvites; update the load function to wrap the fetch in
+try/finally so setLoadingInvites(false) always runs, and in the try block
+setInvites(result.invites) only when present; also capture and surface the error
+(e.g., call a provided setError or set a local error state) in the catch block
+so failures are visible instead of silently leaving the spinner running.
+```
+
+</details>
+
+<!-- cr-comment:v1:6fbe3f599dcaa0d5450d0802 -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/src/app/g/[slug]/settings/invite-actions.ts-70-72 (1)</summary><blockquote>
+
+`70-72`: _⚠️ Potential issue_ | _🟠 Major_ | _⚡ Quick win_
+
+**Fail closed when the app origin is not configured.**
+
+Falling back to `http://localhost:3000` here will generate unusable invite links in any non-local environment that misses `NEXT_PUBLIC_APP_URL`. Returning an error is safer than silently sending localhost URLs to real users.
+   
+
+<details>
+<summary>💡 Suggested fix</summary>
+
+```diff
+-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
++  const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
++  if (!baseUrl) {
++    return { success: false, error: "App URL is not configured" };
++  }
+   const inviteLink = `${baseUrl}/invite/${result.token}`;
+```
+</details>
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/src/app/g/`[slug]/settings/invite-actions.ts around lines 70 - 72,
+The code builds inviteLink using a fallback to "http://localhost:3000" when
+NEXT_PUBLIC_APP_URL is missing which can produce invalid links; change this to
+fail closed: instead of defaulting, validate process.env.NEXT_PUBLIC_APP_URL
+(used by baseUrl and inviteLink) and throw or return an error if it's
+undefined/empty, ensuring the code does not construct or send inviteLink when
+NEXT_PUBLIC_APP_URL is not configured.
+```
+
+</details>
+
+<!-- cr-comment:v1:8be2bca7e836c93fd7ed9e80 -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/src/app/invite/[token]/InviteAcceptClient.tsx-34-47 (1)</summary><blockquote>
+
+`34-47`: _⚠️ Potential issue_ | _🟠 Major_ | _⚡ Quick win_
+
+**Handle thrown errors from `acceptInviteAction` in `handleAccept`.**
+
+If the server action throws (network/runtime/server exception), this path has no `catch`, so the user can get stuck without a meaningful recovery message.
+
+
+
+
+
+
+<details>
+<summary>🛠️ Proposed fix</summary>
+
+```diff
+   const handleAccept = () => {
+     startTransition(async () => {
+-      const result = await acceptInviteAction(token);
+-
+-      if (result.success) {
+-        setStatus("success");
+-        setTimeout(() => {
+-          router.push(`/g/${result.groupSlug ?? groupSlug}`);
+-        }, 1800);
+-      } else {
+-        setStatus("error");
+-        setError(result.error ?? "Something went wrong");
+-      }
++      setError(null);
++      setStatus("idle");
++      try {
++        const result = await acceptInviteAction(token);
++        if (result.success) {
++          setStatus("success");
++          setTimeout(() => {
++            router.push(`/g/${result.groupSlug ?? groupSlug}`);
++          }, 1800);
++        } else {
++          setStatus("error");
++          setError(result.error ?? "Something went wrong");
++        }
++      } catch {
++        setStatus("error");
++        setError("Unable to accept invite right now. Please try again.");
++      }
+     });
+   };
+```
+</details>
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/src/app/invite/`[token]/InviteAcceptClient.tsx around lines 34 -
+47, The handleAccept function calls acceptInviteAction inside startTransition
+but doesn’t catch exceptions, so thrown errors leave the UI stuck; wrap the
+await acceptInviteAction(token) call in a try/catch inside startTransition (in
+handleAccept), and on catch call setStatus("error"), setError with a
+user-friendly message (and include error.message or log it), and avoid
+proceeding to router.push; this ensures both success and thrown failure paths
+update state and provide feedback.
+```
+
+</details>
+
+<!-- cr-comment:v1:554ab5d14b84d805331ed0a9 -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/supabase/migrations/005_profiles_memberships.sql-21-23 (1)</summary><blockquote>
+
+`21-23`: _⚠️ Potential issue_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Tighten these SELECT policies before shipping private groups.**
+
+Both policies use `USING (true)`, which makes `profiles` and `group_memberships` readable to anonymous clients. That leaks Clerk-linked profile data (`clerk_user_id`, avatar/display info) and lets anyone enumerate membership rows even after `privacy_mode = 'private'` exists.
+
+These policies need to be scoped to authenticated users and, for memberships, to the relevant group visibility/member checks instead of global reads.
+  
+
+
+Also applies to: 48-50
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/supabase/migrations/005_profiles_memberships.sql` around lines 21 -
+23, The SELECT policies currently using USING (true) on public.profiles and
+public.group_memberships are too permissive; change them to require an
+authenticated user (use auth.uid() IS NOT NULL) for profiles and, for
+group_memberships, restrict reads to either memberships in non-private groups or
+to rows related to the requesting user. Specifically update the policy "Profiles
+are publicly readable" on public.profiles to check auth.uid() IS NOT NULL, and
+replace the global USING (true) on public.group_memberships with a predicate
+that allows access when the group's privacy_mode != 'private' OR when EXISTS a
+membership row tying auth.uid() to that group (use auth.uid() to compare to the
+member/user id column).
+```
+
+</details>
+
+<!-- cr-comment:v1:c5de3f0c4db9c4420043275d -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/supabase/migrations/006_admin_invites.sql-30-32 (1)</summary><blockquote>
+
+`30-32`: _⚠️ Potential issue_ | _🟠 Major_ | _⚡ Quick win_
+
+**This policy exposes all invite records to anonymous readers.**
+
+The comment says “group members,” but `USING (true)` grants SELECT on every `admin_invites` row. That leaks invitee email addresses, statuses, expirations, and token hashes to any client with the anon key.
+
+Restrict reads to authorized group admins/owners or move invite reads behind server-side code instead of a public-table policy.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/supabase/migrations/006_admin_invites.sql` around lines 30 - 32,
+The policy "Admin invites readable by group members" on public.admin_invites
+currently uses USING (true) which exposes all invite rows to anonymous clients;
+replace this broad condition with a proper authorization check that only allows
+SELECT when the requester is an owner/admin of the related group (or when the
+request is server-side). Concretely, change the USING clause on the policy to
+verify group membership/role (for example, EXISTS a row in group_members
+matching admin_invites.group_id and user_id = auth.uid() and role IN
+('owner','admin')), or remove the public policy and require reads to go through
+server-side code or a service role; update the policy name/definition
+accordingly for the SELECT operation on public.admin_invites.
+```
+
+</details>
+
+<!-- cr-comment:v1:383bd56486cad698a804ac9b -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/src/app/onboarding/actions.ts-128-176 (1)</summary><blockquote>
+
+`128-176`: _⚠️ Potential issue_ | _🟠 Major_ | _🏗️ Heavy lift_
+
+**Avoid returning success after partial group creation.**
+
+This write sequence is not atomic: if `getOrCreateProfile()` yields no profile or the starter-player insert fails, the action still returns `{ success: true }` after the `groups` row is already committed. That leaves behind a group with no owner membership and/or no initial roster.
+
+Please move the group + membership + starter-player creation into a single transactional DB function, or add compensating cleanup before returning success.
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/src/app/onboarding/actions.ts` around lines 128 - 176, The current
+flow creates the groups row first and then calls getOrCreateProfile,
+createGroupMembership and inserts players, so partial failures leave orphaned
+groups; fix by performing group + membership + starter-player creation
+atomically (either implement a DB transaction/stored procedure such as a
+Postgres function invoked via supabase.rpc that encapsulates inserting into
+groups, memberships and players) or, if a DB transaction is not possible, add
+compensating cleanup: if getOrCreateProfile returns no profile or players insert
+returns an error, delete the newly created group (and any partial
+memberships/players) before returning failure; reference the existing symbols
+group, getOrCreateProfile, createGroupMembership and the players insert block
+when implementing the transactional RPC or cleanup logic.
+```
+
+</details>
+
+<!-- cr-comment:v1:e3770e6772c83de99b1a16a0 -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/src/components/landing/HeroSection.tsx-12-16 (1)</summary><blockquote>
+
+`12-16`: _⚠️ Potential issue_ | _🟠 Major_ | _⚡ Quick win_
+
+**External background image URL is unreliable and poses availability risk.**
+
+The background image is loaded from a Google user content URL. This creates the same availability, privacy, and security risks as identified in Footer.tsx. If this resource becomes unavailable, the entire hero section's visual impact will be degraded.
+
+
+
+
+
+<details>
+<summary>📦 Recommended fix: use a local asset</summary>
+
+```diff
+         <img 
+-          src="https://lh3.googleusercontent.com/aida/AP1WRLueJKbY0BDV3kWCpG5K1Gveg_908VI3_7P0PeWruOWU4ONR3ebMo2aWv1prxp1D3vSDIrof7p2eR0OxHJpMfKbjQjiT2b1s27mCAjZNq3xpnv8KrY_1bjV-FJNoC4nMov9GvEZN2YSFAawIvV2P0qZUKSrTnbeYStDXlKMZf3xmguqbpRHRlhTp12ee9myiOz05541coUC9qMGWRlztYVyLlheEW55Q1BPg7esB5nUnGdvdw8RSBnaIZg" 
++          src="/images/court-background.jpg" 
+           alt="Pickleball court background" 
+           className="w-full h-full object-cover object-center opacity-80 mix-blend-multiply scale-105" 
+         />
+```
+
+Store the image in `public/images/court-background.jpg`.
+
+</details>
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/src/components/landing/HeroSection.tsx` around lines 12 - 16, The
+HeroSection component currently uses an external Googleusercontent URL for the
+background <img>, which is unreliable; replace that external src with a local
+asset (store the image at public/images/court-background.jpg) and update the
+<img> in HeroSection.tsx to reference the local path (e.g.,
+"/images/court-background.jpg" or import the file if your bundler requires it),
+keeping the same className/alt attributes so styling and accessibility remain
+unchanged.
+```
+
+</details>
+
+<!-- cr-comment:v1:d89436b91e84fcb3cf93120f -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/src/components/landing/DemoSection.tsx-74-79 (1)</summary><blockquote>
+
+`74-79`: _⚠️ Potential issue_ | _🟠 Major_ | _⚡ Quick win_
+
+**Non-functional button has no action.**
+
+The "View Demo Group" button renders with no `onClick` handler or wrapping link, so clicking it does nothing. Users will expect this button to navigate to the demo group.
+
+
+
+
+
+<details>
+<summary>🔗 Proposed fix to wrap with Next.js Link</summary>
+
+```diff
+-        <motion.button 
+-          initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+-          className="bg-surface text-primary border-2 border-primary/20 font-label text-xs font-semibold uppercase tracking-wider px-8 py-4 rounded-lg hover:border-primary hover:bg-surface-container transition-all duration-300 flex items-center justify-center mx-auto shadow-sm hover:shadow-md hover:-translate-y-1"
+-        >
+-          View Demo Group
+-        </motion.button>
++        <Link href="/g/picklepal">
++          <motion.button 
++            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
++            className="bg-surface text-primary border-2 border-primary/20 font-label text-xs font-semibold uppercase tracking-wider px-8 py-4 rounded-lg hover:border-primary hover:bg-surface-container transition-all duration-300 flex items-center justify-center mx-auto shadow-sm hover:shadow-md hover:-translate-y-1"
++          >
++            View Demo Group
++          </motion.button>
++        </Link>
+```
+
+You'll need to add `import Link from 'next/link';` at the top.
+
+</details>
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/src/components/landing/DemoSection.tsx` around lines 74 - 79, The
+"View Demo Group" motion.button in DemoSection.tsx renders without any
+navigation handler; wrap it with Next.js Link (import Link from 'next/link') or
+add an onClick that navigates to the demo URL so the button performs an action.
+Replace the standalone motion.button with a Link wrapping the interactive
+element (e.g., motion.a or motion.button passed as child) pointing to the demo
+group route and ensure the import Link from 'next/link' is added at the top and
+any ARIA/role attributes are preserved for accessibility.
+```
+
+</details>
+
+<!-- cr-comment:v1:70aa959496d574301ae7308b -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/src/components/landing/Footer.tsx-9-12 (1)</summary><blockquote>
+
+`9-12`: _⚠️ Potential issue_ | _🟠 Major_ | _⚡ Quick win_
+
+**External logo URL is unreliable and poses availability risk.**
+
+The logo is loaded from a Google user content URL (`lh3.googleusercontent.com`). This external resource could be removed, rate-limited, or become unavailable, breaking the footer on all landing pages. Additionally, loading resources from third-party domains can introduce privacy and security concerns.
+
+
+
+
+
+<details>
+<summary>📦 Recommended fix: use a local asset</summary>
+
+```diff
+-          <img 
+-            src="https://lh3.googleusercontent.com/aida/AP1WRLv1XyoEZhLB2kLKzhr3OpMZAwiHw_IJkc83sHf02m1wBamfYyl9YKfLXMqrEKqoMeCDa9PykETHQopAsM9FFgYNcTCoJSF1oz0uHkMbVQlmDQ8XuC3tnR8Hsex8uYVHzyaohtV1g_qM1jUUaNtivfE4AnqwErez3ZIafjKMc1sg3kiVBhdQxiV6wNZiRG3WWvBelkDGqYmqMrUQfe8XB_38CYiVvPpAUYQFcGSE3-bSSq7FkaxRh-AAeA" 
+-            alt="DinkDay Logo" 
+-            className="h-8 w-auto filter brightness-0 invert" 
+-          />
++          <img 
++            src="/images/logo.png" 
++            alt="DinkDay Logo" 
++            className="h-8 w-auto filter brightness-0 invert" 
++          />
+```
+
+Store the logo in `public/images/logo.png` for reliable access.
+
+</details>
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/src/components/landing/Footer.tsx` around lines 9 - 12, The footer
+currently embeds an unreliable external image URL in the Footer component;
+replace that external src with a local asset (e.g. move the logo file to
+public/images/logo.png and set the image src to "/images/logo.png" in
+Footer.tsx) to avoid availability and privacy issues, update the alt text if
+needed, and ensure any image component usage (plain <img> or Next.js Image) is
+adjusted to reference the local path and its required props.
+```
+
+</details>
+
+<!-- cr-comment:v1:de99997b13f3f46d60d5bce6 -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/src/components/ui/Button.tsx-43-54 (1)</summary><blockquote>
+
+`43-54`: _⚠️ Potential issue_ | _🟠 Major_ | _⚡ Quick win_
+
+**Set an explicit default button type in this shared primitive.**
+
+Line 60 currently relies on implicit HTML behavior (`submit` inside forms). For a reusable button, this can cause accidental form submissions in non-submit actions.
+
+<details>
+<summary>Suggested fix</summary>
+
+```diff
+     {
+       variant = "primary",
+       size = "md",
+       loading = false,
+       trailingIcon,
+       leadingIcon,
+       fullWidth = false,
++      type = "button",
+       className = "",
+       children,
+       disabled,
+       ...props
+     },
+@@
+       <button
+         ref={ref}
++        type={type}
+         disabled={disabled || loading}
+         className={[
+```
+</details>
+
+
+
+
+
+
+Also applies to: 60-73
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/src/components/ui/Button.tsx` around lines 43 - 54, The Button
+primitive relies on implicit HTML button behavior and should set an explicit
+default type to avoid accidental form submissions: add a prop default (e.g.,
+type = "button") in the props destructuring of the Button component and ensure
+the rendered <button> uses that prop (e.g., type={type}); also update the Button
+props interface/type to include the standard button types ("button" | "submit" |
+"reset") so callers can override when needed—refer to the Button component's
+props destructuring and the rendered element to locate where to apply this
+change.
+```
+
+</details>
+
+<!-- cr-comment:v1:8e74764ea35ea12d729ba7d3 -->
+
+</blockquote></details>
+<details>
+<summary>picklepal/src/components/landing/Navbar.tsx-8-13 (1)</summary><blockquote>
+
+`8-13`: _⚠️ Potential issue_ | _🟠 Major_ | _⚡ Quick win_
+
+**Use a first-party logo asset and a deterministic home destination for the brand link.**
+
+Line 8 and Line 10 currently combine `href="#"` with a third-party hosted logo URL. This makes the primary nav affordance non-deterministic and introduces an avoidable external dependency/privacy leak on every landing page view.
+
+<details>
+<summary>Suggested fix</summary>
+
+```diff
+-      <a href="#" className="flex items-center gap-2 hover:scale-105 transition-transform">
++      <Link href="/" className="flex items-center gap-2 hover:scale-105 transition-transform" aria-label="DinkDay home">
+         <img 
+-          src="https://lh3.googleusercontent.com/aida/AP1WRLv1XyoEZhLB2kLKzhr3OpMZAwiHw_IJkc83sHf02m1wBamfYyl9YKfLXMqrEKqoMeCDa9PykETHQopAsM9FFgYNcTCoJSF1oz0uHkMbVQlmDQ8XuC3tnR8Hsex8uYVHzyaohtV1g_qM1jUUaNtivfE4AnqwErez3ZIafjKMc1sg3kiVBhdQxiV6wNZiRG3WWvBelkDGqYmqMrUQfe8XB_38CYiVvPpAUYQFcGSE3-bSSq7FkaxRh-AAeA" 
++          src="/brand/dinkday-logo.png" 
+           alt="DinkDay Logo" 
+           className="h-10 w-auto" 
+         />
+-      </a>
++      </Link>
+```
+</details>
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding against current code. Fix only still-valid issues, skip the
+rest with a brief reason, keep changes minimal, and validate.
+
+In `@picklepal/src/components/landing/Navbar.tsx` around lines 8 - 13, Replace the
+external logo URL and the hash href with an internal, deterministic asset and
+route: update the anchor in Navbar (the <a> with className "flex
+items-center...") to point to the app's home route (e.g., "/") instead of
+href="#" and replace the img src that currently points to the third-party URL
+with a first-party static asset import or local path (the logo image used by the
+Navbar component) so the brand link is deterministic and no external hosting is
+required.
+```
+
+</details>
+
+<!-- cr-comment:v1:17fa8437aaf25b06e57c3c19 -->
+
+</blockquote></details>
+
+</blockquote></details>
+
+<details>
+<
+
+</blockquote></details>
+
+</blockquote></details>
+
+<!-- This is an auto-generated comment by CodeRabbit for review status -->

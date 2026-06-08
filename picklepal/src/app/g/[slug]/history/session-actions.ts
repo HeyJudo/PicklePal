@@ -1,6 +1,7 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase";
+import { authorizeGroupWrite } from "@/lib/auth";
 
 interface ActionResult {
   readonly success: boolean;
@@ -13,6 +14,23 @@ interface ActionResult {
  */
 export async function deleteSession(sessionId: string): Promise<ActionResult> {
   const supabase = createServerClient();
+
+  // Look up the group for this session to perform authorization
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: sessionData, error: lookupError } = await (supabase as any)
+    .from("sessions")
+    .select("group_id")
+    .eq("id", sessionId)
+    .maybeSingle();
+
+  if (lookupError || !sessionData) {
+    return { success: false, error: "Session not found" };
+  }
+
+  const auth = await authorizeGroupWrite(sessionData.group_id);
+  if (!auth.authorized) {
+    return { success: false, error: auth.error ?? "Unauthorized" };
+  }
 
   // Delete matches first (rally_events cascade from matches)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -34,6 +34,7 @@ interface ActiveSessionProps {
   readonly players: readonly Player[];
   readonly sessionPlayers: readonly SessionPlayerEntry[];
   readonly sessionMatches: readonly SessionMatchData[];
+  readonly isHost: boolean;
   readonly onSessionEnded: () => void;
   readonly onMatchConfirmed: (matchup: Matchup) => void;
   readonly onPlayerStatusChanged: (playerId: string, newStatus: SessionPlayerStatus) => void;
@@ -45,6 +46,7 @@ export function ActiveSession({
   players,
   sessionPlayers,
   sessionMatches,
+  isHost,
   onSessionEnded,
   onMatchConfirmed,
   onPlayerStatusChanged,
@@ -107,7 +109,7 @@ export function ActiveSession({
         key={activePlayersForMatchmaking.map((p) => p.id).join(",")}
         players={activePlayersForMatchmaking}
         matchType={matchType}
-        isHost={true}
+        isHost={isHost}
         onMatchSelected={onMatchConfirmed}
       />
 
@@ -116,7 +118,7 @@ export function ActiveSession({
         sessionId={session.id}
         players={players}
         sessionPlayers={sessionPlayers}
-        isHost={true}
+        isHost={isHost}
         onPlayerStatusChanged={onPlayerStatusChanged}
       />
 
@@ -124,13 +126,15 @@ export function ActiveSession({
       <SessionMatchHistory matches={sessionMatches} players={players} />
 
       {/* End Session */}
-      <button
-        onClick={handleEndSession}
-        disabled={isPending}
-        className="w-full rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 hover:bg-red-100 transition-colors cursor-pointer disabled:opacity-50"
-      >
-        {isPending ? "Ending..." : "End Game Day"}
-      </button>
+      {isHost && (
+        <button
+          onClick={handleEndSession}
+          disabled={isPending}
+          className="w-full rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 hover:bg-red-100 transition-colors cursor-pointer disabled:opacity-50"
+        >
+          {isPending ? "Ending..." : "End Game Day"}
+        </button>
+      )}
     </div>
   );
 }

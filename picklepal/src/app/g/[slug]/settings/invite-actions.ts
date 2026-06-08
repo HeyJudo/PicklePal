@@ -121,5 +121,5 @@ export async function revokeAdminInvite(
     return { success: false, error: "You don't have permission to revoke invites" };
   }
 
-  return revokeInvite(inviteId);
+  return revokeInvite(groupId, inviteId);
 }

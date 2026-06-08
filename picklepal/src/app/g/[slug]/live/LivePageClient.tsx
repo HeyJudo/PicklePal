@@ -584,6 +584,7 @@ export function LivePageClient({
             players={players}
             sessionPlayers={sessionPlayers}
             sessionMatches={sessionMatches}
+            isHost={isAdmin}
             onSessionEnded={handleSessionEnded}
             onMatchConfirmed={handleMatchConfirmed}
             onPlayerStatusChanged={handlePlayerStatusChanged}
@@ -640,7 +641,7 @@ export function LivePageClient({
           sessionId={activeSession.id}
           players={players}
           sessionPlayers={sessionPlayers}
-          isHost={true}
+          isHost={isAdmin}
           onPlayerStatusChanged={handlePlayerStatusChanged}
         />
 
@@ -648,12 +649,14 @@ export function LivePageClient({
         <SessionMatchHistory matches={sessionMatches} players={players} />
 
         {/* End session */}
-        <button
-          onClick={handleSessionEnded}
-          className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors cursor-pointer"
-        >
-          End Game Day
-        </button>
+        {isAdmin && (
+          <button
+            onClick={handleSessionEnded}
+            className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors cursor-pointer"
+          >
+            End Game Day
+          </button>
+        )}
       </aside>
 
       {/* CENTER — main action area */}
@@ -678,7 +681,7 @@ export function LivePageClient({
             key={activePlayersForMatchmaking.map((p) => p.id).join(",")}
             players={activePlayersForMatchmaking}
             matchType={matchType}
-            isHost={true}
+            isHost={isAdmin}
             onMatchSelected={handleMatchConfirmed}
           />
         )}

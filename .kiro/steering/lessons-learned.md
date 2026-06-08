@@ -309,5 +309,22 @@ When adding heartbeat/presence tracking, don't create a separate interval if an 
 ### Server Component Props as the Auth Gateway for Client Components
 When a client component needs to know the user's identity/role (e.g., "am I the scorer?" or "am I an admin?"), resolve that in the page.tsx server component and pass it as a prop (`clerkUserId`, `isAdmin`, `initialActiveMatch`). Don't call `currentUser()` from client components or repeat auth checks in multiple places. The server component is the single source of truth for "who is viewing this page and what can they do?" — client components just consume the pre-resolved identity.
 
+### Never Hardcode `isHost={true}` — Always Thread the Server-Resolved Permission
+When child components accept an `isHost` or `isAdmin` prop, always pass the actual computed value from the parent. Hardcoding `true` during development is a security debt that's easy to ship — TypeScript won't catch it since `true` satisfies `boolean`. Audit pattern: search for `isHost={true}` or `isAdmin={true}` in JSX to find unresolved permission bypasses. The prop value should always trace back to a server-resolved permission (from `page.tsx` → parent → child), never a literal boolean.
+
 ### Use DB Record ID as the Local Storage Key for Offline Recovery
 When a feature stores local recovery data keyed by a match/session ID, always use the **DB record ID** (from the server response) as the key — not a locally-generated random UUID. The auto-resume flow looks up local recovery data using the DB match ID fetched from the server. If the local key was a different random UUID, the lookup fails silently and state resets to zero. Pattern: `matchLocalId = dbResult.success ? dbResult.data.matchId : createLocalMatchId()`.
+
+### Verify Row Affected on Ownership-Gated Updates
+When an update query filters by both record ID and the current user's ownership (e.g., `.eq("id", matchId).eq("scorer_clerk_user_id", user.id)`), Supabase returns no error for zero-row matches. Always chain `.select("id").maybeSingle()` and check `if (!data)` to detect ownership loss. Without this, the function returns `success: true` while writes silently drop. This applies to any "update where owner = me" pattern:
+```typescript
+const { data, error } = await supabase
+  .from("table")
+  .update({ ... })
+  .eq("id", recordId)
+  .eq("owner_id", currentUserId)
+  .select("id")
+  .maybeSingle();
+
+if (!data) return { success: false, error: "Ownership lost" };
+```

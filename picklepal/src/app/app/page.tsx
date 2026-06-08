@@ -12,7 +12,7 @@ export default async function MyGroupsPage() {
     redirect("/sign-in");
   }
 
-  const { groups, error } = await getMyGroups(user.id);
+  const { groups, error } = await getMyGroups();
 
   return (
     <main className="min-h-screen bg-background">
