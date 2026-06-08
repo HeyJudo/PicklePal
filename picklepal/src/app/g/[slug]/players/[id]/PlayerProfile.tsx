@@ -22,7 +22,9 @@ function formatPointDiff(diff: number): string {
   return `${diff}`;
 }
 
-function StatBox({
+// ─── Stat Tile — replaces the bordered StatBox ───────────────────────────────
+
+function StatTile({
   label,
   value,
   colorClass,
@@ -32,14 +34,20 @@ function StatBox({
   readonly colorClass?: string;
 }) {
   return (
-    <div className="flex flex-col items-center rounded-lg border border-border bg-surface-muted px-3 py-3">
-      <span className={`text-xl font-bold ${colorClass ?? "text-text-primary"}`}>
+    <div className="flex flex-col items-center justify-center py-4">
+      <span
+        className={`font-score text-3xl font-bold tabular-nums leading-none ${colorClass ?? "text-text-primary"}`}
+      >
         {value}
       </span>
-      <span className="text-xs text-text-muted mt-0.5">{label}</span>
+      <span className="text-[10px] font-label font-semibold uppercase tracking-widest text-text-muted mt-1.5">
+        {label}
+      </span>
     </div>
   );
 }
+
+// ─── Recent match row ─────────────────────────────────────────────────────────
 
 function RecentMatchRow({
   match,
@@ -60,33 +68,52 @@ function RecentMatchRow({
         month: "short",
         day: "numeric",
       })
-    : "—";
+    : "-";
 
   return (
-    <div className="flex items-center justify-between py-2.5 border-b border-border-muted last:border-0">
-      <div className="flex items-center gap-3">
+    <div className="flex items-center justify-between py-3 border-b border-border-muted last:border-0 gap-3">
+      {/* W / L badge */}
+      <span
+        className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
+          playerWon ? "bg-court-green" : "bg-hype-red"
+        }`}
+      >
+        {playerWon ? "W" : "L"}
+      </span>
+
+      {/* Match type */}
+      <span className="text-xs font-label text-text-muted capitalize shrink-0">
+        {match.matchType === "doubles" ? "2v2" : "1v1"}
+      </span>
+
+      {/* Score */}
+      <div className="flex items-baseline gap-1 flex-1 justify-center">
         <span
-          className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white ${
-            playerWon ? "bg-court-green" : "bg-hype-red"
+          className={`font-score text-2xl font-bold tabular-nums leading-none ${
+            playerWon ? "text-court-green" : "text-text-muted"
           }`}
         >
-          {playerWon ? "W" : "L"}
+          {playerScore}
         </span>
-        <span className="text-sm text-text-secondary capitalize">
-          {match.matchType}
-        </span>
-      </div>
-      <div className="flex items-center gap-3">
-        <span className="text-sm font-semibold text-text-primary">
-          {playerScore}–{opponentScore}
-        </span>
-        <span className="text-xs text-text-muted w-12 text-right">
-          {completedDate}
+        <span className="text-text-muted text-sm font-light">-</span>
+        <span
+          className={`font-score text-2xl font-bold tabular-nums leading-none ${
+            !playerWon ? "text-hype-red" : "text-text-muted"
+          }`}
+        >
+          {opponentScore}
         </span>
       </div>
+
+      {/* Date */}
+      <span className="text-xs text-text-muted font-label shrink-0">
+        {completedDate}
+      </span>
     </div>
   );
 }
+
+// ─── Duo partner row ──────────────────────────────────────────────────────────
 
 function DuoRow({
   duo,
@@ -97,27 +124,46 @@ function DuoRow({
 }) {
   const partnerName =
     duo.playerAId === playerId ? duo.playerBName : duo.playerAName;
+  const winRatePct = (duo.winRate * 100).toFixed(0);
+  const winRateNum = Number(winRatePct);
 
   return (
-    <div className="flex items-center justify-between py-2.5 border-b border-border-muted last:border-0">
-      <span className="text-sm font-medium text-text-primary truncate">
+    <div className="flex items-center justify-between py-3 border-b border-border-muted last:border-0 gap-3">
+      <p className="text-sm font-semibold text-text-primary truncate flex-1">
         {partnerName}
-      </span>
+      </p>
       <div className="flex items-center gap-4 shrink-0">
-        <span className="text-sm text-text-secondary">
-          {duo.wins}W–{duo.losses}L
+        <span className="text-xs font-label text-text-muted tabular-nums">
+          {duo.wins}W&nbsp;{duo.losses}L
         </span>
-        <span className="text-sm font-semibold text-text-primary w-10 text-right">
-          {formatWinRate(duo.winRate)}
+        <span
+          className={`font-score text-base font-bold tabular-nums ${
+            winRateNum >= 60
+              ? "text-court-green"
+              : winRateNum < 40
+                ? "text-hype-red"
+                : "text-text-primary"
+          }`}
+        >
+          {winRatePct}%
         </span>
       </div>
     </div>
   );
 }
 
-export function PlayerProfile({ stats, duos, groupSlug, player }: PlayerProfileProps) {
+// ─── Main component ───────────────────────────────────────────────────────────
+
+export function PlayerProfile({
+  stats,
+  duos,
+  groupSlug,
+  player,
+}: PlayerProfileProps) {
+  const playerColor = player.color ?? "#2D8B4E";
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Back link */}
       <Link
         href={`/g/${groupSlug}/players`}
@@ -140,38 +186,67 @@ export function PlayerProfile({ stats, duos, groupSlug, player }: PlayerProfileP
         All Players
       </Link>
 
-      {/* Player header */}
-      <div className="flex items-center gap-4">
-        <PlayerAvatar
-          displayName={stats.displayName}
-          color={stats.color}
-          avatarUrl={player.avatar_url}
-          size="lg"
+      {/* ── Profile hero ── */}
+      <div
+        className="relative rounded-2xl overflow-hidden"
+        style={{ backgroundColor: "#1E6B3A" }}
+      >
+        {/* Player color wash */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `linear-gradient(135deg, ${playerColor}cc 0%, ${playerColor}44 50%, transparent 80%)`,
+          }}
+          aria-hidden="true"
         />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-text-primary truncate">
-              {stats.displayName}
-            </h1>
-            <EditPlayerForm player={player} groupSlug={groupSlug} />
+        {/* Subtle court-line texture */}
+        <div
+          className="absolute inset-0 opacity-10 court-lines"
+          aria-hidden="true"
+        />
+
+        <div className="relative p-5 flex items-center gap-4">
+          <PlayerAvatar
+            displayName={stats.displayName}
+            color={stats.color}
+            avatarUrl={player.avatar_url}
+            size="lg"
+          />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="font-display text-3xl text-white leading-tight truncate">
+                {stats.displayName}
+              </h1>
+              <EditPlayerForm player={player} groupSlug={groupSlug} />
+            </div>
+            <p className="text-white/60 text-sm mt-0.5 font-label">
+              {stats.gamesPlayed} game{stats.gamesPlayed !== 1 ? "s" : ""} played
+            </p>
           </div>
-          <p className="text-text-secondary text-sm mt-0.5">
-            {stats.gamesPlayed} game{stats.gamesPlayed !== 1 ? "s" : ""} played
-          </p>
         </div>
       </div>
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-4 gap-2">
-        <StatBox label="Wins" value={stats.wins} colorClass="text-court-green" />
-        <StatBox label="Losses" value={stats.losses} colorClass="text-hype-red" />
-        <StatBox
-          label="Win%"
-          value={stats.gamesPlayed > 0 ? formatWinRate(stats.winRate) : "—"}
+      {/* ── Stats tiles ── */}
+      <div className="rounded-xl border border-border bg-surface grid grid-cols-4 divide-x divide-border-muted">
+        <StatTile label="Wins" value={stats.wins} colorClass="text-court-green" />
+        <StatTile
+          label="Losses"
+          value={stats.losses}
+          colorClass="text-hype-red"
         />
-        <StatBox
-          label="+/−"
-          value={stats.gamesPlayed > 0 ? formatPointDiff(stats.pointDifferential) : "—"}
+        <StatTile
+          label="Win%"
+          value={
+            stats.gamesPlayed > 0 ? formatWinRate(stats.winRate) : "-"
+          }
+        />
+        <StatTile
+          label="+/-"
+          value={
+            stats.gamesPlayed > 0
+              ? formatPointDiff(stats.pointDifferential)
+              : "-"
+          }
           colorClass={
             stats.pointDifferential > 0
               ? "text-court-green"
@@ -182,9 +257,9 @@ export function PlayerProfile({ stats, duos, groupSlug, player }: PlayerProfileP
         />
       </div>
 
-      {/* Recent matches */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">
+      {/* ── Recent matches ── */}
+      <section className="space-y-2">
+        <h2 className="text-xs font-label font-semibold text-text-muted uppercase tracking-widest px-1">
           Recent Matches
         </h2>
         {stats.recentMatches.length === 0 ? (
@@ -204,10 +279,10 @@ export function PlayerProfile({ stats, duos, groupSlug, player }: PlayerProfileP
         )}
       </section>
 
-      {/* Duo partners */}
+      {/* ── Duo partners ── */}
       {duos.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">
+        <section className="space-y-2">
+          <h2 className="text-xs font-label font-semibold text-text-muted uppercase tracking-widest px-1">
             Partner Stats
           </h2>
           <div className="rounded-xl border border-border bg-surface px-4">

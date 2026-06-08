@@ -19,55 +19,41 @@ function formatDate(dateStr: string): string {
   });
 }
 
-function TeamDisplay({
-  playerIds,
-  playerNames,
-  isWinner,
-}: {
-  readonly playerIds: readonly string[];
-  readonly playerNames: Record<string, string>;
-  readonly isWinner: boolean;
-}) {
-  const names = playerIds.map((id) => playerNames[id] ?? "Unknown");
-
-  return (
-    <div className={`flex-1 min-w-0 ${isWinner ? "" : "opacity-70"}`}>
-      <p
-        className={`text-sm truncate ${
-          isWinner ? "font-semibold text-text-primary" : "text-text-secondary"
-        }`}
-      >
-        {names.join(" & ")}
-      </p>
-    </div>
-  );
-}
-
 function MatchRow({ match }: { readonly match: MatchWithPlayers }) {
   const teamAWon = match.winning_team === "A";
+  const teamANames = match.team_a_player_ids
+    .map((id) => match.playerNames[id] ?? "Unknown")
+    .join(" & ");
+  const teamBNames = match.team_b_player_ids
+    .map((id) => match.playerNames[id] ?? "Unknown")
+    .join(" & ");
 
   return (
-    <div className="flex items-center gap-3 py-3 border-b border-border-muted last:border-0">
+    <div className="flex items-center gap-2.5 py-3 border-b border-border-muted last:border-0">
       {/* Team A */}
-      <TeamDisplay
-        playerIds={match.team_a_player_ids}
-        playerNames={match.playerNames}
-        isWinner={teamAWon}
-      />
+      <div className={`flex-1 min-w-0 ${teamAWon ? "" : "opacity-45"}`}>
+        <p
+          className={`text-sm truncate leading-tight ${
+            teamAWon ? "font-bold text-text-primary" : "font-medium text-text-secondary"
+          }`}
+        >
+          {teamANames}
+        </p>
+      </div>
 
-      {/* Score */}
-      <div className="flex items-center gap-1.5 shrink-0">
+      {/* Score — big Archivo Narrow */}
+      <div className="flex items-baseline gap-1 shrink-0">
         <span
-          className={`text-sm font-bold tabular-nums ${
-            teamAWon ? "text-court-green" : "text-text-secondary"
+          className={`font-score text-2xl font-bold tabular-nums leading-none ${
+            teamAWon ? "text-court-green" : "text-text-muted"
           }`}
         >
           {match.team_a_score}
         </span>
-        <span className="text-text-muted text-xs">–</span>
+        <span className="text-text-muted text-sm leading-none font-light">-</span>
         <span
-          className={`text-sm font-bold tabular-nums ${
-            !teamAWon ? "text-court-green" : "text-text-secondary"
+          className={`font-score text-2xl font-bold tabular-nums leading-none ${
+            !teamAWon ? "text-court-green" : "text-text-muted"
           }`}
         >
           {match.team_b_score}
@@ -75,32 +61,40 @@ function MatchRow({ match }: { readonly match: MatchWithPlayers }) {
       </div>
 
       {/* Team B */}
-      <TeamDisplay
-        playerIds={match.team_b_player_ids}
-        playerNames={match.playerNames}
-        isWinner={!teamAWon}
-      />
+      <div className={`flex-1 min-w-0 text-right ${!teamAWon ? "" : "opacity-45"}`}>
+        <p
+          className={`text-sm truncate leading-tight ${
+            !teamAWon ? "font-bold text-text-primary" : "font-medium text-text-secondary"
+          }`}
+        >
+          {teamBNames}
+        </p>
+      </div>
 
-      {/* Match type badge */}
-      <span className="text-[10px] uppercase tracking-wider text-text-muted bg-surface-muted px-1.5 py-0.5 rounded shrink-0">
+      {/* Match type chip */}
+      <span className="ml-0.5 shrink-0 inline-flex items-center rounded-md bg-surface-muted px-1.5 py-0.5 text-[10px] font-label font-semibold uppercase tracking-wider text-text-muted">
         {match.match_type === "doubles" ? "2v2" : "1v1"}
       </span>
     </div>
   );
 }
 
-function SessionSection({ group, groupSlug }: { readonly group: SessionGroup; readonly groupSlug: string }) {
+function SessionSection({
+  group,
+  groupSlug,
+}: {
+  readonly group: SessionGroup;
+  readonly groupSlug: string;
+}) {
   const { session, matches } = group;
   const router = useRouter();
   const [showConfirm, setShowConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const sessionDate = formatDate(session.started_at);
-  const sessionTitle = session.title ?? `Game Day`;
+  const sessionTitle = session.title ?? "Game Day";
 
-  const handleDeleteClick = () => {
-    setShowConfirm(true);
-  };
+  const handleDeleteClick = () => setShowConfirm(true);
 
   const handleConfirmDelete = async () => {
     setIsDeleting(true);
@@ -115,32 +109,44 @@ function SessionSection({ group, groupSlug }: { readonly group: SessionGroup; re
   };
 
   return (
-    <section className="space-y-1">
+    <section className="space-y-2">
       {/* Session header */}
-      <div className="flex items-center justify-between px-1 py-2">
+      <div className="flex items-center justify-between gap-3 px-1">
         <Link
           href={`/g/${groupSlug}/sessions/${session.id}`}
-          className="flex-1 hover:opacity-80 transition-opacity cursor-pointer"
+          className="flex-1 min-w-0 flex items-center gap-2.5 hover:opacity-80 transition-opacity cursor-pointer"
         >
-          <div>
-            <h3 className="text-sm font-semibold text-text-primary">
-              {sessionTitle}
-            </h3>
-            <p className="text-xs text-text-muted mt-0.5">{sessionDate}</p>
-          </div>
+          {/* Date pill */}
+          <span className="shrink-0 inline-flex items-center rounded-full bg-court-green/12 px-2.5 py-1 text-[11px] font-label font-semibold text-court-green-dark">
+            {sessionDate}
+          </span>
+          <h3 className="text-sm font-semibold text-text-primary truncate">
+            {sessionTitle}
+          </h3>
         </Link>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-text-muted">
-            {matches.length} match{matches.length !== 1 ? "es" : ""}
+
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-xs font-label text-text-muted">
+            {matches.length}&nbsp;match{matches.length !== 1 ? "es" : ""}
           </span>
           <button
             type="button"
             onClick={handleDeleteClick}
-            className="text-text-muted hover:text-red-500 transition-colors cursor-pointer p-1"
+            className="text-text-muted hover:text-hype-red transition-colors cursor-pointer p-1 rounded"
             aria-label={`Delete session ${sessionTitle}`}
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.5}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+              />
             </svg>
           </button>
         </div>
@@ -148,17 +154,20 @@ function SessionSection({ group, groupSlug }: { readonly group: SessionGroup; re
 
       {/* Confirm delete */}
       {showConfirm && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 space-y-3 mx-1">
-          <p className="text-sm text-red-800 font-medium">
-            Delete &ldquo;{sessionTitle}&rdquo; and all {matches.length} match{matches.length !== 1 ? "es" : ""}?
+        <div className="rounded-xl border border-hype-red/30 bg-hype-red/5 p-4 space-y-3 mx-1">
+          <p className="text-sm text-hype-red font-medium">
+            Delete &ldquo;{sessionTitle}&rdquo; and all {matches.length} match
+            {matches.length !== 1 ? "es" : ""}?
           </p>
-          <p className="text-xs text-red-600">This cannot be undone. Stats and leaderboard will be recalculated.</p>
+          <p className="text-xs text-hype-red/70">
+            This cannot be undone. Stats and leaderboard will be recalculated.
+          </p>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={handleConfirmDelete}
               disabled={isDeleting}
-              className="flex-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 cursor-pointer disabled:opacity-50"
+              className="flex-1 rounded-lg bg-hype-red px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 cursor-pointer disabled:opacity-50 transition-colors"
             >
               {isDeleting ? "Deleting..." : "Delete Forever"}
             </button>
@@ -166,7 +175,7 @@ function SessionSection({ group, groupSlug }: { readonly group: SessionGroup; re
               type="button"
               onClick={() => setShowConfirm(false)}
               disabled={isDeleting}
-              className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 cursor-pointer disabled:opacity-50"
+              className="rounded-lg border border-hype-red/30 px-3 py-1.5 text-xs font-medium text-hype-red hover:bg-hype-red/10 cursor-pointer disabled:opacity-50 transition-colors"
             >
               Cancel
             </button>
@@ -174,8 +183,8 @@ function SessionSection({ group, groupSlug }: { readonly group: SessionGroup; re
         </div>
       )}
 
-      {/* Matches */}
-      <div className="rounded-xl border border-border bg-surface px-4">
+      {/* Match cards — left court-green accent */}
+      <div className="rounded-xl border border-border bg-surface px-4 border-l-[3px] border-l-court-green/40">
         {matches.map((match) => (
           <MatchRow key={match.id} match={match} />
         ))}
@@ -198,7 +207,11 @@ export function MatchHistory({ sessionGroups, groupSlug }: MatchHistoryProps) {
   return (
     <div className="space-y-6">
       {sessionGroups.map((group) => (
-        <SessionSection key={group.session.id} group={group} groupSlug={groupSlug} />
+        <SessionSection
+          key={group.session.id}
+          group={group}
+          groupSlug={groupSlug}
+        />
       ))}
     </div>
   );
