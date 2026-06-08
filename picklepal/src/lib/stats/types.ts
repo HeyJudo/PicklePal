@@ -3,6 +3,7 @@ export interface LeaderboardEntry {
   readonly playerId: string;
   readonly displayName: string;
   readonly color: string | null;
+  readonly avatarUrl: string | null;
   readonly wins: number;
   readonly losses: number;
   readonly gamesPlayed: number;

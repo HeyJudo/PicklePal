@@ -38,7 +38,7 @@ export function HeroSection({
               DinkDay
             </p>
             {/* Anton — display font for the group name */}
-            <h1 className="font-display text-3xl sm:text-4xl text-white leading-tight">
+            <h1 className="font-display font-bold text-3xl sm:text-4xl text-white leading-tight">
               {groupName}
             </h1>
           </div>

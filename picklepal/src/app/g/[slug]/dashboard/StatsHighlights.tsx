@@ -23,6 +23,11 @@ export function StatsHighlights({ topPlayer, hottestDuo, latestMvp }: StatsHighl
   );
 }
 
+// ─── Shared card interaction styles ──────────────────────────────────────────
+
+const cardInteraction =
+  "transition-all duration-150 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.97] active:shadow-sm select-none";
+
 // ─── Win Leader — ball-yellow card ───────────────────────────────────────────
 
 function TopPlayerCard({ player }: { readonly player: LeaderboardEntry | null }) {
@@ -37,21 +42,20 @@ function TopPlayerCard({ player }: { readonly player: LeaderboardEntry | null })
   }
 
   return (
-    <div className="fade-rise stagger-1 relative overflow-hidden rounded-xl bg-ball-yellow p-4">
-      {/* Decorative ball holes pattern */}
-      <div className="absolute top-3 right-3 opacity-15" aria-hidden="true">
-        <BallDotsIcon className="w-16 h-16 text-court-green-dark" />
+    <div className={`fade-rise stagger-1 relative overflow-hidden rounded-xl bg-ball-yellow p-4 ${cardInteraction}`}>
+      {/* Trophy watermark */}
+      <div className="absolute -top-3 -right-3 opacity-15 pointer-events-none" aria-hidden="true">
+        <TrophyWatermark className="w-28 h-28 text-court-green-dark" />
       </div>
 
       <div className="relative">
         <div className="flex items-center gap-1.5 mb-2">
           <TrophyIcon className="w-4 h-4 text-court-green-dark shrink-0" />
-          <span className="text-[11px] font-label font-semibold uppercase tracking-widest text-court-green-dark/70">
+          <span className="text-[11px] font-label font-semibold uppercase tracking-widest text-court-green-dark">
             Win Leader
           </span>
         </div>
 
-        {/* Player dot + name */}
         <div className="flex items-center gap-2 mb-2">
           <span
             className="h-2.5 w-2.5 rounded-full shrink-0 ring-2 ring-court-green-dark/20"
@@ -63,7 +67,6 @@ function TopPlayerCard({ player }: { readonly player: LeaderboardEntry | null })
           </p>
         </div>
 
-        {/* Big Archivo Narrow win% */}
         <div className="flex items-baseline gap-2">
           <span className="font-display text-4xl text-court-green-dark leading-none tabular-nums">
             {(player.winRate * 100).toFixed(0)}
@@ -92,15 +95,16 @@ function HottestDuoCard({ duo }: { readonly duo: DuoStats | null }) {
   }
 
   return (
-    <div className="fade-rise stagger-2 relative overflow-hidden rounded-xl bg-hype-orange p-4">
-      <div className="absolute top-3 right-3 opacity-15" aria-hidden="true">
-        <BallDotsIcon className="w-16 h-16 text-white" />
+    <div className={`fade-rise stagger-2 relative overflow-hidden rounded-xl bg-hype-orange p-4 ${cardInteraction}`}>
+      {/* Fire watermark */}
+      <div className="absolute -top-3 -right-3 opacity-15 pointer-events-none" aria-hidden="true">
+        <FireWatermark className="w-28 h-28 text-white" />
       </div>
 
       <div className="relative">
         <div className="flex items-center gap-1.5 mb-2">
           <FireIcon className="w-4 h-4 text-white shrink-0" />
-          <span className="text-[11px] font-label font-semibold uppercase tracking-widest text-white/70">
+          <span className="text-[11px] font-label font-semibold uppercase tracking-widest text-white/90">
             Hottest Duo
           </span>
         </div>
@@ -108,7 +112,7 @@ function HottestDuoCard({ duo }: { readonly duo: DuoStats | null }) {
         <p className="font-bold text-white text-base leading-tight truncate mb-0.5">
           {duo.playerAName}
         </p>
-        <p className="text-white/65 text-sm leading-tight truncate mb-2">
+        <p className="text-white text-sm font-medium leading-tight truncate mb-2">
           &amp; {duo.playerBName}
         </p>
 
@@ -117,7 +121,7 @@ function HottestDuoCard({ duo }: { readonly duo: DuoStats | null }) {
             {(duo.winRate * 100).toFixed(0)}
             <span className="text-2xl">%</span>
           </span>
-          <span className="text-white/55 text-xs tabular-nums">
+          <span className="text-white/70 text-xs tabular-nums">
             {duo.wins}W {duo.losses}L
           </span>
         </div>
@@ -144,15 +148,16 @@ function MvpCard({
   }
 
   return (
-    <div className="fade-rise stagger-3 relative overflow-hidden rounded-xl bg-sky-blue p-4">
-      <div className="absolute top-3 right-3 opacity-15" aria-hidden="true">
-        <BallDotsIcon className="w-16 h-16 text-white" />
+    <div className={`fade-rise stagger-3 relative overflow-hidden rounded-xl bg-sky-blue p-4 ${cardInteraction}`}>
+      {/* Star watermark */}
+      <div className="absolute -top-3 -right-3 opacity-15 pointer-events-none" aria-hidden="true">
+        <StarWatermark className="w-28 h-28 text-white" />
       </div>
 
       <div className="relative">
         <div className="flex items-center gap-1.5 mb-2">
           <StarIcon className="w-4 h-4 text-white shrink-0" />
-          <span className="text-[11px] font-label font-semibold uppercase tracking-widest text-white/70">
+          <span className="text-[11px] font-label font-semibold uppercase tracking-widest text-white/90">
             Latest MVP
           </span>
         </div>
@@ -173,7 +178,7 @@ function MvpCard({
             {mvp.wins}
             <span className="text-2xl">W</span>
           </span>
-          <span className="text-white/55 text-xs tabular-nums">
+          <span className="text-white/70 text-xs tabular-nums">
             {mvp.gamesPlayed} GP
           </span>
         </div>
@@ -241,20 +246,28 @@ function SparkleIcon({ className }: { readonly className?: string }) {
   );
 }
 
-/* Pickleball ball holes — used as decorative watermark on highlight cards */
-function BallDotsIcon({ className }: { readonly className?: string }) {
+// ─── Watermark icons (filled, used as background decoration) ─────────────────
+
+function TrophyWatermark({ className }: { readonly className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 64 64" fill="currentColor" aria-hidden="true">
-      <circle cx="16" cy="16" r="5" />
-      <circle cx="32" cy="16" r="5" />
-      <circle cx="48" cy="16" r="5" />
-      <circle cx="8"  cy="32" r="5" />
-      <circle cx="24" cy="32" r="5" />
-      <circle cx="40" cy="32" r="5" />
-      <circle cx="56" cy="32" r="5" />
-      <circle cx="16" cy="48" r="5" />
-      <circle cx="32" cy="48" r="5" />
-      <circle cx="48" cy="48" r="5" />
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z" />
+    </svg>
+  );
+}
+
+function FireWatermark({ className }: { readonly className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67zM11.71 19c-1.78 0-3.22-1.4-3.22-3.14 0-1.62 1.05-2.76 2.81-3.12 1.77-.36 3.6-1.21 4.62-2.58.39 1.29.59 2.65.59 4.04 0 2.65-2.15 4.8-4.8 4.8z" />
+    </svg>
+  );
+}
+
+function StarWatermark({ className }: { readonly className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
     </svg>
   );
 }

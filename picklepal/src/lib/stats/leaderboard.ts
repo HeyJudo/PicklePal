@@ -78,6 +78,7 @@ export function computeLeaderboard(
       playerId: player.id,
       displayName: player.display_name,
       color: player.color,
+      avatarUrl: player.avatar_url,
       wins: stats.wins,
       losses: stats.losses,
       gamesPlayed,
