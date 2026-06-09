@@ -1,6 +1,7 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase";
+import { authorizeGroupWrite, resolveGroupIdFromSession } from "@/lib/auth";
 import type { MatchType } from "@/lib/supabase";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -97,6 +98,11 @@ export async function recordManualMatch(
 
   const winningTeam = input.teamAScore > input.teamBScore ? "A" : "B";
   const losingTeam = winningTeam === "A" ? "B" : "A";
+
+  const groupId = await resolveGroupIdFromSession(input.sessionId);
+  if (!groupId) return { success: false, error: "Session not found" };
+  const auth = await authorizeGroupWrite(groupId);
+  if (!auth.authorized) return { success: false, error: auth.error };
 
   const supabase = createServerClient();
 

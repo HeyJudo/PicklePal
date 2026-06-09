@@ -1,6 +1,7 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase";
+import { authorizeGroupWrite, resolveGroupIdFromMatch } from "@/lib/auth";
 import type { Database } from "@/lib/supabase";
 
 interface ActionResult {
@@ -51,6 +52,11 @@ export async function correctMatchScores(
     return { success: false, error: "Scores cannot be tied for a completed match" };
   }
 
+  const groupId = await resolveGroupIdFromMatch(matchId);
+  if (!groupId) return { success: false, error: "Match not found" };
+  const authResult = await authorizeGroupWrite(groupId);
+  if (!authResult.authorized) return { success: false, error: authResult.error };
+
   const match = await getMatchStatus(matchId);
 
   if (!match) {
@@ -84,6 +90,11 @@ export async function correctMatchScores(
  * Sets status to 'cancelled' — the match remains in the DB but is excluded from stats.
  */
 export async function cancelMatch(matchId: string): Promise<ActionResult> {
+  const groupId = await resolveGroupIdFromMatch(matchId);
+  if (!groupId) return { success: false, error: "Match not found" };
+  const authResult = await authorizeGroupWrite(groupId);
+  if (!authResult.authorized) return { success: false, error: authResult.error };
+
   const match = await getMatchStatus(matchId);
 
   if (!match) {
@@ -110,6 +121,11 @@ export async function cancelMatch(matchId: string): Promise<ActionResult> {
  * Restore a cancelled match back to completed status.
  */
 export async function restoreMatch(matchId: string): Promise<ActionResult> {
+  const groupId = await resolveGroupIdFromMatch(matchId);
+  if (!groupId) return { success: false, error: "Match not found" };
+  const authResult = await authorizeGroupWrite(groupId);
+  if (!authResult.authorized) return { success: false, error: authResult.error };
+
   const match = await getMatchStatus(matchId);
 
   if (!match) {

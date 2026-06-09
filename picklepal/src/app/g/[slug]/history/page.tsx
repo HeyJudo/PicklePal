@@ -1,5 +1,6 @@
 import { getMatchHistory } from "./actions";
 import { MatchHistory } from "./MatchHistory";
+import { getViewerAccess } from "@/lib/auth";
 
 interface HistoryPageProps {
   readonly params: Promise<{ slug: string }>;
@@ -7,7 +8,11 @@ interface HistoryPageProps {
 
 export default async function HistoryPage({ params }: HistoryPageProps) {
   const { slug } = await params;
-  const { sessionGroups, error } = await getMatchHistory(slug);
+  const [{ sessionGroups, error }, viewerAccess] = await Promise.all([
+    getMatchHistory(slug),
+    getViewerAccess(slug),
+  ]);
+  const isAdmin = viewerAccess.isAdmin;
 
   const totalMatches = sessionGroups.reduce((sum, g) => sum + g.matches.length, 0);
 
@@ -50,7 +55,7 @@ export default async function HistoryPage({ params }: HistoryPageProps) {
           <p className="text-hype-red text-sm font-medium">{error}</p>
         </div>
       ) : (
-        <MatchHistory sessionGroups={sessionGroups} groupSlug={slug} />
+        <MatchHistory sessionGroups={sessionGroups} groupSlug={slug} isAdmin={isAdmin} />
       )}
     </div>
   );

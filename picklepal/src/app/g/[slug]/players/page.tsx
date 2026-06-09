@@ -1,6 +1,7 @@
 import { getPlayers } from "./actions";
 import { PlayerCard } from "./PlayerCard";
 import { AddPlayerForm } from "./AddPlayerForm";
+import { getViewerAccess } from "@/lib/auth";
 
 interface PlayersPageProps {
   readonly params: Promise<{ slug: string }>;
@@ -8,7 +9,11 @@ interface PlayersPageProps {
 
 export default async function PlayersPage({ params }: PlayersPageProps) {
   const { slug } = await params;
-  const { players, error } = await getPlayers(slug);
+  const [{ players, error }, viewerAccess] = await Promise.all([
+    getPlayers(slug),
+    getViewerAccess(slug),
+  ]);
+  const isAdmin = viewerAccess.isAdmin;
 
   const activePlayers = players.filter((p) => p.is_active !== false);
 
@@ -33,7 +38,7 @@ export default async function PlayersPage({ params }: PlayersPageProps) {
               {activePlayers.length} active player{activePlayers.length !== 1 ? "s" : ""}
             </p>
           </div>
-          <AddPlayerForm groupSlug={slug} />
+          {isAdmin && <AddPlayerForm groupSlug={slug} />}
         </div>
       </header>
 

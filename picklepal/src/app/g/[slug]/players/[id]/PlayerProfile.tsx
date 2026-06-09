@@ -11,6 +11,7 @@ interface PlayerProfileProps {
   readonly duos: readonly DuoStats[];
   readonly groupSlug: string;
   readonly player: Player;
+  readonly isAdmin?: boolean;
 }
 
 function formatWinRate(rate: number): string {
@@ -159,6 +160,7 @@ export function PlayerProfile({
   duos,
   groupSlug,
   player,
+  isAdmin = false,
 }: PlayerProfileProps) {
   const playerColor = player.color ?? "#2D8B4E";
 
@@ -217,7 +219,7 @@ export function PlayerProfile({
               <h1 className="font-display text-3xl text-white leading-tight truncate">
                 {stats.displayName}
               </h1>
-              <EditPlayerForm player={player} groupSlug={groupSlug} />
+              {isAdmin && <EditPlayerForm player={player} groupSlug={groupSlug} />}
             </div>
             <p className="text-white/60 text-sm mt-0.5 font-label">
               {stats.gamesPlayed} game{stats.gamesPlayed !== 1 ? "s" : ""} played

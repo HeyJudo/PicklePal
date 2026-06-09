@@ -1,6 +1,7 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase";
+import { authorizeGroupWrite, resolveGroupIdFromSession } from "@/lib/auth";
 import type { MatchType } from "@/lib/supabase";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -71,6 +72,9 @@ export async function getActiveSession(
 export async function startSession(
   input: StartSessionInput,
 ): Promise<ActionResult<SessionData>> {
+  const auth = await authorizeGroupWrite(input.groupSlug);
+  if (!auth.authorized) return { success: false, error: auth.error };
+
   const supabase = createServerClient();
 
   // Get group ID
@@ -154,6 +158,11 @@ export async function startSession(
 export async function endSession(
   sessionId: string,
 ): Promise<ActionResult> {
+  const groupId = await resolveGroupIdFromSession(sessionId);
+  if (!groupId) return { success: false, error: "Session not found" };
+  const auth = await authorizeGroupWrite(groupId);
+  if (!auth.authorized) return { success: false, error: auth.error };
+
   const supabase = createServerClient();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -228,6 +237,11 @@ interface RallyEventInput {
 export async function saveCompletedMatch(
   input: SaveMatchInput,
 ): Promise<ActionResult<{ matchId: string }>> {
+  const groupId = await resolveGroupIdFromSession(input.sessionId);
+  if (!groupId) return { success: false, error: "Session not found" };
+  const auth = await authorizeGroupWrite(groupId);
+  if (!auth.authorized) return { success: false, error: auth.error };
+
   const supabase = createServerClient();
 
   // Create match record

@@ -2,6 +2,7 @@
 
 import { currentUser } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
+import { authorizeGroupWrite, resolveGroupIdFromSession, resolveGroupIdFromMatch } from "@/lib/auth";
 import type { MatchType, MatchSnapshot } from "@/lib/supabase";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -67,6 +68,11 @@ export async function createActiveMatch(
   if (!user) {
     return { success: false, error: "You must be signed in" };
   }
+
+  const groupId = await resolveGroupIdFromSession(input.sessionId);
+  if (!groupId) return { success: false, error: "Session not found" };
+  const auth = await authorizeGroupWrite(groupId);
+  if (!auth.authorized) return { success: false, error: auth.error };
 
   const supabase = getSupabase();
 
@@ -135,6 +141,11 @@ export async function updateMatchSnapshot(
     return { success: false, error: "You must be signed in" };
   }
 
+  const groupId = await resolveGroupIdFromMatch(matchId);
+  if (!groupId) return { success: false, error: "Match not found" };
+  const auth = await authorizeGroupWrite(groupId);
+  if (!auth.authorized) return { success: false, error: auth.error };
+
   const supabase = getSupabase();
 
   const { data, error } = await supabase
@@ -195,6 +206,11 @@ export async function completeActiveMatch(
   if (!user) {
     return { success: false, error: "You must be signed in" };
   }
+
+  const groupId = await resolveGroupIdFromMatch(input.matchId);
+  if (!groupId) return { success: false, error: "Match not found" };
+  const auth = await authorizeGroupWrite(groupId);
+  if (!auth.authorized) return { success: false, error: auth.error };
 
   const supabase = getSupabase();
 
@@ -324,6 +340,11 @@ export async function takeOverScoring(
   if (!user) {
     return { success: false, error: "You must be signed in" };
   }
+
+  const groupId = await resolveGroupIdFromMatch(matchId);
+  if (!groupId) return { success: false, error: "Match not found" };
+  const auth = await authorizeGroupWrite(groupId);
+  if (!auth.authorized) return { success: false, error: auth.error };
 
   const supabase = getSupabase();
 
