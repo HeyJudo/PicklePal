@@ -95,27 +95,51 @@ export function SessionPlayerList({
   };
 
   return (
-    <div className="rounded-xl border border-border bg-surface">
+    <div className="rounded-xl border border-border-muted">
       {/* Header — always visible */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between p-4 cursor-pointer"
+        className="flex w-full items-center justify-between px-4 py-3 cursor-pointer"
       >
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-text-primary">
-            Players
-          </h3>
-          <span className="rounded-full bg-court-green/10 px-2 py-0.5 text-xs font-medium text-court-green">
-            {activePlayers.length} active
-          </span>
-          {benchedPlayers.length > 0 && (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-              {benchedPlayers.length} benched
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-text-primary">Players</h3>
+            <span className="rounded-full bg-court-green/10 px-2 py-0.5 text-xs font-medium text-court-green">
+              {activePlayers.length} active
             </span>
+            {benchedPlayers.length > 0 && (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                {benchedPlayers.length} benched
+              </span>
+            )}
+          </div>
+          {/* Avatar stack — visible when collapsed, signals this is info not an action */}
+          {!expanded && activePlayers.length > 0 && (
+            <div className="flex items-center -space-x-1.5">
+              {activePlayers.slice(0, 6).map((sp) => {
+                const player = playerMap.get(sp.playerId);
+                if (!player) return null;
+                return (
+                  <div
+                    key={sp.playerId}
+                    className="h-5 w-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white ring-1 ring-background shrink-0"
+                    style={{ backgroundColor: player.color ?? "#6366f1" }}
+                    title={player.display_name}
+                  >
+                    {player.display_name.charAt(0)}
+                  </div>
+                );
+              })}
+              {activePlayers.length > 6 && (
+                <div className="h-5 w-5 rounded-full flex items-center justify-center text-[8px] font-semibold text-text-muted bg-surface-muted ring-1 ring-background shrink-0">
+                  +{activePlayers.length - 6}
+                </div>
+              )}
+            </div>
           )}
         </div>
         <svg
-          className={`h-4 w-4 text-text-muted transition-transform ${expanded ? "rotate-180" : ""}`}
+          className={`h-4 w-4 text-text-muted transition-transform shrink-0 ${expanded ? "rotate-180" : ""}`}
           fill="none"
           viewBox="0 0 24 24"
           strokeWidth={2}
