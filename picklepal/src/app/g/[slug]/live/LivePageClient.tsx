@@ -476,7 +476,11 @@ export function LivePageClient({
             Start a session and score matches in real time.
           </p>
         </header>
-        {players.length === 0 ? (
+        {!isAdmin ? (
+          <div className="rounded-xl border border-border bg-surface-muted p-8 text-center">
+            <p className="text-text-muted text-sm">No active game day. Check back when the organizer starts a session.</p>
+          </div>
+        ) : players.length === 0 ? (
           <div className="rounded-xl border border-border bg-surface-muted p-8 text-center">
             <p className="text-text-muted text-sm">No players yet. Add players from the Players tab first.</p>
           </div>
@@ -590,8 +594,8 @@ export function LivePageClient({
             onMatchConfirmed={handleMatchConfirmed}
             onPlayerStatusChanged={handlePlayerStatusChanged}
           />
-          {/* Record Past Match — utility action, low visual weight */}
-          {!showRecordMatch && (
+          {/* Record Past Match — admin only, utility action, low visual weight */}
+          {isAdmin && !showRecordMatch && (
             <div className="flex items-center border-t border-border-muted pt-3">
               <button
                 type="button"
@@ -602,7 +606,7 @@ export function LivePageClient({
               </button>
             </div>
           )}
-          {showRecordMatch && (
+          {isAdmin && showRecordMatch && (
             <RecordMatchForm
               sessionId={activeSession.id}
               players={activePlayersForMatchmaking}
@@ -831,8 +835,8 @@ export function LivePageClient({
           />
         )}
 
-        {/* Record Past Match — utility action, low visual weight */}
-        {step === "active" && !showRecordMatch && (
+        {/* Record Past Match — admin only, utility action, low visual weight */}
+        {isAdmin && step === "active" && !showRecordMatch && (
           <div className="flex items-center border-t border-border-muted pt-1">
             <button
               type="button"
@@ -843,7 +847,7 @@ export function LivePageClient({
             </button>
           </div>
         )}
-        {step === "active" && showRecordMatch && (
+        {isAdmin && step === "active" && showRecordMatch && (
           <RecordMatchForm
             sessionId={activeSession.id}
             players={activePlayersForMatchmaking}

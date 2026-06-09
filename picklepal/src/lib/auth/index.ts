@@ -108,6 +108,36 @@ export async function authorizeGroupWrite(
 }
 
 /**
+ * Resolve a group_id from a session record.
+ * Used by mutating actions that only receive a sessionId.
+ */
+export async function resolveGroupIdFromSession(sessionId: string): Promise<string | null> {
+  const supabase = getSupabase();
+  const { data } = await supabase
+    .from("sessions")
+    .select("group_id")
+    .eq("id", sessionId)
+    .maybeSingle();
+  return data?.group_id ?? null;
+}
+
+/**
+ * Resolve a group_id from a match record (via its session).
+ * Used by mutating actions that only receive a matchId.
+ */
+export async function resolveGroupIdFromMatch(matchId: string): Promise<string | null> {
+  const supabase = getSupabase();
+  const { data } = await supabase
+    .from("matches")
+    .select("session_id, sessions!inner(group_id)")
+    .eq("id", matchId)
+    .maybeSingle();
+  if (!data) return null;
+  const sessions = data.sessions as { group_id: string } | null;
+  return sessions?.group_id ?? null;
+}
+
+/**
  * Quick check if the current user can read a group.
  * For use in server actions that fetch data (not writes).
  */
@@ -126,4 +156,51 @@ export async function authorizeGroupRead(slug: string): Promise<{
     clerkUserId: user?.id ?? null,
     error: result.reason,
   };
+}
+
+/**
+ * Returns the current viewer's access level for a group page.
+ * Replaces the duplicated inline group-id + isGroupAdmin block in page components.
+ *
+ * canView  — false if the group doesn't exist or is private and user isn't a member
+ * isAdmin  — true if the current user is an owner or admin of the group
+ * role     — the user's role, or "none"
+ */
+export async function getViewerAccess(slug: string): Promise<{
+  canView: boolean;
+  isAdmin: boolean;
+  role: AuthRole;
+  clerkUserId: string | null;
+  groupId: string | null;
+}> {
+  const { canViewGroup } = await import("@/lib/privacy");
+
+  const user = await currentUser();
+  const clerkUserId = user?.id ?? null;
+
+  // Visibility check
+  const visibility = await canViewGroup(slug, clerkUserId);
+  if (!visibility.canView) {
+    return { canView: false, isAdmin: false, role: "none", clerkUserId, groupId: null };
+  }
+
+  // Resolve group ID
+  const groupId = await resolveGroupId(slug);
+  if (!groupId) {
+    return { canView: false, isAdmin: false, role: "none", clerkUserId, groupId: null };
+  }
+
+  if (!clerkUserId) {
+    return { canView: true, isAdmin: false, role: "none", clerkUserId: null, groupId };
+  }
+
+  const adminCheck = await isGroupAdmin(clerkUserId, groupId);
+  if (!adminCheck) {
+    return { canView: true, isAdmin: false, role: "none", clerkUserId, groupId };
+  }
+
+  const ownerCheck = await isGroupOwner(clerkUserId, groupId);
+  const role: AuthRole = ownerCheck ? "owner" : "admin";
+
+  return { canView: true, isAdmin: true, role, clerkUserId, groupId };
 }

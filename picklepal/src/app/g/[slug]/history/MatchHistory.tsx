@@ -9,6 +9,7 @@ import type { SessionGroup, MatchWithPlayers } from "./actions";
 interface MatchHistoryProps {
   readonly sessionGroups: readonly SessionGroup[];
   readonly groupSlug: string;
+  readonly isAdmin?: boolean;
 }
 
 function formatDate(dateStr: string): string {
@@ -82,9 +83,11 @@ function MatchRow({ match }: { readonly match: MatchWithPlayers }) {
 function SessionSection({
   group,
   groupSlug,
+  isAdmin = false,
 }: {
   readonly group: SessionGroup;
   readonly groupSlug: string;
+  readonly isAdmin?: boolean;
 }) {
   const { session, matches } = group;
   const router = useRouter();
@@ -129,7 +132,7 @@ function SessionSection({
           <span className="text-xs font-label text-text-muted">
             {matches.length}&nbsp;match{matches.length !== 1 ? "es" : ""}
           </span>
-          <button
+          {isAdmin && <button
             type="button"
             onClick={handleDeleteClick}
             className="text-text-muted hover:text-hype-red transition-colors cursor-pointer p-1 rounded"
@@ -148,7 +151,7 @@ function SessionSection({
                 d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
               />
             </svg>
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -193,7 +196,7 @@ function SessionSection({
   );
 }
 
-export function MatchHistory({ sessionGroups, groupSlug }: MatchHistoryProps) {
+export function MatchHistory({ sessionGroups, groupSlug, isAdmin = false }: MatchHistoryProps) {
   if (sessionGroups.length === 0) {
     return (
       <div className="rounded-xl border border-border bg-surface-muted p-8 text-center">
@@ -211,6 +214,7 @@ export function MatchHistory({ sessionGroups, groupSlug }: MatchHistoryProps) {
           key={group.session.id}
           group={group}
           groupSlug={groupSlug}
+          isAdmin={isAdmin}
         />
       ))}
     </div>

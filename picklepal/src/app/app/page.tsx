@@ -2,7 +2,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import { UserButton } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Users, Calendar, Trophy, Plus, Zap } from "lucide-react";
+import { Users, Calendar, Trophy, Plus, Zap, Crown, Shield } from "lucide-react";
 import { getMyGroups } from "./actions";
 
 export default async function MyGroupsPage() {
@@ -61,7 +61,7 @@ export default async function MyGroupsPage() {
                 className="group cursor-pointer rounded-xl border border-border bg-surface p-5 transition-all duration-200 hover:border-primary/30 hover:shadow-md"
               >
                 {/* Group name + active badge */}
-                <div className="mb-3 flex items-start justify-between">
+                <div className="mb-2 flex items-start justify-between">
                   <h3 className="font-headline text-base font-semibold text-on-background group-hover:text-primary">
                     {group.name}
                   </h3>
@@ -69,6 +69,21 @@ export default async function MyGroupsPage() {
                     <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                       <Zap className="h-3 w-3" />
                       Live
+                    </span>
+                  )}
+                </div>
+
+                {/* Role badge */}
+                <div className="mb-3">
+                  {group.role === "owner" ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-ball-yellow/10 px-2 py-0.5 text-xs font-medium text-ball-yellow">
+                      <Crown className="h-3 w-3" />
+                      Owner
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-on-surface-variant/10 px-2 py-0.5 text-xs font-medium text-on-surface-variant">
+                      <Shield className="h-3 w-3" />
+                      Admin
                     </span>
                   )}
                 </div>
