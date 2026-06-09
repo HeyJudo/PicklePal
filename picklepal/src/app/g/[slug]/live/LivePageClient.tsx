@@ -108,6 +108,7 @@ export function LivePageClient({
   const [activeSession, setActiveSession] = useState<SessionData | null>(initialSession);
   const [sessionPlayers, setSessionPlayers] = useState<readonly SessionPlayerEntry[]>(initialSessionPlayers);
   const [sessionMatches, setSessionMatches] = useState<readonly SessionMatchData[]>(initialSessionMatches);
+  const [confirmEndDesktop, setConfirmEndDesktop] = useState(false);
   const [currentMatchup, setCurrentMatchup] = useState<Matchup | null>(null);
   const [matchConfig, setMatchConfig] = useState<MatchStartConfig | null>(null);
   const [matchLocalId, setMatchLocalId] = useState<string | null>(null);
@@ -589,15 +590,17 @@ export function LivePageClient({
             onMatchConfirmed={handleMatchConfirmed}
             onPlayerStatusChanged={handlePlayerStatusChanged}
           />
-          {/* Record Past Match */}
+          {/* Record Past Match — utility action, low visual weight */}
           {!showRecordMatch && (
-            <button
-              type="button"
-              onClick={handleRecordMatchClick}
-              className="w-full rounded-xl border border-dashed border-border px-4 py-3 text-sm font-medium text-text-secondary hover:bg-surface-muted hover:border-court-green/40 transition-colors cursor-pointer"
-            >
-              + Record Past Match
-            </button>
+            <div className="flex items-center border-t border-border-muted pt-3">
+              <button
+                type="button"
+                onClick={handleRecordMatchClick}
+                className="text-xs font-medium text-text-muted hover:text-court-green transition-colors cursor-pointer"
+              >
+                + Record past match
+              </button>
+            </div>
           )}
           {showRecordMatch && (
             <RecordMatchForm
@@ -621,19 +624,55 @@ export function LivePageClient({
     <div className="hidden lg:grid lg:grid-cols-[260px_1fr_260px] lg:gap-8 lg:items-start">
       {/* LEFT SIDEBAR — session context */}
       <aside className="space-y-4 sticky top-6">
-        {/* Session status */}
-        <div className="rounded-xl border border-court-green/20 bg-court-green/5 px-4 py-3">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-court-green opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-court-green" />
-            </span>
-            <span className="text-xs font-semibold text-court-green">Game Day Active</span>
+        {/* Session status — branded gradient hero */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-court-green-dark via-court-green to-sky-blue-dark px-4 py-4">
+          {/* Court lines watermark */}
+          <div className="absolute inset-0 opacity-[0.07]" aria-hidden="true">
+            <svg viewBox="0 0 260 140" preserveAspectRatio="xMidYMid slice" className="w-full h-full" fill="none" stroke="white" strokeWidth="1.5">
+              <rect x="10" y="10" width="240" height="120" rx="2" />
+              <line x1="130" y1="10" x2="130" y2="130" strokeWidth="2" />
+              <line x1="80" y1="10" x2="80" y2="130" strokeDasharray="4 4" />
+              <line x1="180" y1="10" x2="180" y2="130" strokeDasharray="4 4" />
+              <line x1="10" y1="70" x2="80" y2="70" />
+              <line x1="180" y1="70" x2="250" y2="70" />
+            </svg>
           </div>
-          <p className="text-sm font-bold text-text-primary">{activeSession.title ?? "Game Day"}</p>
-          <p className="text-xs text-text-muted mt-0.5">
-            {matchType === "doubles" ? "Doubles" : "Singles"} · To {activeSession.target_score}, win by {activeSession.win_by}
-          </p>
+
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-ball-yellow opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-ball-yellow" />
+              </span>
+              <span className="text-[11px] font-label font-semibold text-white/60 uppercase tracking-widest">
+                Game Day Active
+              </span>
+            </div>
+
+            <p className="font-display text-xl text-white leading-tight">
+              {activeSession.title ?? "Game Day"}
+            </p>
+
+            <div className="flex items-center gap-3 mt-2.5">
+              <div>
+                <p className="font-display text-lg text-ball-yellow leading-none tabular-nums">
+                  {activeSession.target_score}
+                </p>
+                <p className="text-white/50 text-[9px] font-label font-semibold uppercase tracking-widest mt-0.5">
+                  {matchType === "doubles" ? "Doubles" : "Singles"}
+                </p>
+              </div>
+              <div className="w-px h-6 bg-white/15" aria-hidden="true" />
+              <div>
+                <p className="font-display text-lg text-ball-yellow leading-none tabular-nums">
+                  {activeSession.win_by}
+                </p>
+                <p className="text-white/50 text-[9px] font-label font-semibold uppercase tracking-widest mt-0.5">
+                  Win by
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Players panel */}
@@ -648,14 +687,34 @@ export function LivePageClient({
         {/* Completed matches */}
         <SessionMatchHistory matches={sessionMatches} players={players} />
 
-        {/* End session */}
+        {/* End session — utility footer with inline confirm */}
         {isAdmin && (
-          <button
-            onClick={handleSessionEnded}
-            className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors cursor-pointer"
-          >
-            End Game Day
-          </button>
+          <div className="flex items-center justify-end border-t border-border-muted pt-3 min-h-[28px]">
+            {!confirmEndDesktop ? (
+              <button
+                onClick={() => setConfirmEndDesktop(true)}
+                className="text-xs font-medium text-text-muted hover:text-red-500 transition-colors cursor-pointer"
+              >
+                End Game Day
+              </button>
+            ) : (
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-text-muted">End the session?</span>
+                <button
+                  onClick={() => setConfirmEndDesktop(false)}
+                  className="text-xs font-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSessionEnded}
+                  className="text-xs font-semibold text-red-500 hover:text-red-700 transition-colors cursor-pointer"
+                >
+                  Yes, end it
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </aside>
 
@@ -772,15 +831,17 @@ export function LivePageClient({
           />
         )}
 
-        {/* Record Past Match */}
+        {/* Record Past Match — utility action, low visual weight */}
         {step === "active" && !showRecordMatch && (
-          <button
-            type="button"
-            onClick={handleRecordMatchClick}
-            className="w-full rounded-xl border border-dashed border-border px-4 py-3 text-sm font-medium text-text-secondary hover:bg-surface-muted hover:border-court-green/40 transition-colors cursor-pointer"
-          >
-            + Record Past Match
-          </button>
+          <div className="flex items-center border-t border-border-muted pt-1">
+            <button
+              type="button"
+              onClick={handleRecordMatchClick}
+              className="text-xs font-medium text-text-muted hover:text-court-green transition-colors cursor-pointer"
+            >
+              + Record past match
+            </button>
+          </div>
         )}
         {step === "active" && showRecordMatch && (
           <RecordMatchForm
