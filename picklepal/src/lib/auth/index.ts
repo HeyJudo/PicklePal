@@ -129,12 +129,11 @@ export async function resolveGroupIdFromMatch(matchId: string): Promise<string |
   const supabase = getSupabase();
   const { data } = await supabase
     .from("matches")
-    .select("session_id, sessions!inner(group_id)")
+    .select("session_id")
     .eq("id", matchId)
     .maybeSingle();
-  if (!data) return null;
-  const sessions = data.sessions as { group_id: string } | null;
-  return sessions?.group_id ?? null;
+  if (!data?.session_id) return null;
+  return resolveGroupIdFromSession(data.session_id);
 }
 
 /**
