@@ -262,33 +262,44 @@ export function SessionDetail({
         History
       </Link>
 
-      {/* Session header */}
-      <header>
-        <h1 className="text-2xl font-bold text-text-primary">
-          {session.title ?? "Game Day"}
-        </h1>
-        <p className="text-text-secondary text-sm mt-1">
-          {formatDate(session.started_at)}
-        </p>
-      </header>
+      {/* Session header — branded hero */}
+      <header className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-court-green-dark via-court-green to-sky-blue-dark px-5 py-5 sm:px-6">
+        {/* Court lines watermark */}
+        <div className="absolute inset-0 opacity-[0.07]" aria-hidden="true">
+          <svg viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice" className="w-full h-full" fill="none" stroke="white" strokeWidth="1.5">
+            <rect x="20" y="20" width="360" height="160" rx="2" />
+            <line x1="200" y1="20" x2="200" y2="180" strokeWidth="2" />
+            <line x1="130" y1="20" x2="130" y2="180" strokeDasharray="4 4" />
+            <line x1="270" y1="20" x2="270" y2="180" strokeDasharray="4 4" />
+            <line x1="20" y1="100" x2="130" y2="100" />
+            <line x1="270" y1="100" x2="380" y2="100" />
+          </svg>
+        </div>
 
-      {/* Summary stats */}
-      <div className="grid grid-cols-3 gap-2">
-        <div className="flex flex-col items-center rounded-lg border border-border bg-surface-muted px-3 py-3">
-          <span className="text-xl font-bold text-text-primary">{summary.gamesPlayed}</span>
-          <span className="text-xs text-text-muted mt-0.5">Games</span>
+        <div className="relative">
+          <p className="text-white/50 text-[11px] font-label font-semibold uppercase tracking-widest mb-1">
+            {session.status === "completed" ? "Completed Session" : session.status === "active" ? "Active Session" : "Session"}
+          </p>
+          <h1 className="font-display text-3xl text-white leading-tight">
+            {session.title ?? "Game Day"}
+          </h1>
+          <p className="text-white/65 text-sm mt-1">{formatDate(session.started_at)}</p>
+
+          {/* Quick stats row */}
+          <div className="flex gap-6 mt-4">
+            {[
+              { value: String(summary.gamesPlayed), label: "Games" },
+              { value: String(summary.playerCount), label: "Players" },
+              { value: formatDuration(summary.durationMinutes), label: "Duration" },
+            ].map(({ value, label }) => (
+              <div key={label}>
+                <p className="font-display text-2xl text-ball-yellow leading-none tabular-nums">{value}</p>
+                <p className="text-white/55 text-[10px] font-label font-semibold uppercase tracking-widest mt-1">{label}</p>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="flex flex-col items-center rounded-lg border border-border bg-surface-muted px-3 py-3">
-          <span className="text-xl font-bold text-text-primary">{summary.playerCount}</span>
-          <span className="text-xs text-text-muted mt-0.5">Players</span>
-        </div>
-        <div className="flex flex-col items-center rounded-lg border border-border bg-surface-muted px-3 py-3">
-          <span className="text-xl font-bold text-text-primary">
-            {formatDuration(summary.durationMinutes)}
-          </span>
-          <span className="text-xs text-text-muted mt-0.5">Duration</span>
-        </div>
-      </div>
+      </header>
 
       {/* Awards */}
       {(awards.mvp || awards.hottestDuo || awards.bestMatch) && (
