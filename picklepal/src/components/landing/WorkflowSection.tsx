@@ -1,49 +1,91 @@
+"use client";
 import React from 'react';
-import { motion } from 'motion/react';
-import { UserPlus, RefreshCcw, LayoutGrid, Trophy } from 'lucide-react';
+import Image from 'next/image';
+import { motion, useReducedMotion } from 'motion/react';
+
+interface Step {
+  verb: string;
+  label: string;
+  src: string;
+  alt: string;
+  position?: string;
+}
+
+const steps: Step[] = [
+  {
+    verb: 'Pick',
+    label: "who's playing",
+    src: '/screenshots/workflow-pick.png',
+    alt: 'Player selection screen',
+    position: 'object-top',
+  },
+  {
+    verb: 'Rotate',
+    label: 'fairly',
+    src: '/screenshots/workflow-rotate.png',
+    alt: 'Court positions and rotation screen',
+    position: 'object-top',
+  },
+  {
+    verb: 'Score',
+    label: 'live',
+    src: '/screenshots/workflow-score.png',
+    alt: 'Live scoring screen',
+    position: 'object-top',
+  },
+  {
+    verb: 'Recap',
+    label: 'the day',
+    src: '/screenshots/workflow-recap.png',
+    alt: 'Session recap screen',
+    position: 'object-center',
+  },
+];
 
 export default function WorkflowSection() {
-  const steps = [
-    { icon: UserPlus, title: "Pick who's playing", color: "text-primary", border: "border-primary/20", hoverBg: "group-hover:bg-primary" },
-    { icon: RefreshCcw, title: "Rotate fairly", color: "text-primary", border: "border-primary/20", hoverBg: "group-hover:bg-primary", rotate: true },
-    { icon: LayoutGrid, title: "Score live", color: "text-primary", border: "border-primary/20", hoverBg: "group-hover:bg-primary" },
-    { icon: Trophy, title: "Recap the day", color: "text-celebration", border: "border-celebration/20", hoverBg: "group-hover:bg-celebration hover:text-primary-dark", bounce: true }
-  ];
+  const reduce = useReducedMotion();
 
   return (
     <section id="how-it-works" className="py-24 px-5 md:px-12 bg-surface">
       <div className="max-w-[1280px] mx-auto">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+        <motion.h2
+          initial={reduce ? false : { opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center mb-16"
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          className="font-headline text-[42px] md:text-[52px] font-extrabold text-primary-dark mb-12 tracking-tight leading-none"
         >
-          <h2 className="font-headline text-[48px] font-extrabold text-primary-dark mb-4">
-            From first serve to final recap.
-          </h2>
-        </motion.div>
+          From first serve to final recap.
+        </motion.h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {steps.map((step, index) => (
-            <motion.div 
-              key={index}
-              initial={{ opacity: 0, y: 30 }}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
+          {steps.map((step, i) => (
+            <motion.div
+              key={i}
+              initial={reduce ? false : { opacity: 0, y: 28 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-50px" }}
-              transition={{ delay: index * 0.1 }}
-              className="relative flex flex-col items-center text-center group"
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: 0.5, delay: i * 0.1, ease: [0.16, 1, 0.3, 1] }}
+              className="flex flex-col gap-3 group"
             >
-              <div className={`w-20 h-20 bg-surface-container rounded-full flex items-center justify-center ${step.color} border-2 ${step.border} mb-6 z-10 ${step.hoverBg} group-hover:text-surface group-hover:scale-110 transition-all duration-300 shadow-sm`}>
-                <step.icon className={`w-8 h-8 group-hover:scale-110 transition-transform ${step.rotate ? 'group-hover:rotate-180 duration-500' : ''} ${step.bounce ? 'group-hover:animate-bounce group-hover:text-primary-dark' : ''}`} />
+              {/* Preview card */}
+              <div className="rounded-xl overflow-hidden bg-surface-container border border-outline-variant/20 h-[200px]">
+                <div className="relative w-full h-full">
+                  <Image
+                    src={step.src}
+                    alt={step.alt}
+                    fill
+                    className={`object-cover ${step.position ?? 'object-top'} group-hover:scale-105 transition-transform duration-500`}
+                  />
+                </div>
               </div>
-              
-              {/* Connector Line */}
-              {index < steps.length - 1 && (
-                <div className="hidden md:block absolute top-10 left-[60%] w-full h-[2px] bg-outline-variant/30 -z-0 group-hover:bg-primary/30 transition-colors"></div>
-              )}
-              
-              <h3 className="font-headline font-bold text-xl mb-2">{step.title}</h3>
+              {/* Step label */}
+              <div className="flex items-baseline gap-1.5">
+                <span className="font-display text-[22px] uppercase text-primary-dark tracking-tighter leading-none">
+                  {step.verb}
+                </span>
+                <span className="font-body text-sm text-on-surface-variant">{step.label}</span>
+              </div>
             </motion.div>
           ))}
         </div>
