@@ -11,6 +11,7 @@ import {
   HistoryIcon,
   PlayersIcon,
 } from "@/components/icons";
+import Logo from "@/components/Logo";
 
 interface NavItem {
   readonly label: string;
@@ -60,63 +61,7 @@ export function DesktopNav({ groupSlug }: { readonly groupSlug: string }) {
           My Groups
         </Link>
         {/* Wordmark */}
-        <div className="relative flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-court-green flex items-center justify-center shrink-0 shadow-sm">
-            {/* Paddle icon */}
-            <svg
-              className="w-5 h-5 text-white"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden="true"
-            >
-              <ellipse cx="12" cy="10" rx="6.5" ry="7.5" fill="currentColor" />
-              <line
-                x1="8.5"
-                y1="7"
-                x2="15.5"
-                y2="13"
-                stroke="rgba(255,255,255,0.35)"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-              <line
-                x1="8.5"
-                y1="10"
-                x2="15.5"
-                y2="10"
-                stroke="rgba(255,255,255,0.35)"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-              <line
-                x1="8.5"
-                y1="13"
-                x2="15.5"
-                y2="7"
-                stroke="rgba(255,255,255,0.35)"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-              <rect
-                x="11"
-                y="17.5"
-                width="2"
-                height="5"
-                rx="1"
-                fill="currentColor"
-              />
-            </svg>
-          </div>
-          <div>
-            <span className="text-base font-bold tracking-tight leading-none text-text-primary">
-              Dink
-              <span className="text-court-green">Day</span>
-            </span>
-            <p className="text-[10px] text-text-muted font-medium leading-tight mt-0.5">
-              Game day, handled.
-            </p>
-          </div>
-        </div>
+        <Logo size={48} />
       </div>
 
       {/* Game Day Active pill — shown on live page */}
