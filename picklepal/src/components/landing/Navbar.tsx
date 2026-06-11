@@ -1,16 +1,13 @@
 import React from 'react';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
+import Logo from '@/components/Logo';
 
 export default function Navbar() {
   return (
     <nav className="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-md border-b border-primary/10 flex justify-between items-center px-5 md:px-12 py-4 max-w-[1280px] mx-auto left-0 right-0 transition-transform duration-300">
-      <a href="#" className="flex items-center gap-2 hover:scale-105 transition-transform">
-        <img 
-          src="https://lh3.googleusercontent.com/aida/AP1WRLv1XyoEZhLB2kLKzhr3OpMZAwiHw_IJkc83sHf02m1wBamfYyl9YKfLXMqrEKqoMeCDa9PykETHQopAsM9FFgYNcTCoJSF1oz0uHkMbVQlmDQ8XuC3tnR8Hsex8uYVHzyaohtV1g_qM1jUUaNtivfE4AnqwErez3ZIafjKMc1sg3kiVBhdQxiV6wNZiRG3WWvBelkDGqYmqMrUQfe8XB_38CYiVvPpAUYQFcGSE3-bSSq7FkaxRh-AAeA" 
-          alt="DinkDay Logo" 
-          className="h-10 w-auto" 
-        />
+      <a href="#" className="hover:opacity-90 transition-opacity">
+        <Logo size={52} />
       </a>
       
       <div className="hidden md:flex gap-8 items-center">
