@@ -46,22 +46,24 @@ export function computePlayerStats(
   const winRate = gamesPlayed > 0 ? wins / gamesPlayed : 0;
   const pointDifferential = pointsFor - pointsAgainst;
 
-  // Recent matches sorted by completion time (newest first)
+  // Recent matches sorted by played date (newest first)
   const recentMatches: readonly MatchSummary[] = playerMatches
     .sort((a, b) => {
-      const aTime = a.completed_at ?? a.created_at;
-      const bTime = b.completed_at ?? b.created_at;
+      const aTime = (a as { played_at?: string }).played_at ?? a.completed_at ?? a.created_at;
+      const bTime = (b as { played_at?: string }).played_at ?? b.completed_at ?? b.created_at;
       return bTime.localeCompare(aTime);
     })
     .slice(0, recentLimit)
     .map((m) => ({
       matchId: m.id,
       matchType: m.match_type,
+      source: m.source,
       teamAPlayerIds: m.team_a_player_ids,
       teamBPlayerIds: m.team_b_player_ids,
       teamAScore: m.team_a_score,
       teamBScore: m.team_b_score,
       winningTeam: m.winning_team,
+      playedAt: (m as { played_at?: string }).played_at ?? null,
       completedAt: m.completed_at,
     }));
 

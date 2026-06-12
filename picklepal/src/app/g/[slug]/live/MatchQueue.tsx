@@ -260,6 +260,7 @@ function PlayerSlot({
       <button
         onClick={interactive ? onStartSwap : undefined}
         disabled={!interactive}
+        aria-label={interactive ? (isSwapping ? `Cancel swap for ${name}` : `Change player: ${name}`) : name}
         className={`flex w-full items-center gap-2 rounded-lg transition-colors ${
           interactive
             ? isSwapping
@@ -278,21 +279,14 @@ function PlayerSlot({
           {name}
         </span>
         {interactive && (
-          <svg
-            className={`h-3.5 w-3.5 shrink-0 transition-colors ${
+          <span
+            className={`text-[10px] font-semibold shrink-0 transition-colors ${
               isSwapping ? "text-court-green" : "text-text-muted"
             }`}
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={2}
-            stroke="currentColor"
+            aria-hidden="true"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 3M21 7.5H7.5"
-            />
-          </svg>
+            {isSwapping ? "Cancel" : "Change"}
+          </span>
         )}
       </button>
 

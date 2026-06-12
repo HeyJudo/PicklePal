@@ -2,7 +2,14 @@
 
 import { createServerClient } from "@/lib/supabase";
 import { authorizeGroupWrite, resolveGroupIdFromMatch } from "@/lib/auth";
-import type { Database } from "@/lib/supabase";
+import { findOrCreateManualBucket } from "@/lib/sessions/manualBucket";
+import {
+  validateManualMatchScores,
+  validateTeams,
+  validatePlayedDate,
+  playedDateToTimestamp,
+} from "@/lib/matches/validation";
+import type { Database, MatchType } from "@/lib/supabase";
 
 interface ActionResult {
   readonly success: boolean;
@@ -112,6 +119,124 @@ export async function cancelMatch(matchId: string): Promise<ActionResult> {
 
   if (error) {
     return { success: false, error: "Failed to cancel match" };
+  }
+
+  return { success: true };
+}
+
+// ─── Update Manual Match ─────────────────────────────────────────────────────
+
+interface UpdateManualMatchInput {
+  readonly matchId: string;
+  readonly matchType: MatchType;
+  readonly teamAPlayerIds: readonly string[];
+  readonly teamBPlayerIds: readonly string[];
+  readonly teamAScore: number;
+  readonly teamBScore: number;
+  readonly targetScore: number;
+  readonly winBy: number;
+  readonly playedDate: string; // YYYY-MM-DD
+}
+
+/**
+ * Update a manual match (source='manual', status='completed').
+ * Full re-validation of teams and scores.
+ * If the date changes, the match is moved to the new bucket session.
+ */
+export async function updateManualMatch(
+  input: UpdateManualMatchInput,
+): Promise<ActionResult> {
+  // Validate date
+  const dateError = validatePlayedDate(input.playedDate);
+  if (dateError) {
+    return { success: false, error: dateError };
+  }
+
+  // Validate teams
+  const teamError = validateTeams(input.matchType, input.teamAPlayerIds, input.teamBPlayerIds);
+  if (teamError) {
+    return { success: false, error: teamError };
+  }
+
+  // Validate scores
+  const scoreError = validateManualMatchScores(
+    input.teamAScore,
+    input.teamBScore,
+    input.targetScore,
+    input.winBy,
+  );
+  if (scoreError) {
+    return { success: false, error: scoreError };
+  }
+
+  // Authorize
+  const groupId = await resolveGroupIdFromMatch(input.matchId);
+  if (!groupId) return { success: false, error: "Match not found" };
+  const authResult = await authorizeGroupWrite(groupId);
+  if (!authResult.authorized) return { success: false, error: authResult.error };
+
+  // Fetch current match to check source/status
+  const supabase = createServerClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: match } = await (supabase as any)
+    .from("matches")
+    .select("id, status, source, session_id")
+    .eq("id", input.matchId)
+    .single();
+
+  if (!match) {
+    return { success: false, error: "Match not found" };
+  }
+
+  if (match.source !== "manual" || match.status !== "completed") {
+    return { success: false, error: "Only completed manual matches can be edited" };
+  }
+
+  const winningTeam = input.teamAScore > input.teamBScore ? "A" : "B";
+  const losingTeam = winningTeam === "A" ? "B" : "A";
+  const playedAt = playedDateToTimestamp(input.playedDate);
+
+  // Determine if we need to move the match to a different bucket
+  let newSessionId: string = match.session_id;
+
+  // Check if current session is a manual_bucket
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: currentSession } = await (supabase as any)
+    .from("sessions")
+    .select("id, source, bucket_date")
+    .eq("id", match.session_id)
+    .maybeSingle();
+
+  if (currentSession?.source === "manual_bucket") {
+    // Date changed — move to new bucket
+    if (currentSession.bucket_date !== input.playedDate) {
+      const bucketResult = await findOrCreateManualBucket(supabase, groupId, input.playedDate);
+      if ("error" in bucketResult) {
+        return { success: false, error: bucketResult.error };
+      }
+      newSessionId = bucketResult.sessionId;
+    }
+  }
+  // If assigned to a real (live) session, only played_at changes; session_id stays
+
+  const { error } = await updateMatch(input.matchId, {
+    session_id: newSessionId,
+    match_type: input.matchType,
+    team_a_player_ids: [...input.teamAPlayerIds],
+    team_b_player_ids: [...input.teamBPlayerIds],
+    team_a_score: input.teamAScore,
+    team_b_score: input.teamBScore,
+    winning_team: winningTeam,
+    losing_team: losingTeam,
+    target_score: input.targetScore,
+    win_by: input.winBy,
+    played_at: playedAt,
+    completed_at: playedAt,
+    updated_at: new Date().toISOString(),
+  });
+
+  if (error) {
+    return { success: false, error: "Failed to update match" };
   }
 
   return { success: true };

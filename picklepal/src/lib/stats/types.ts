@@ -30,11 +30,13 @@ export interface PlayerStats {
 export interface MatchSummary {
   readonly matchId: string;
   readonly matchType: string;
+  readonly source: string;
   readonly teamAPlayerIds: readonly string[];
   readonly teamBPlayerIds: readonly string[];
   readonly teamAScore: number;
   readonly teamBScore: number;
   readonly winningTeam: string | null;
+  readonly playedAt: string | null;
   readonly completedAt: string | null;
 }
 

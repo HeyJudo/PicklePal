@@ -113,7 +113,7 @@ export function StartSessionForm({
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {players.map((player) => {
+            {[...players].sort((a, b) => a.display_name.localeCompare(b.display_name)).map((player) => {
               const isSelected = selectedPlayerIds.has(player.id);
               return (
                 <button
@@ -131,9 +131,14 @@ export function StartSessionForm({
                     avatarUrl={player.avatar_url}
                     size="sm"
                   />
-                  <span className="text-sm font-medium text-text-primary truncate">
+                  <span className="text-sm font-medium text-text-primary truncate flex-1 text-left">
                     {player.display_name}
                   </span>
+                  {isSelected && (
+                    <svg className="h-4 w-4 text-court-green shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                  )}
                 </button>
               );
             })}
@@ -154,7 +159,9 @@ export function StartSessionForm({
             disabled={!canStart}
             className="w-full rounded-xl bg-court-green px-4 py-4 text-base font-bold text-white hover:bg-court-green-dark transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-court-green/20"
           >
-            Next: Game Settings
+            {canStart
+              ? `Next: Game Settings (${selectedPlayerIds.size} players)`
+              : `Need at least ${minPlayers} players`}
           </button>
         </div>
       )}
@@ -276,18 +283,8 @@ export function StartSessionForm({
             disabled={isPending || !canStart}
             className="w-full rounded-xl bg-court-green px-4 py-4 text-base font-bold text-white hover:bg-court-green-dark transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-court-green/20"
           >
-            {isPending
-              ? "Starting..."
-              : !canStart
-                ? `Need at least ${minPlayers} players`
-                : "Start Game Day"}
+            {isPending ? "Starting..." : "Start Game Day"}
           </button>
-
-          {!canStart && (
-            <p className="text-sm text-red-500 text-center">
-              Go back and select at least {minPlayers} players for {matchType}.
-            </p>
-          )}
         </div>
       )}
     </div>
