@@ -42,6 +42,7 @@ export function SessionPlayerList({
   const [isPending, startTransition] = useTransition();
   const [expanded, setExpanded] = useState(false);
   const [showAddPlayer, setShowAddPlayer] = useState(false);
+  const [addedPlayerName, setAddedPlayerName] = useState<string | null>(null);
 
   const playerMap = new Map(players.map((p) => [p.id, p]));
   const sessionPlayerMap = new Map(
@@ -85,11 +86,14 @@ export function SessionPlayerList({
 
   const handleAddLateArrival = (playerId: string) => {
     if (!isHost) return;
+    const playerName = playerMap.get(playerId)?.display_name ?? "Player";
     startTransition(async () => {
       const result = await activatePlayer(sessionId, playerId);
       if (result.success) {
         onPlayerStatusChanged(playerId, "active");
         setShowAddPlayer(false);
+        setAddedPlayerName(playerName);
+        setTimeout(() => setAddedPlayerName(null), 2500);
       }
     });
   };
@@ -204,6 +208,13 @@ export function SessionPlayerList({
             </div>
           )}
 
+          {/* Late arrival success feedback */}
+          {addedPlayerName && (
+            <p className="text-xs text-court-green font-medium px-1">
+              {addedPlayerName} added to session!
+            </p>
+          )}
+
           {/* Add Late Arrival */}
           {isHost && availableToAdd.length > 0 && (
             <div className="pt-2 border-t border-border">
@@ -228,7 +239,7 @@ export function SessionPlayerList({
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {availableToAdd.map((player) => (
+                    {[...availableToAdd].sort((a, b) => a.display_name.localeCompare(b.display_name)).map((player) => (
                       <button
                         key={player.id}
                         onClick={() => handleAddLateArrival(player.id)}

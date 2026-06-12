@@ -64,12 +64,14 @@ function RecentMatchRow({
   const playerScore = isTeamA ? match.teamAScore : match.teamBScore;
   const opponentScore = isTeamA ? match.teamBScore : match.teamAScore;
 
-  const completedDate = match.completedAt
-    ? new Date(match.completedAt).toLocaleDateString("en-US", {
+  const dateTs = match.playedAt ?? match.completedAt;
+  const completedDate = dateTs
+    ? new Date(dateTs).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
       })
     : "-";
+  const isManual = match.source === "manual";
 
   return (
     <div className="flex items-center justify-between py-3 border-b border-border-muted last:border-0 gap-3">
@@ -105,6 +107,13 @@ function RecentMatchRow({
           {opponentScore}
         </span>
       </div>
+
+      {/* Manual badge */}
+      {isManual && (
+        <span className="inline-flex items-center rounded-full bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[9px] font-label font-semibold uppercase tracking-wide text-amber-600 shrink-0">
+          Manual
+        </span>
+      )}
 
       {/* Date */}
       <span className="text-xs text-text-muted font-label shrink-0">

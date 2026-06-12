@@ -1,6 +1,7 @@
-import { getMatchHistory } from "./actions";
+import { getMatchHistory, getRecentSessionOptions } from "./actions";
 import { MatchHistory } from "./MatchHistory";
 import { getViewerAccess } from "@/lib/auth";
+import type { Player } from "@/lib/supabase";
 
 interface HistoryPageProps {
   readonly params: Promise<{ slug: string }>;
@@ -8,13 +9,18 @@ interface HistoryPageProps {
 
 export default async function HistoryPage({ params }: HistoryPageProps) {
   const { slug } = await params;
-  const [{ sessionGroups, error }, viewerAccess] = await Promise.all([
-    getMatchHistory(slug),
+  const [{ sessionGroups, players, error }, viewerAccess] = await Promise.all([
+    getMatchHistory(slug, { includeCancelled: true }),
     getViewerAccess(slug),
   ]);
   const isAdmin = viewerAccess.isAdmin;
 
-  const totalMatches = sessionGroups.reduce((sum, g) => sum + g.matches.length, 0);
+  const sessionOptions = isAdmin ? await getRecentSessionOptions(slug) : [];
+
+  const totalMatches = sessionGroups.reduce(
+    (sum, g) => sum + g.matches.filter((m) => m.status === "completed").length,
+    0,
+  );
 
   return (
     <div className="space-y-6">
@@ -37,16 +43,18 @@ export default async function HistoryPage({ params }: HistoryPageProps) {
               {sessionGroups.length} session{sessionGroups.length !== 1 ? "s" : ""}
             </p>
           </div>
-          {totalMatches > 0 && (
-            <div className="text-right shrink-0">
-              <p className="font-display text-4xl text-ball-yellow leading-none tabular-nums">
-                {totalMatches}
-              </p>
-              <p className="text-white/55 text-[10px] mt-1 font-label font-semibold uppercase tracking-widest">
-                Total matches
-              </p>
-            </div>
-          )}
+          <div className="flex flex-col items-end gap-3 shrink-0">
+            {totalMatches > 0 && (
+              <div className="text-right">
+                <p className="font-display text-4xl text-ball-yellow leading-none tabular-nums">
+                  {totalMatches}
+                </p>
+                <p className="text-white/55 text-[10px] mt-1 font-label font-semibold uppercase tracking-widest">
+                  Total matches
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -55,7 +63,13 @@ export default async function HistoryPage({ params }: HistoryPageProps) {
           <p className="text-hype-red text-sm font-medium">{error}</p>
         </div>
       ) : (
-        <MatchHistory sessionGroups={sessionGroups} groupSlug={slug} isAdmin={isAdmin} />
+        <MatchHistory
+          sessionGroups={sessionGroups}
+          groupSlug={slug}
+          isAdmin={isAdmin}
+          players={players as Player[]}
+          sessionOptions={sessionOptions}
+        />
       )}
     </div>
   );

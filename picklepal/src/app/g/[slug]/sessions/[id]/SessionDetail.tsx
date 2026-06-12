@@ -133,6 +133,7 @@ function MatchRow({
   readonly playerNames: Record<string, string>;
 }) {
   const teamAWon = match.winning_team === "A";
+  const isManual = match.source === "manual";
   const teamANames = match.team_a_player_ids.map((id) => playerNames[id] ?? "Unknown").join(" & ");
   const teamBNames = match.team_b_player_ids.map((id) => playerNames[id] ?? "Unknown").join(" & ");
 
@@ -144,6 +145,11 @@ function MatchRow({
         </p>
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
+        {isManual && (
+          <span className="text-[9px] font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5">
+            Manual
+          </span>
+        )}
         <span className={`text-sm font-bold tabular-nums ${teamAWon ? "text-court-green" : "text-text-secondary"}`}>
           {match.team_a_score}
         </span>
@@ -241,6 +247,8 @@ export function SessionDetail({
   groupSlug,
 }: SessionDetailProps) {
   const completedMatches = matches.filter((m) => m.status === "completed");
+  const isBucket = (session as { source?: string }).source === "manual_bucket";
+  const sessionDisplayTitle = isBucket ? "Logged matches" : (session.title ?? "Game Day");
 
   return (
     <div className="space-y-6">
@@ -278,19 +286,19 @@ export function SessionDetail({
 
         <div className="relative">
           <p className="text-white/50 text-[11px] font-label font-semibold uppercase tracking-widest mb-1">
-            {session.status === "completed" ? "Completed Session" : session.status === "active" ? "Active Session" : "Session"}
+            {isBucket ? "Logged Matches" : session.status === "completed" ? "Completed Session" : session.status === "active" ? "Active Session" : "Session"}
           </p>
           <h1 className="font-display text-3xl text-white leading-tight">
-            {session.title ?? "Game Day"}
+            {sessionDisplayTitle}
           </h1>
           <p className="text-white/65 text-sm mt-1">{formatDate(session.started_at)}</p>
 
-          {/* Quick stats row */}
+          {/* Quick stats row — hide duration for bucket sessions */}
           <div className="flex gap-6 mt-4">
             {[
               { value: String(summary.gamesPlayed), label: "Games" },
               { value: String(summary.playerCount), label: "Players" },
-              { value: formatDuration(summary.durationMinutes), label: "Duration" },
+              ...(!isBucket ? [{ value: formatDuration(summary.durationMinutes), label: "Duration" }] : []),
             ].map(({ value, label }) => (
               <div key={label}>
                 <p className="font-display text-2xl text-ball-yellow leading-none tabular-nums">{value}</p>
