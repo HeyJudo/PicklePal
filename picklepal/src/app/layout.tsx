@@ -30,7 +30,7 @@ const anton = Anton({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://dinkday.site"),
+  metadataBase: new URL("https://www.dinkday.site"),
   title: "DinkDay — Game day, handled.",
   description:
     "Live scoring, fair rotations, persistent rankings, and shareable Game Day recaps for your pickleball crew.",
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     title: "DinkDay — Game day, handled.",
     description:
       "Live scoring, fair rotations, persistent rankings, and shareable Game Day recaps for your pickleball crew.",
-    url: "https://dinkday.site",
+    url: "https://www.dinkday.site",
     siteName: "DinkDay",
     images: [
       {
