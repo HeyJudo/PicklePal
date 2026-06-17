@@ -177,18 +177,47 @@ function DuoRow({
 function BestChemistryCard({
   duo,
   playerId,
+  expanded,
+  onToggle,
+  hasMore,
+  totalCount,
 }: {
   readonly duo: DuoStats;
   readonly playerId: string;
+  readonly expanded: boolean;
+  readonly onToggle: () => void;
+  readonly hasMore: boolean;
+  readonly totalCount: number;
 }) {
+  const reduce = useReducedMotion();
   const partnerName =
     duo.playerAId === playerId ? duo.playerBName : duo.playerAName;
   const winRatePct = (duo.winRate * 100).toFixed(0);
   const winRateNum = Number(winRatePct);
   const diff = duo.pointDifferential;
 
+  const interactiveProps = hasMore
+    ? {
+        role: "button" as const,
+        tabIndex: 0,
+        "aria-expanded": expanded,
+        onClick: onToggle,
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggle();
+          }
+        },
+        className:
+          "rounded-xl border border-sky-200 bg-gradient-to-br from-sky-50 to-white p-4 flex items-center gap-4 shadow-sm cursor-pointer select-none hover:border-sky-300 hover:shadow-md active:scale-[0.99] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-1",
+      }
+    : {
+        className:
+          "rounded-xl border border-sky-200 bg-gradient-to-br from-sky-50 to-white p-4 flex items-center gap-4 shadow-sm",
+      };
+
   return (
-    <div className="rounded-xl border border-sky-200 bg-gradient-to-br from-sky-50 to-white p-4 flex items-center gap-4 shadow-sm">
+    <div {...interactiveProps}>
       <div className="relative shrink-0">
         <PlayerAvatar
           displayName={partnerName}
@@ -214,14 +243,33 @@ function BestChemistryCard({
             {diff > 0 ? `+${diff}` : diff} pts
           </span>
         </div>
+        {hasMore && !expanded && (
+          <p className="text-[10px] font-label text-sky-400 mt-1">
+            Tap to see all ({totalCount})
+          </p>
+        )}
       </div>
-      <div className="shrink-0 text-right">
+      <div className="shrink-0 text-right flex flex-col items-end gap-1">
         <span
           className={`font-score text-2xl font-bold tabular-nums leading-none ${winRateColorClass(winRateNum)}`}
         >
           {winRatePct}%
         </span>
-        <p className="text-[10px] font-label text-text-muted mt-0.5">win rate</p>
+        <p className="text-[10px] font-label text-text-muted">win rate</p>
+        {hasMore && (
+          <motion.span
+            animate={{ rotate: expanded ? 180 : 0 }}
+            transition={
+              reduce
+                ? { duration: 0 }
+                : { duration: 0.25, ease: [0.16, 1, 0.3, 1] }
+            }
+            style={{ display: "inline-flex" }}
+            aria-hidden="true"
+          >
+            <ChevronDown className="h-4 w-4 text-sky-400" strokeWidth={2.5} />
+          </motion.span>
+        )}
       </div>
     </div>
   );
@@ -274,9 +322,18 @@ function RivalryRow({
 
 function BiggestRivalCard({
   rivalry,
+  expanded,
+  onToggle,
+  hasMore,
+  totalCount,
 }: {
   readonly rivalry: RivalryStats;
+  readonly expanded: boolean;
+  readonly onToggle: () => void;
+  readonly hasMore: boolean;
+  readonly totalCount: number;
 }) {
+  const reduce = useReducedMotion();
   const winRatePct = (rivalry.winRate * 100).toFixed(0);
   const winRateNum = Number(winRatePct);
   const diff = rivalry.pointDifferential;
@@ -284,16 +341,38 @@ function BiggestRivalCard({
   const isWinning = rivalry.wins > rivalry.losses;
   const isLosing = rivalry.losses > rivalry.wins;
 
+  const baseColorClasses = isWinning
+    ? "border-court-green/30 bg-gradient-to-br from-court-green/5 to-white"
+    : isLosing
+      ? "border-hype-red/30 bg-gradient-to-br from-hype-red/5 to-white"
+      : "border-border bg-gradient-to-br from-surface-muted to-white";
+
+  const interactiveProps = hasMore
+    ? {
+        role: "button" as const,
+        tabIndex: 0,
+        "aria-expanded": expanded,
+        onClick: onToggle,
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggle();
+          }
+        },
+        className: `rounded-xl border p-4 flex items-center gap-4 shadow-sm cursor-pointer select-none hover:shadow-md active:scale-[0.99] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
+          isWinning
+            ? "hover:border-court-green/50 focus-visible:ring-court-green/50"
+            : isLosing
+              ? "hover:border-hype-red/40 focus-visible:ring-hype-red/50"
+              : "hover:border-border-muted focus-visible:ring-border"
+        } ${baseColorClasses}`,
+      }
+    : {
+        className: `rounded-xl border p-4 flex items-center gap-4 shadow-sm ${baseColorClasses}`,
+      };
+
   return (
-    <div
-      className={`rounded-xl border p-4 flex items-center gap-4 shadow-sm ${
-        isWinning
-          ? "border-court-green/30 bg-gradient-to-br from-court-green/5 to-white"
-          : isLosing
-            ? "border-hype-red/30 bg-gradient-to-br from-hype-red/5 to-white"
-            : "border-border bg-gradient-to-br from-surface-muted to-white"
-      }`}
-    >
+    <div {...interactiveProps}>
       <div className="relative shrink-0">
         <PlayerAvatar
           displayName={rivalry.opponentName}
@@ -333,8 +412,13 @@ function BiggestRivalCard({
             {diff > 0 ? `+${diff}` : diff} pts
           </span>
         </div>
+        {hasMore && !expanded && (
+          <p className="text-[10px] font-label text-text-muted mt-1">
+            Tap to see all ({totalCount})
+          </p>
+        )}
       </div>
-      <div className="shrink-0 text-right">
+      <div className="shrink-0 text-right flex flex-col items-end gap-1">
         <div className="flex items-baseline gap-1 justify-end">
           <span
             className={`font-score text-2xl font-bold tabular-nums leading-none ${
@@ -343,7 +427,7 @@ function BiggestRivalCard({
           >
             {rivalry.wins}
           </span>
-          <span className="text-text-muted text-lg font-light">–</span>
+          <span className="text-text-muted text-lg font-light">-</span>
           <span
             className={`font-score text-2xl font-bold tabular-nums leading-none ${
               isLosing ? "text-hype-red" : isWinning ? "text-text-muted" : "text-text-primary"
@@ -357,71 +441,61 @@ function BiggestRivalCard({
         >
           {winRatePct}% win
         </span>
+        {hasMore && (
+          <motion.span
+            animate={{ rotate: expanded ? 180 : 0 }}
+            transition={
+              reduce
+                ? { duration: 0 }
+                : { duration: 0.25, ease: [0.16, 1, 0.3, 1] }
+            }
+            style={{ display: "inline-flex" }}
+            aria-hidden="true"
+          >
+            <ChevronDown
+              className={`h-4 w-4 ${
+                isWinning
+                  ? "text-court-green/60"
+                  : isLosing
+                    ? "text-hype-red/60"
+                    : "text-text-muted"
+              }`}
+              strokeWidth={2.5}
+            />
+          </motion.span>
+        )}
       </div>
     </div>
   );
 }
 
 // ─── Collapsible list wrapper ─────────────────────────────────────────────────
-
-const COLLAPSE_THRESHOLD = 5;
+// Controlled externally: the featured card IS the toggle. Default = collapsed (0 rows).
 
 function CollapsibleList({
   children,
-  totalCount,
+  expanded,
 }: {
-  readonly children: React.ReactNode[];
-  readonly totalCount: number;
+  readonly children: React.ReactNode;
+  readonly expanded: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const reduce = useReducedMotion();
 
-  // If at or below threshold, render everything with no toggle
-  if (totalCount <= COLLAPSE_THRESHOLD) {
-    return <>{children}</>;
-  }
-
-  const visibleChildren = children.slice(0, COLLAPSE_THRESHOLD);
-  const hiddenChildren = children.slice(COLLAPSE_THRESHOLD);
-
   return (
-    <>
-      {visibleChildren}
-
-      <AnimatePresence initial={false}>
-        {expanded && (
-          <motion.div
-            key="overflow"
-            initial={reduce ? false : { height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
-            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-            style={{ overflow: "hidden" }}
-          >
-            {hiddenChildren}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Toggle row */}
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center justify-center gap-1.5 py-3 border-t border-border-muted text-xs font-label font-semibold text-text-muted hover:text-text-secondary transition-colors cursor-pointer select-none"
-        aria-expanded={expanded}
-      >
-        <span>
-          {expanded ? "Show less" : `Show all (${totalCount})`}
-        </span>
-        <motion.span
-          animate={{ rotate: expanded ? 180 : 0 }}
-          transition={reduce ? { duration: 0 } : { duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          style={{ display: "inline-flex" }}
+    <AnimatePresence initial={false}>
+      {expanded && (
+        <motion.div
+          key="list"
+          initial={reduce ? false : { height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          exit={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
+          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+          style={{ overflow: "hidden" }}
         >
-          <ChevronDown className="h-3.5 w-3.5" strokeWidth={2.5} />
-        </motion.span>
-      </button>
-    </>
+          {children}
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -444,6 +518,10 @@ export function PlayerProfile({
   // Biggest rival: first entry (sorted by games played desc)
   const topRival = rivalries.length > 0 ? rivalries[0] : null;
   const otherRivals = rivalries.length > 1 ? rivalries.slice(1) : [];
+
+  // Accordion state — featured card is the toggle, default collapsed
+  const [duosExpanded, setDuosExpanded] = useState(false);
+  const [rivalsExpanded, setRivalsExpanded] = useState(false);
 
   return (
     <div className="space-y-5">
@@ -569,14 +647,21 @@ export function PlayerProfile({
             Partner Stats
           </h2>
           <div className="space-y-2">
-            {/* Featured best chemistry card */}
+            {/* Featured best chemistry card — acts as accordion toggle when there are more partners */}
             {topDuo && (
-              <BestChemistryCard duo={topDuo} playerId={stats.playerId} />
+              <BestChemistryCard
+                duo={topDuo}
+                playerId={stats.playerId}
+                expanded={duosExpanded}
+                onToggle={() => setDuosExpanded((v) => !v)}
+                hasMore={otherDuos.length > 0}
+                totalCount={otherDuos.length}
+              />
             )}
-            {/* Other partners list */}
+            {/* Other partners list — fully hidden by default, revealed on card tap */}
             {otherDuos.length > 0 && (
               <div className="rounded-xl border border-border bg-surface px-4">
-                <CollapsibleList totalCount={otherDuos.length}>
+                <CollapsibleList expanded={duosExpanded}>
                   {otherDuos.map((duo) => (
                     <DuoRow
                       key={`${duo.playerAId}-${duo.playerBId}`}
@@ -607,12 +692,20 @@ export function PlayerProfile({
           </div>
         ) : (
           <div className="space-y-2">
-            {/* Featured biggest rival card */}
-            {topRival && <BiggestRivalCard rivalry={topRival} />}
-            {/* Other rivals list */}
+            {/* Featured biggest rival card — acts as accordion toggle when there are more rivals */}
+            {topRival && (
+              <BiggestRivalCard
+                rivalry={topRival}
+                expanded={rivalsExpanded}
+                onToggle={() => setRivalsExpanded((v) => !v)}
+                hasMore={otherRivals.length > 0}
+                totalCount={otherRivals.length}
+              />
+            )}
+            {/* Other rivals list — fully hidden by default, revealed on card tap */}
             {otherRivals.length > 0 && (
               <div className="rounded-xl border border-border bg-surface px-4">
-                <CollapsibleList totalCount={otherRivals.length}>
+                <CollapsibleList expanded={rivalsExpanded}>
                   {otherRivals.map((rivalry) => (
                     <RivalryRow
                       key={rivalry.opponentId}
