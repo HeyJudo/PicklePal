@@ -2,8 +2,8 @@
 
 import { createServerClient } from "@/lib/supabase";
 import type { Player, Match } from "@/lib/supabase";
-import { computePlayerStats, computeDuoStats } from "@/lib/stats";
-import type { PlayerStats, DuoStats } from "@/lib/stats";
+import { computePlayerStats, computeDuoStats, computeRivalryStats } from "@/lib/stats";
+import type { PlayerStats, DuoStats, RivalryStats } from "@/lib/stats";
 
 interface PlayersListResult {
   readonly players: readonly Player[];
@@ -14,6 +14,7 @@ interface PlayerDetailResult {
   readonly player: Player | null;
   readonly stats: PlayerStats | null;
   readonly duos: readonly DuoStats[];
+  readonly rivalries: readonly RivalryStats[];
   readonly error?: string;
 }
 
@@ -67,7 +68,7 @@ export async function getPlayerDetail(
     .single();
 
   if (groupError || !group) {
-    return { player: null, stats: null, duos: [], error: "Group not found" };
+    return { player: null, stats: null, duos: [], rivalries: [], error: "Group not found" };
   }
 
   // Fetch the player
@@ -80,7 +81,7 @@ export async function getPlayerDetail(
     .single();
 
   if (playerError || !player) {
-    return { player: null, stats: null, duos: [], error: "Player not found" };
+    return { player: null, stats: null, duos: [], rivalries: [], error: "Player not found" };
   }
 
   // Fetch all players for duo stats
@@ -100,7 +101,7 @@ export async function getPlayerDetail(
 
   if (!sessions || sessions.length === 0) {
     const stats = computePlayerStats(player, []);
-    return { player, stats, duos: [] };
+    return { player, stats, duos: [], rivalries: [] };
   }
 
   const sessionIds = sessions.map((s: { id: string }) => s.id);
@@ -121,5 +122,8 @@ export async function getPlayerDetail(
     (d) => d.playerAId === playerId || d.playerBId === playerId,
   );
 
-  return { player, stats, duos: playerDuos };
+  // Compute head-to-head rivalry stats for this player
+  const rivalries = computeRivalryStats(playerId, allPlayers ?? [], allMatches);
+
+  return { player, stats, duos: playerDuos, rivalries };
 }

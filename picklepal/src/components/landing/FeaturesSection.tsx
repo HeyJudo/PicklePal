@@ -58,7 +58,7 @@ export default function FeaturesSection() {
               </div>
               <div className="relative w-full overflow-hidden max-h-[280px]">
                 <Image
-                  src="/screenshots/features-desktop.png"
+                  src="/screenshots/features-desktop.webp"
                   alt="DinkDay group home with live stats"
                   width={1440}
                   height={900}
@@ -181,7 +181,7 @@ export default function FeaturesSection() {
             <div className="w-[220px] bg-[#111] rounded-t-[2.2rem] p-2 shadow-2xl">
               <div className="rounded-t-[1.8rem] overflow-hidden">
                 <Image
-                  src="/screenshots/leaderboard-phone.png"
+                  src="/screenshots/leaderboard-phone.webp"
                   alt="DinkDay leaderboard"
                   width={390}
                   height={844}

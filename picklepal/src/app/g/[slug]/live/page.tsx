@@ -89,6 +89,7 @@ export default async function LivePage({ params }: LivePageProps) {
   return (
     <LivePageClient
       groupSlug={slug}
+      groupName={groupSettingsResult.data?.name}
       initialSession={activeSession}
       players={players}
       initialSessionPlayers={sessionPlayers}

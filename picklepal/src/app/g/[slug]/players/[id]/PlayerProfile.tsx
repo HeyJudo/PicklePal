@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { Handshake, Swords } from "lucide-react";
 import { PlayerAvatar } from "@/components/players";
 import { EditPlayerForm } from "./EditPlayerForm";
-import type { PlayerStats, DuoStats, MatchSummary } from "@/lib/stats";
+import type { PlayerStats, DuoStats, RivalryStats, MatchSummary } from "@/lib/stats";
 import type { Player } from "@/lib/supabase";
 
 interface PlayerProfileProps {
   readonly stats: PlayerStats;
   readonly duos: readonly DuoStats[];
+  readonly rivalries: readonly RivalryStats[];
   readonly groupSlug: string;
   readonly player: Player;
   readonly isAdmin?: boolean;
@@ -21,6 +23,12 @@ function formatWinRate(rate: number): string {
 function formatPointDiff(diff: number): string {
   if (diff > 0) return `+${diff}`;
   return `${diff}`;
+}
+
+function winRateColorClass(winRateNum: number): string {
+  if (winRateNum >= 60) return "text-court-green";
+  if (winRateNum < 40) return "text-hype-red";
+  return "text-text-primary";
 }
 
 // ─── Stat Tile — replaces the bordered StatBox ───────────────────────────────
@@ -138,24 +146,214 @@ function DuoRow({
   const winRateNum = Number(winRatePct);
 
   return (
-    <div className="flex items-center justify-between py-3 border-b border-border-muted last:border-0 gap-3">
+    <div className="flex items-center gap-3 py-3 border-b border-border-muted last:border-0">
+      <PlayerAvatar
+        displayName={partnerName}
+        color={null}
+        avatarUrl={null}
+        size="xs"
+      />
       <p className="text-sm font-semibold text-text-primary truncate flex-1">
         {partnerName}
       </p>
-      <div className="flex items-center gap-4 shrink-0">
+      <div className="flex items-center gap-3 shrink-0">
         <span className="text-xs font-label text-text-muted tabular-nums">
           {duo.wins}W&nbsp;{duo.losses}L
         </span>
         <span
-          className={`font-score text-base font-bold tabular-nums ${
-            winRateNum >= 60
-              ? "text-court-green"
-              : winRateNum < 40
-                ? "text-hype-red"
-                : "text-text-primary"
-          }`}
+          className={`font-score text-base font-bold tabular-nums ${winRateColorClass(winRateNum)}`}
         >
           {winRatePct}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Featured chemistry card (top duo by win rate) ────────────────────────────
+
+function BestChemistryCard({
+  duo,
+  playerId,
+}: {
+  readonly duo: DuoStats;
+  readonly playerId: string;
+}) {
+  const partnerName =
+    duo.playerAId === playerId ? duo.playerBName : duo.playerAName;
+  const winRatePct = (duo.winRate * 100).toFixed(0);
+  const winRateNum = Number(winRatePct);
+  const diff = duo.pointDifferential;
+
+  return (
+    <div className="rounded-xl border border-sky-200 bg-gradient-to-br from-sky-50 to-white p-4 flex items-center gap-4 shadow-sm">
+      <div className="relative shrink-0">
+        <PlayerAvatar
+          displayName={partnerName}
+          color={null}
+          avatarUrl={null}
+          size="md"
+        />
+        <span className="absolute -bottom-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-sky-blue ring-2 ring-white">
+          <Handshake className="h-3 w-3 text-white" strokeWidth={2.5} />
+        </span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] font-label font-semibold uppercase tracking-widest text-sky-500 mb-0.5">
+          Best Chemistry
+        </p>
+        <p className="text-sm font-bold text-text-primary truncate">{partnerName}</p>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-xs font-label text-text-muted tabular-nums">
+            {duo.wins}W&nbsp;{duo.losses}L
+          </span>
+          <span className="text-text-muted/40 text-xs">·</span>
+          <span className="text-xs font-label text-text-muted tabular-nums">
+            {diff > 0 ? `+${diff}` : diff} pts
+          </span>
+        </div>
+      </div>
+      <div className="shrink-0 text-right">
+        <span
+          className={`font-score text-2xl font-bold tabular-nums leading-none ${winRateColorClass(winRateNum)}`}
+        >
+          {winRatePct}%
+        </span>
+        <p className="text-[10px] font-label text-text-muted mt-0.5">win rate</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Rivalry row (compact) ────────────────────────────────────────────────────
+
+function RivalryRow({
+  rivalry,
+}: {
+  readonly rivalry: RivalryStats;
+}) {
+  const winRatePct = (rivalry.winRate * 100).toFixed(0);
+  const winRateNum = Number(winRatePct);
+  const diff = rivalry.pointDifferential;
+
+  return (
+    <div className="flex items-center gap-3 py-3 border-b border-border-muted last:border-0">
+      <PlayerAvatar
+        displayName={rivalry.opponentName}
+        color={rivalry.opponentColor}
+        avatarUrl={rivalry.opponentAvatarUrl}
+        size="xs"
+      />
+      <p className="text-sm font-semibold text-text-primary truncate flex-1">
+        {rivalry.opponentName}
+      </p>
+      <div className="flex items-center gap-3 shrink-0">
+        <span className="text-xs font-label text-text-muted tabular-nums">
+          {rivalry.wins}W&nbsp;{rivalry.losses}L
+        </span>
+        <span
+          className={`font-score text-base font-bold tabular-nums ${winRateColorClass(winRateNum)}`}
+        >
+          {winRatePct}%
+        </span>
+        <span
+          className={`text-xs font-label tabular-nums ${
+            diff > 0 ? "text-court-green" : diff < 0 ? "text-hype-red" : "text-text-muted"
+          }`}
+        >
+          {diff > 0 ? `+${diff}` : diff}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Featured rivalry card (biggest rival) ────────────────────────────────────
+
+function BiggestRivalCard({
+  rivalry,
+}: {
+  readonly rivalry: RivalryStats;
+}) {
+  const winRatePct = (rivalry.winRate * 100).toFixed(0);
+  const winRateNum = Number(winRatePct);
+  const diff = rivalry.pointDifferential;
+
+  const isWinning = rivalry.wins > rivalry.losses;
+  const isLosing = rivalry.losses > rivalry.wins;
+
+  return (
+    <div
+      className={`rounded-xl border p-4 flex items-center gap-4 shadow-sm ${
+        isWinning
+          ? "border-court-green/30 bg-gradient-to-br from-court-green/5 to-white"
+          : isLosing
+            ? "border-hype-red/30 bg-gradient-to-br from-hype-red/5 to-white"
+            : "border-border bg-gradient-to-br from-surface-muted to-white"
+      }`}
+    >
+      <div className="relative shrink-0">
+        <PlayerAvatar
+          displayName={rivalry.opponentName}
+          color={rivalry.opponentColor}
+          avatarUrl={rivalry.opponentAvatarUrl}
+          size="md"
+        />
+        <span
+          className={`absolute -bottom-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full ring-2 ring-white ${
+            isWinning
+              ? "bg-court-green"
+              : isLosing
+                ? "bg-hype-red"
+                : "bg-text-muted"
+          }`}
+        >
+          <Swords className="h-3 w-3 text-white" strokeWidth={2.5} />
+        </span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] font-label font-semibold uppercase tracking-widest text-text-muted mb-0.5">
+          Biggest Rival
+        </p>
+        <p className="text-sm font-bold text-text-primary truncate">
+          {rivalry.opponentName}
+        </p>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-xs font-label text-text-muted tabular-nums">
+            {rivalry.gamesPlayed} game{rivalry.gamesPlayed !== 1 ? "s" : ""}
+          </span>
+          <span className="text-text-muted/40 text-xs">·</span>
+          <span
+            className={`text-xs font-label tabular-nums ${
+              diff > 0 ? "text-court-green" : diff < 0 ? "text-hype-red" : "text-text-muted"
+            }`}
+          >
+            {diff > 0 ? `+${diff}` : diff} pts
+          </span>
+        </div>
+      </div>
+      <div className="shrink-0 text-right">
+        <div className="flex items-baseline gap-1 justify-end">
+          <span
+            className={`font-score text-2xl font-bold tabular-nums leading-none ${
+              isWinning ? "text-court-green" : isLosing ? "text-hype-red" : "text-text-primary"
+            }`}
+          >
+            {rivalry.wins}
+          </span>
+          <span className="text-text-muted text-lg font-light">–</span>
+          <span
+            className={`font-score text-2xl font-bold tabular-nums leading-none ${
+              isLosing ? "text-hype-red" : isWinning ? "text-text-muted" : "text-text-primary"
+            }`}
+          >
+            {rivalry.losses}
+          </span>
+        </div>
+        <span
+          className={`text-[11px] font-label tabular-nums ${winRateColorClass(winRateNum)}`}
+        >
+          {winRatePct}% win
         </span>
       </div>
     </div>
@@ -167,11 +365,20 @@ function DuoRow({
 export function PlayerProfile({
   stats,
   duos,
+  rivalries,
   groupSlug,
   player,
   isAdmin = false,
 }: PlayerProfileProps) {
   const playerColor = player.color ?? "#2D8B4E";
+
+  // Best chemistry: top duo by win rate (already sorted by computeDuoStats)
+  const topDuo = duos.length > 0 ? duos[0] : null;
+  const otherDuos = duos.length > 1 ? duos.slice(1) : [];
+
+  // Biggest rival: first entry (sorted by games played desc)
+  const topRival = rivalries.length > 0 ? rivalries[0] : null;
+  const otherRivals = rivalries.length > 1 ? rivalries.slice(1) : [];
 
   return (
     <div className="space-y-5">
@@ -290,23 +497,65 @@ export function PlayerProfile({
         )}
       </section>
 
-      {/* ── Duo partners ── */}
+      {/* ── Partner Stats ── */}
       {duos.length > 0 && (
         <section className="space-y-2">
           <h2 className="text-xs font-label font-semibold text-text-muted uppercase tracking-widest px-1">
             Partner Stats
           </h2>
-          <div className="rounded-xl border border-border bg-surface px-4">
-            {duos.map((duo) => (
-              <DuoRow
-                key={`${duo.playerAId}-${duo.playerBId}`}
-                duo={duo}
-                playerId={stats.playerId}
-              />
-            ))}
+          <div className="space-y-2">
+            {/* Featured best chemistry card */}
+            {topDuo && (
+              <BestChemistryCard duo={topDuo} playerId={stats.playerId} />
+            )}
+            {/* Other partners list */}
+            {otherDuos.length > 0 && (
+              <div className="rounded-xl border border-border bg-surface px-4">
+                {otherDuos.map((duo) => (
+                  <DuoRow
+                    key={`${duo.playerAId}-${duo.playerBId}`}
+                    duo={duo}
+                    playerId={stats.playerId}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </section>
       )}
+
+      {/* ── Rivalries ── */}
+      <section className="space-y-2">
+        <h2 className="text-xs font-label font-semibold text-text-muted uppercase tracking-widest px-1">
+          Rivalries
+        </h2>
+        {rivalries.length === 0 ? (
+          <div className="rounded-xl border border-border bg-surface-muted p-6 text-center">
+            <p className="text-text-muted text-sm">
+              Play more games to build rivalries.
+            </p>
+            <p className="text-text-muted/60 text-xs mt-1">
+              Face the same opponent at least twice to appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {/* Featured biggest rival card */}
+            {topRival && <BiggestRivalCard rivalry={topRival} />}
+            {/* Other rivals list */}
+            {otherRivals.length > 0 && (
+              <div className="rounded-xl border border-border bg-surface px-4">
+                {otherRivals.map((rivalry) => (
+                  <RivalryRow
+                    key={rivalry.opponentId}
+                    rivalry={rivalry}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

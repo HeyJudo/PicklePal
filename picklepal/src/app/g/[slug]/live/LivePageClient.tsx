@@ -14,7 +14,7 @@ import { GameDayRecap } from "./GameDayRecap";
 import { RecordMatchForm } from "./RecordMatchForm";
 import { ActiveMatchBanner } from "./ActiveMatchBanner";
 import { ViewOnlyScoring } from "./ViewOnlyScoring";
-import { OverlayRenderer } from "@/components/share";
+import { OverlayRenderer, RecapShareButton, SessionRecapShareButton, MvpShareButton } from "@/components/share";
 import { endSession, getSessionRecap, getSessionMatches } from "./actions";
 import { createActiveMatch, completeActiveMatch } from "./active-match-actions";
 import type { MatchStartConfig } from "./PositionConfirmation";
@@ -82,6 +82,8 @@ interface ActiveMatchInfo {
 
 interface LivePageClientProps {
   readonly groupSlug: string;
+  /** Display name of the group, used in share card. */
+  readonly groupName?: string;
   readonly initialSession: SessionData | null;
   readonly players: readonly Player[];
   readonly initialSessionPlayers: readonly SessionPlayerEntry[];
@@ -95,6 +97,7 @@ interface LivePageClientProps {
 
 export function LivePageClient({
   groupSlug,
+  groupName,
   initialSession,
   players,
   initialSessionPlayers,
@@ -438,27 +441,61 @@ export function LivePageClient({
   if (step === "recap" && recapData && activeSession) {
     return (
       <GameDayRecap
-        data={recapData} sessionId={activeSession.id}
-        groupSlug={groupSlug} onDone={handleRecapDone}
+        data={recapData}
+        sessionId={activeSession.id}
+        groupSlug={groupSlug}
+        groupName={groupName}
+        sessionDate={new Date(activeSession.started_at).toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })}
+        onDone={handleRecapDone}
       />
     );
   }
 
   if (step === "overlay" && recapData && activeSession) {
+    const overlayDate = new Date(activeSession.started_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+    const overlayGroupName = groupName ?? groupSlug;
+
     return (
-      <div className="fixed inset-0 z-[100] bg-gradient-to-b from-court-green-dark via-[#1a3a26] to-[#0e2018] flex flex-col items-center justify-center px-4">
-        <div className="mb-6 text-center">
-          <p className="text-xs font-semibold text-ball-yellow/80 uppercase tracking-widest mb-2">DinkDay</p>
+      <div className="fixed inset-0 z-[100] bg-gradient-to-b from-court-green-dark via-[#1a3a26] to-[#0e2018] flex flex-col items-center justify-start px-4 py-8 overflow-y-auto">
+        {/* Header — one headline + one subtitle, no duplication below */}
+        <div className="mb-5 text-center w-full max-w-lg">
           <h2 className="font-display text-3xl text-white">Share Your Day</h2>
-          <p className="text-sm text-white/60 mt-1">Download the overlay and add it to your photo</p>
+          <p className="text-xs text-white/50 mt-1.5">Transparent 9:16 stickers - layer over any photo in your story.</p>
         </div>
-        <OverlayRenderer data={{
-          sessionTitle: activeSession.title ?? "Game Day",
-          date: new Date(activeSession.started_at).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" }),
-          matchCount: recapData.gamesPlayed, playerCount: recapData.playerCount,
-          mvpName: recapData.awards.mvp?.displayName ?? null,
-        }} />
-        <button onClick={handleOverlayDone} className="mt-6 text-sm text-white/50 hover:text-white/80 transition-colors cursor-pointer">
+
+        {/* Two share cards — side-by-side on sm+, stacked on mobile */}
+        <div className="w-full max-w-lg flex flex-col sm:flex-row items-start justify-center gap-6">
+          {/* MVP card — only when MVP exists */}
+          {recapData.awards.mvp && (
+            <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
+              <p className="text-[10px] font-semibold text-ball-yellow/70 uppercase tracking-widest">MVP</p>
+              <MvpShareButton
+                mvp={recapData.awards.mvp}
+                date={overlayDate}
+              />
+            </div>
+          )}
+
+          {/* Recap card */}
+          <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
+            <p className="text-[10px] font-semibold text-white/40 uppercase tracking-widest">Recap</p>
+            <SessionRecapShareButton
+              groupName={overlayGroupName}
+              date={overlayDate}
+              awards={recapData.awards}
+              gamesPlayed={recapData.gamesPlayed}
+              playerCount={recapData.playerCount}
+              durationMinutes={recapData.durationMinutes}
+              playerNames={recapData.playerNames}
+            />
+          </div>
+        </div>
+
+        <button onClick={handleOverlayDone} className="mt-8 text-sm text-white/50 hover:text-white/80 transition-colors cursor-pointer">
           Skip &amp; Finish
         </button>
       </div>
@@ -573,6 +610,7 @@ export function LivePageClient({
           {dbActiveMatch && activeMatchRelation === "viewer" && (
             <ActiveMatchBanner
               matchId={dbActiveMatch.id}
+              sessionId={activeSession.id}
               snapshot={dbActiveMatch.currentSnapshot}
               teamAPlayerIds={dbActiveMatch.teamAPlayerIds}
               teamBPlayerIds={dbActiveMatch.teamBPlayerIds}
@@ -824,6 +862,7 @@ export function LivePageClient({
         {step === "active" && dbActiveMatch && activeMatchRelation === "viewer" && (
           <ActiveMatchBanner
             matchId={dbActiveMatch.id}
+            sessionId={activeSession.id}
             snapshot={dbActiveMatch.currentSnapshot}
             teamAPlayerIds={dbActiveMatch.teamAPlayerIds}
             teamBPlayerIds={dbActiveMatch.teamBPlayerIds}
