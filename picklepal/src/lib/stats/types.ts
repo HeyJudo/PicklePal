@@ -53,6 +53,19 @@ export interface DuoStats {
   readonly pointDifferential: number;
 }
 
+/** Head-to-head rivalry stats between this player and a specific opponent */
+export interface RivalryStats {
+  readonly opponentId: string;
+  readonly opponentName: string;
+  readonly opponentColor: string | null;
+  readonly opponentAvatarUrl: string | null;
+  readonly gamesPlayed: number;
+  readonly wins: number;
+  readonly losses: number;
+  readonly winRate: number;
+  readonly pointDifferential: number;
+}
+
 /** Session summary */
 export interface SessionSummary {
   readonly sessionId: string;

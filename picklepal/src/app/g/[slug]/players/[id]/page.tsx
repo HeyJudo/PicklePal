@@ -9,7 +9,7 @@ interface PlayerDetailPageProps {
 
 export default async function PlayerDetailPage({ params }: PlayerDetailPageProps) {
   const { slug, id } = await params;
-  const [{ player, stats, duos, error }, viewerAccess] = await Promise.all([
+  const [{ player, stats, duos, rivalries, error }, viewerAccess] = await Promise.all([
     getPlayerDetail(slug, id),
     getViewerAccess(slug),
   ]);
@@ -20,7 +20,7 @@ export default async function PlayerDetailPage({ params }: PlayerDetailPageProps
 
   return (
     <div className="space-y-6">
-      <PlayerProfile stats={stats} duos={duos} groupSlug={slug} player={player} isAdmin={viewerAccess.isAdmin} />
+      <PlayerProfile stats={stats} duos={duos} rivalries={rivalries ?? []} groupSlug={slug} player={player} isAdmin={viewerAccess.isAdmin} />
     </div>
   );
 }
