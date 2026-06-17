@@ -3,7 +3,7 @@ import Logo from '@/components/Logo';
 
 export default function Footer() {
   return (
-    <footer className="bg-primary-dark w-full py-12 border-t-4 border-primary">
+    <footer className="bg-primary-dark w-full py-14 border-t-4 border-primary court-lines">
       <div className="flex flex-col md:flex-row justify-between items-center px-5 md:px-12 max-w-[1280px] mx-auto gap-8">
         <a href="#" className="opacity-70 hover:opacity-100 transition-opacity duration-300">
           <Logo size={46} variant="inverse" />

@@ -8,6 +8,8 @@ import {
   undoRally,
   canUndo,
   isDoublesState,
+  createMatch,
+  processRally,
 } from "@/lib/engine";
 import type {
   MatchHistory,
@@ -224,9 +226,9 @@ export function LiveScoring({
     ? `${state.teamAScore}-${state.teamBScore}-${serverNumber}`
     : `${state.teamAScore}-${state.teamBScore}`;
 
-  // Streak detection — count consecutive points from the end of rallyWinners
+  // Streak detection — count consecutive actual scoring rallies (not side-outs)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const streak = getStreak(history.rallyWinners);
+  const streak = getScoringStreak(history);
 
   const syncDisplay = getSyncDisplay({
     pendingCount: pendingRallyCount,
@@ -608,21 +610,40 @@ export function LiveScoring({
 }
 
 /**
- * Count consecutive scoring rallies by the same team from the end of the list.
- * Returns { team, count } or null if no rallies yet.
+ * Count consecutive actual scoring rallies (where a point was earned) by the
+ * same team from the end of the match. In pickleball side-out scoring, only
+ * the serving team can score — winning a rally as the receiving team is just
+ * a side-out (no point). This replays the rally history to determine which
+ * rallies actually produced points, then counts the trailing streak.
  */
-function getStreak(
-  rallyWinners: readonly Team[],
+function getScoringStreak(
+  history: MatchHistory,
 ): { team: Team; count: number } | null {
-  if (rallyWinners.length === 0) return null;
+  if (history.rallyWinners.length === 0) return null;
 
-  const lastTeam = rallyWinners[rallyWinners.length - 1];
+  // Replay rallies to determine which ones resulted in actual points
+  const scoringTeams: Team[] = [];
+  let state = createMatch(history.initialInput);
+
+  for (let i = 0; i < history.rallyWinners.length; i++) {
+    const result = processRally(state, history.rallyWinners[i], i + 1);
+    if (result.scoringTeam !== null) {
+      scoringTeams.push(result.scoringTeam);
+    }
+    state = result.newState;
+  }
+
+  if (scoringTeams.length === 0) return null;
+
+  // Count consecutive scoring rallies from the end
+  const lastScoringTeam = scoringTeams[scoringTeams.length - 1];
   let count = 0;
-  for (let i = rallyWinners.length - 1; i >= 0; i--) {
-    if (rallyWinners[i] !== lastTeam) break;
+  for (let i = scoringTeams.length - 1; i >= 0; i--) {
+    if (scoringTeams[i] !== lastScoringTeam) break;
     count++;
   }
-  return { team: lastTeam, count };
+
+  return { team: lastScoringTeam, count };
 }
 
 function getSyncToneClass(tone: "success" | "pending" | "warning" | "error") {

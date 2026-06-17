@@ -18,7 +18,7 @@ export default function DemoSection() {
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           className="mb-10"
         >
-          <h2 className="font-headline text-[42px] md:text-[52px] font-extrabold text-primary-dark tracking-tight leading-none mb-4">
+          <h2 className="font-display text-[42px] md:text-[52px] text-primary-dark tracking-tighter leading-none uppercase mb-4">
             See it before you create yours.
           </h2>
           <p className="font-body text-on-surface-variant text-lg max-w-lg">

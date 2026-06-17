@@ -231,9 +231,14 @@ body {
     border-left: 4px solid var(--color-court-green);
   }
 
-  /* Diagonal section break */
+  /* Diagonal section break (cuts both top + bottom) */
   .clip-diagonal {
     clip-path: polygon(0 0, 100% 3vw, 100% 100%, 0 calc(100% - 3vw));
+  }
+
+  /* Diagonal bottom-only section break (hero → next section) */
+  .clip-diagonal-bottom {
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 calc(100% - 3vw));
   }
 
   /* Staggered entrance delays for lists */

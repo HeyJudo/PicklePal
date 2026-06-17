@@ -46,14 +46,14 @@ export default function WorkflowSection() {
   const reduce = useReducedMotion();
 
   return (
-    <section id="how-it-works" className="py-24 px-5 md:px-12 bg-surface">
+    <section id="how-it-works" className="py-24 px-5 md:px-12 bg-surface relative overflow-hidden">
       <div className="max-w-[1280px] mx-auto">
         <motion.h2
           initial={reduce ? false : { opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="font-headline text-[42px] md:text-[52px] font-extrabold text-primary-dark mb-12 tracking-tight leading-none"
+          className="font-display text-[42px] md:text-[52px] text-primary-dark mb-12 tracking-tighter leading-none uppercase"
         >
           From first serve to final recap.
         </motion.h2>
@@ -80,11 +80,11 @@ export default function WorkflowSection() {
                 </div>
               </div>
               {/* Step label */}
-              <div className="flex items-baseline gap-1.5">
-                <span className="font-display text-[22px] uppercase text-primary-dark tracking-tighter leading-none">
+              <div className="flex items-baseline gap-2">
+                <span className="font-display text-[28px] uppercase text-primary-dark tracking-tighter leading-none">
                   {step.verb}
                 </span>
-                <span className="font-body text-sm text-on-surface-variant">{step.label}</span>
+                <span className="font-label text-xs font-semibold uppercase tracking-wide text-on-surface-variant">{step.label}</span>
               </div>
             </motion.div>
           ))}

@@ -19,7 +19,8 @@ export default function FeaturesSection() {
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
             className="flex flex-col gap-5"
           >
-            <h3 className="font-headline text-[36px] font-bold text-primary-dark leading-tight tracking-tight">
+            <div className="w-10 h-1 bg-primary rounded-full" />
+            <h3 className="font-display text-[36px] uppercase text-primary-dark leading-tight tracking-tighter">
               Live Scoring
             </h3>
             <p className="text-on-surface-variant text-lg leading-relaxed max-w-md">
@@ -120,7 +121,8 @@ export default function FeaturesSection() {
             transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
             className="flex flex-col gap-5 lg:order-2"
           >
-            <h3 className="font-headline text-[36px] font-bold text-primary-dark leading-tight tracking-tight">
+            <div className="w-10 h-1 bg-accent rounded-full" />
+            <h3 className="font-display text-[36px] uppercase text-primary-dark leading-tight tracking-tighter">
               Fair Rotations
             </h3>
             <p className="text-on-surface-variant text-lg leading-relaxed max-w-md">
@@ -151,7 +153,8 @@ export default function FeaturesSection() {
 
           {/* Left: copy */}
           <div className="relative z-10 p-10 md:p-14 flex flex-col justify-center gap-5">
-            <h3 className="font-headline text-[36px] font-bold text-white leading-tight tracking-tight">
+            <div className="w-10 h-1 bg-celebration rounded-full" />
+            <h3 className="font-display text-[36px] uppercase text-white leading-tight tracking-tighter">
               Leaderboards and Recaps
             </h3>
             <p className="text-white/60 text-lg leading-relaxed max-w-sm">
