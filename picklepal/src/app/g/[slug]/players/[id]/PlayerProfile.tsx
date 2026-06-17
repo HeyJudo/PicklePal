@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { Handshake, Swords } from "lucide-react";
+import { Handshake, Swords, ChevronDown } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { PlayerAvatar } from "@/components/players";
 import { EditPlayerForm } from "./EditPlayerForm";
 import type { PlayerStats, DuoStats, RivalryStats, MatchSummary } from "@/lib/stats";
@@ -360,6 +362,69 @@ function BiggestRivalCard({
   );
 }
 
+// ─── Collapsible list wrapper ─────────────────────────────────────────────────
+
+const COLLAPSE_THRESHOLD = 5;
+
+function CollapsibleList({
+  children,
+  totalCount,
+}: {
+  readonly children: React.ReactNode[];
+  readonly totalCount: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const reduce = useReducedMotion();
+
+  // If at or below threshold, render everything with no toggle
+  if (totalCount <= COLLAPSE_THRESHOLD) {
+    return <>{children}</>;
+  }
+
+  const visibleChildren = children.slice(0, COLLAPSE_THRESHOLD);
+  const hiddenChildren = children.slice(COLLAPSE_THRESHOLD);
+
+  return (
+    <>
+      {visibleChildren}
+
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            key="overflow"
+            initial={reduce ? false : { height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
+            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            style={{ overflow: "hidden" }}
+          >
+            {hiddenChildren}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Toggle row */}
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full items-center justify-center gap-1.5 py-3 border-t border-border-muted text-xs font-label font-semibold text-text-muted hover:text-text-secondary transition-colors cursor-pointer select-none"
+        aria-expanded={expanded}
+      >
+        <span>
+          {expanded ? "Show less" : `Show all (${totalCount})`}
+        </span>
+        <motion.span
+          animate={{ rotate: expanded ? 180 : 0 }}
+          transition={reduce ? { duration: 0 } : { duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+          style={{ display: "inline-flex" }}
+        >
+          <ChevronDown className="h-3.5 w-3.5" strokeWidth={2.5} />
+        </motion.span>
+      </button>
+    </>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function PlayerProfile({
@@ -511,13 +576,15 @@ export function PlayerProfile({
             {/* Other partners list */}
             {otherDuos.length > 0 && (
               <div className="rounded-xl border border-border bg-surface px-4">
-                {otherDuos.map((duo) => (
-                  <DuoRow
-                    key={`${duo.playerAId}-${duo.playerBId}`}
-                    duo={duo}
-                    playerId={stats.playerId}
-                  />
-                ))}
+                <CollapsibleList totalCount={otherDuos.length}>
+                  {otherDuos.map((duo) => (
+                    <DuoRow
+                      key={`${duo.playerAId}-${duo.playerBId}`}
+                      duo={duo}
+                      playerId={stats.playerId}
+                    />
+                  ))}
+                </CollapsibleList>
               </div>
             )}
           </div>
@@ -545,12 +612,14 @@ export function PlayerProfile({
             {/* Other rivals list */}
             {otherRivals.length > 0 && (
               <div className="rounded-xl border border-border bg-surface px-4">
-                {otherRivals.map((rivalry) => (
-                  <RivalryRow
-                    key={rivalry.opponentId}
-                    rivalry={rivalry}
-                  />
-                ))}
+                <CollapsibleList totalCount={otherRivals.length}>
+                  {otherRivals.map((rivalry) => (
+                    <RivalryRow
+                      key={rivalry.opponentId}
+                      rivalry={rivalry}
+                    />
+                  ))}
+                </CollapsibleList>
               </div>
             )}
           </div>
