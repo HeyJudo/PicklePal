@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { deleteSession } from "./session-actions";
 import { cancelMatch, restoreMatch, correctMatchScores } from "@/app/g/[slug]/match-actions";
 import { PastMatchForm } from "./PastMatchForm";
+import { loadMoreHistory } from "./actions";
+import { HISTORY_PAGE_SIZE } from "./constants";
 import type { SessionGroup, MatchWithPlayers, SessionOption } from "./actions";
 import type { Player } from "@/lib/supabase";
 
@@ -15,6 +17,7 @@ interface MatchHistoryProps {
   readonly isAdmin?: boolean;
   readonly players: readonly Player[];
   readonly sessionOptions: readonly SessionOption[];
+  readonly initialHasMore?: boolean;
 }
 
 function formatDate(dateStr: string): string {
@@ -466,14 +469,31 @@ function SessionSection({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function MatchHistory({
-  sessionGroups,
+  sessionGroups: initialSessionGroups,
   groupSlug,
   isAdmin = false,
   players,
   sessionOptions,
+  initialHasMore = false,
 }: MatchHistoryProps) {
+  const [sessionGroups, setSessionGroups] = useState<readonly SessionGroup[]>(initialSessionGroups);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const router = useRouter();
+
+  const handleLoadMore = async () => {
+    setIsLoadingMore(true);
+    const result = await loadMoreHistory(groupSlug, {
+      includeCancelled: isAdmin,
+      offset: sessionGroups.length,
+    });
+    setIsLoadingMore(false);
+    if (!result.error) {
+      setSessionGroups((prev) => [...prev, ...result.sessionGroups]);
+      setHasMore(result.hasMore);
+    }
+  };
 
   if (sessionGroups.length === 0 && !isAdmin) {
     return (
@@ -520,6 +540,30 @@ export function MatchHistory({
             sessionOptions={sessionOptions}
           />
         ))
+      )}
+
+      {/* Load more */}
+      {hasMore && (
+        <div className="flex justify-center pt-2">
+          <button
+            type="button"
+            onClick={handleLoadMore}
+            disabled={isLoadingMore}
+            className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-5 py-2.5 text-sm font-medium text-text-secondary hover:bg-surface-muted hover:text-text-primary transition-colors cursor-pointer disabled:opacity-50"
+          >
+            {isLoadingMore ? (
+              <>
+                <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Loading…
+              </>
+            ) : (
+              <>Load {HISTORY_PAGE_SIZE} more sessions</>
+            )}
+          </button>
+        </div>
       )}
 
       {/* Add Match modal */}

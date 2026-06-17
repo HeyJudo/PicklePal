@@ -573,6 +573,7 @@ export function LivePageClient({
           {dbActiveMatch && activeMatchRelation === "viewer" && (
             <ActiveMatchBanner
               matchId={dbActiveMatch.id}
+              sessionId={activeSession.id}
               snapshot={dbActiveMatch.currentSnapshot}
               teamAPlayerIds={dbActiveMatch.teamAPlayerIds}
               teamBPlayerIds={dbActiveMatch.teamBPlayerIds}
@@ -824,6 +825,7 @@ export function LivePageClient({
         {step === "active" && dbActiveMatch && activeMatchRelation === "viewer" && (
           <ActiveMatchBanner
             matchId={dbActiveMatch.id}
+            sessionId={activeSession.id}
             snapshot={dbActiveMatch.currentSnapshot}
             teamAPlayerIds={dbActiveMatch.teamAPlayerIds}
             teamBPlayerIds={dbActiveMatch.teamBPlayerIds}

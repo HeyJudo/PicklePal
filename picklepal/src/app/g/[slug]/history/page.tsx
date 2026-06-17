@@ -9,7 +9,7 @@ interface HistoryPageProps {
 
 export default async function HistoryPage({ params }: HistoryPageProps) {
   const { slug } = await params;
-  const [{ sessionGroups, players, error }, viewerAccess] = await Promise.all([
+  const [{ sessionGroups, players, hasMore, error }, viewerAccess] = await Promise.all([
     getMatchHistory(slug, { includeCancelled: true }),
     getViewerAccess(slug),
   ]);
@@ -69,6 +69,7 @@ export default async function HistoryPage({ params }: HistoryPageProps) {
           isAdmin={isAdmin}
           players={players as Player[]}
           sessionOptions={sessionOptions}
+          initialHasMore={hasMore}
         />
       )}
     </div>

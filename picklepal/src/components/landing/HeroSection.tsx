@@ -107,7 +107,7 @@ export default function HeroSection() {
             >
               <div className="rounded-[2.2rem] overflow-hidden border border-white/5">
                 <Image
-                  src="/screenshots/group-home-phone.png"
+                  src="/screenshots/group-home-phone.webp"
                   alt="DinkDay group home"
                   width={390}
                   height={844}

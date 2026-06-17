@@ -2,6 +2,7 @@
 
 import { createServerClient } from "@/lib/supabase";
 import type { Match, Session, Player } from "@/lib/supabase";
+import { HISTORY_PAGE_SIZE } from "./constants";
 
 export interface MatchWithPlayers extends Match {
   readonly playerNames: Record<string, string>;
@@ -15,6 +16,7 @@ export interface SessionGroup {
 interface HistoryResult {
   readonly sessionGroups: readonly SessionGroup[];
   readonly players: readonly Player[];
+  readonly hasMore: boolean;
   readonly error?: string;
 }
 
@@ -28,12 +30,16 @@ export interface SessionOption {
  * Fetch match history for a group, grouped by session (newest first).
  * When includeCancelled is true (admin mode), returns cancelled matches too.
  * Includes player name lookup for display.
+ *
+ * Pagination: pass `offset` to skip the first N sessions. Returns `hasMore`
+ * indicating whether additional sessions exist beyond this page.
  */
 export async function getMatchHistory(
   groupSlug: string,
-  options: { includeCancelled?: boolean } = {},
+  options: { includeCancelled?: boolean; offset?: number } = {},
 ): Promise<HistoryResult> {
   const supabase = createServerClient();
+  const offset = options.offset ?? 0;
 
   // Get group ID from slug
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -44,23 +50,28 @@ export async function getMatchHistory(
     .single();
 
   if (groupError || !group) {
-    return { sessionGroups: [], players: [], error: "Group not found" };
+    return { sessionGroups: [], players: [], hasMore: false, error: "Group not found" };
   }
 
-  // Fetch all sessions (newest first)
+  // Fetch one extra session beyond the page size to detect if more exist
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: sessions, error: sessionsError } = await (supabase as any)
     .from("sessions")
     .select("*")
     .eq("group_id", group.id)
-    .order("started_at", { ascending: false });
+    .order("started_at", { ascending: false })
+    .range(offset, offset + HISTORY_PAGE_SIZE); // range is inclusive, so this fetches PAGE_SIZE+1
 
   if (sessionsError || !sessions || sessions.length === 0) {
-    return { sessionGroups: [], players: [] };
+    return { sessionGroups: [], players: [], hasMore: false };
   }
 
+  // If we got PAGE_SIZE+1 results there are more pages; only display PAGE_SIZE
+  const hasMore = sessions.length > HISTORY_PAGE_SIZE;
+  const pageSessions = hasMore ? sessions.slice(0, HISTORY_PAGE_SIZE) : sessions;
+
   // Fetch matches for these sessions
-  const sessionIds = sessions.map((s: Session) => s.id);
+  const sessionIds = pageSessions.map((s: Session) => s.id);
 
   const statusFilter = options.includeCancelled
     ? ["completed", "cancelled"]
@@ -75,7 +86,7 @@ export async function getMatchHistory(
     .order("played_at", { ascending: false });
 
   if (matchesError) {
-    return { sessionGroups: [], players: [], error: "Failed to load matches" };
+    return { sessionGroups: [], players: [], hasMore: false, error: "Failed to load matches" };
   }
 
   // Fetch all players: name lookup needs inactive players too (old matches),
@@ -106,14 +117,31 @@ export async function getMatchHistory(
 
   // Build session groups (only include sessions that have visible matches)
   const sessionGroups: SessionGroup[] = [];
-  for (const session of sessions as Session[]) {
+  for (const session of pageSessions as Session[]) {
     const sessionMatches = matchesBySession.get(session.id);
     if (sessionMatches && sessionMatches.length > 0) {
       sessionGroups.push({ session, matches: sessionMatches });
     }
   }
 
-  return { sessionGroups, players: activePlayers };
+  return { sessionGroups, players: activePlayers, hasMore };
+}
+
+/**
+ * Load more session groups starting at the given offset.
+ * Used by the client-side "Load more" button in MatchHistory.
+ * Returns only the new groups (to be appended to existing state).
+ */
+export async function loadMoreHistory(
+  groupSlug: string,
+  options: { includeCancelled?: boolean; offset: number },
+): Promise<{ sessionGroups: readonly SessionGroup[]; hasMore: boolean; error?: string }> {
+  const result = await getMatchHistory(groupSlug, options);
+  return {
+    sessionGroups: result.sessionGroups,
+    hasMore: result.hasMore,
+    error: result.error,
+  };
 }
 
 /**

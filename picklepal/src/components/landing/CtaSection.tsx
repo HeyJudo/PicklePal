@@ -72,7 +72,7 @@ export default function CtaSection() {
           >
             <div className="rounded-[1.8rem] overflow-hidden">
               <Image
-                src="/screenshots/history-phone.png"
+                src="/screenshots/history-phone.webp"
                 alt="DinkDay match history recap"
                 width={390}
                 height={844}

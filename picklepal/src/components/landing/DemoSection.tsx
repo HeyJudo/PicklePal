@@ -50,7 +50,7 @@ export default function DemoSection() {
           </div>
           <div className="relative w-full">
             <Image
-              src="/screenshots/group-home-desktop.png"
+              src="/screenshots/group-home-desktop.webp"
               alt="DinkDay demo group home"
               width={1440}
               height={900}
