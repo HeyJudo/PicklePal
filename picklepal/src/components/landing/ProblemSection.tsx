@@ -6,7 +6,7 @@ export default function ProblemSection() {
   const reduce = useReducedMotion();
 
   return (
-    <section className="px-5 md:px-12 py-6 bg-surface-container">
+    <section className="px-5 md:px-12 py-16 bg-surface-container">
       <motion.div
         initial={reduce ? false : { opacity: 0, y: 28 }}
         whileInView={{ opacity: 1, y: 0 }}

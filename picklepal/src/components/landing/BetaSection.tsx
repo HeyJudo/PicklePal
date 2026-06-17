@@ -13,7 +13,7 @@ export default function BetaSection() {
   const reduce = useReducedMotion();
 
   return (
-    <section id="beta" className="py-24 px-5 md:px-12 bg-primary text-on-primary relative overflow-hidden">
+    <section id="beta" className="py-32 px-5 md:px-12 bg-primary text-on-primary relative overflow-hidden clip-diagonal">
       <div className="absolute inset-0 court-lines opacity-10 pointer-events-none" />
 
       <div className="max-w-[1280px] mx-auto relative z-10">
@@ -22,7 +22,7 @@ export default function BetaSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="font-headline text-[42px] md:text-[52px] font-extrabold leading-tight mb-16 tracking-tight max-w-2xl"
+          className="font-display text-[42px] md:text-[52px] leading-tight mb-16 tracking-tighter uppercase max-w-2xl"
         >
           Built for real pickleball crews. Now in public beta.
         </motion.h2>

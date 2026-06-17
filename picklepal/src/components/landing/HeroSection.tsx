@@ -11,7 +11,7 @@ export default function HeroSection() {
   return (
     <section
       id="hero"
-      className="relative min-h-[100dvh] flex items-center overflow-hidden bg-surface pt-24"
+      className="relative min-h-[100dvh] flex items-center overflow-hidden bg-surface pt-24 clip-diagonal-bottom"
     >
       {/* Background: court-lines + gradient */}
       <div className="absolute inset-0 z-0 court-lines opacity-30 pointer-events-none" />
@@ -32,7 +32,7 @@ export default function HeroSection() {
           transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
           className="lg:col-span-6 flex flex-col items-start gap-6"
         >
-          <h1 className="font-display text-[72px] md:text-[80px] leading-none text-primary-dark tracking-tighter uppercase italic relative group">
+          <h1 className="font-display text-[72px] md:text-[80px] leading-[1.1] text-primary-dark tracking-tighter uppercase italic relative group pb-2">
             Game day,
             <br />
             <span className="relative z-10">handled.</span>
@@ -72,6 +72,22 @@ export default function HeroSection() {
             >
               View Demo Group
             </Link>
+          </motion.div>
+
+          {/* Live indicator strip */}
+          <motion.div
+            initial={reduce ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.55 }}
+            className="flex items-center gap-3 mt-2"
+          >
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-60" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+            </span>
+            <span className="font-label text-[11px] uppercase tracking-wider text-on-surface-variant font-semibold">
+              Game in progress · <span className="text-primary">Maya 11</span> vs <span className="text-primary">Jordan 9</span>
+            </span>
           </motion.div>
         </motion.div>
 

@@ -19,7 +19,7 @@ export default function CtaSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-            className="font-display text-[64px] md:text-[72px] text-primary-dark tracking-tighter leading-none uppercase italic"
+            className="font-display text-[64px] md:text-[72px] text-primary-dark tracking-tighter leading-[1.1] uppercase italic pb-2"
           >
             Ready for your next DinkDay?
           </motion.h2>
