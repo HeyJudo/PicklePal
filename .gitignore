@@ -1,1 +1,4 @@
 .worktrees/
+
+# Claude Code agent worktrees / artifacts
+.claude/worktrees/
