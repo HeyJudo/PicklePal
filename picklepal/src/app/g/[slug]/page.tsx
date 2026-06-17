@@ -60,7 +60,7 @@ export async function generateMetadata({
     openGraph: {
       title,
       description,
-      url: `https://dinkday.site/g/${slug}`,
+      url: `https://www.dinkday.site/g/${slug}`,
       siteName: "DinkDay",
     },
     twitter: {

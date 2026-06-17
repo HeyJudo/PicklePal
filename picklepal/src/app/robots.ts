@@ -9,6 +9,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/app", "/onboarding", "/sign-in", "/sign-up", "/invite"],
       },
     ],
-    sitemap: "https://dinkday.site/sitemap.xml",
+    sitemap: "https://www.dinkday.site/sitemap.xml",
   };
 }
