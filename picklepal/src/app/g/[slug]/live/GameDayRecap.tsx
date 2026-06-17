@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { SessionAwards, MvpAward, HottestDuoAward, BestMatchAward } from "@/lib/stats";
+import { RecapShareButton, MvpShareButton, SessionRecapShareButton } from "@/components/share";
 
 interface RecapData {
   readonly gamesPlayed: number;
@@ -16,6 +17,10 @@ interface GameDayRecapProps {
   readonly data: RecapData;
   readonly sessionId: string;
   readonly groupSlug: string;
+  /** Display name of the group, e.g. "Thursday Crew". Falls back to groupSlug. */
+  readonly groupName?: string;
+  /** Formatted session date string, e.g. "June 17, 2026". */
+  readonly sessionDate?: string;
   readonly onDone: () => void;
 }
 
@@ -70,7 +75,9 @@ function SummarySlide({ gamesPlayed, playerCount, durationMinutes }: {
   );
 }
 
-function MvpSlide({ mvp }: { readonly mvp: MvpAward }) {
+function MvpSlide({ mvp, date }: { readonly mvp: MvpAward; readonly date: string }) {
+  const [showMvpShare, setShowMvpShare] = useState(false);
+
   const initials = mvp.displayName
     .split(" ")
     .map((n) => n[0])
@@ -126,6 +133,34 @@ function MvpSlide({ mvp }: { readonly mvp: MvpAward }) {
           </p>
         )}
       </motion.div>
+
+      {/* MVP overlay share button */}
+      {!showMvpShare && (
+        <motion.button
+          onClick={(e) => { e.stopPropagation(); setShowMvpShare(true); }}
+          className="inline-flex items-center gap-2 rounded-xl border border-ball-yellow/40 bg-ball-yellow/10 px-5 py-2.5 text-sm font-bold text-ball-yellow cursor-pointer hover:bg-ball-yellow/20 transition-colors"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.65, duration: 0.35, ease: "easeOut" }}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
+          </svg>
+          Share MVP
+        </motion.button>
+      )}
+
+      {showMvpShare && (
+        <motion.div
+          className="w-full"
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <MvpShareButton mvp={mvp} date={date} />
+        </motion.div>
+      )}
     </div>
   );
 }
@@ -239,11 +274,25 @@ function BestMatchSlide({ match, playerNames }: {
   );
 }
 
-function FinalSlide() {
+function FinalSlide({
+  shareProps,
+}: {
+  readonly shareProps: {
+    groupName: string;
+    date: string;
+    awards: SessionAwards;
+    gamesPlayed: number;
+    playerCount: number;
+    durationMinutes: number | null;
+    playerNames: Record<string, string>;
+  } | null;
+}) {
+  const [showShare, setShowShare] = useState(false);
+
   return (
-    <div className="flex flex-col items-center justify-center text-center space-y-6 w-full">
+    <div className="flex flex-col items-center justify-center text-center space-y-5 w-full">
       <motion.div
-        className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-white/15 backdrop-blur-sm ring-2 ring-white/25"
+        className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-white/15 ring-2 ring-white/25"
         initial={{ scale: 0, rotate: -45 }}
         animate={{ scale: 1, rotate: 0 }}
         transition={{ delay: 0.15, type: "spring", stiffness: 260, damping: 18 }}
@@ -264,16 +313,52 @@ function FinalSlide() {
         transition={{ delay: 0.3, duration: 0.45, ease: "easeOut" }}
       >
         <h2 className="font-display text-4xl text-white leading-tight">Great session!</h2>
-        <p className="text-white/70">See you next Game Day</p>
+        <p className="text-white/70 text-sm">See you next Game Day</p>
       </motion.div>
 
+      {/* Share section — uses new transparent overlay card */}
+      {shareProps && !showShare && (
+        <motion.button
+          onClick={(e) => { e.stopPropagation(); setShowShare(true); }}
+          className="inline-flex items-center gap-2 rounded-xl bg-court-green px-6 py-3 text-sm font-bold text-white cursor-pointer hover:bg-court-green-dark transition-colors"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.55, duration: 0.35, ease: "easeOut" }}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
+          </svg>
+          Share recap
+        </motion.button>
+      )}
+
+      {shareProps && showShare && (
+        <motion.div
+          className="w-full"
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <SessionRecapShareButton
+            groupName={shareProps.groupName}
+            date={shareProps.date}
+            awards={shareProps.awards}
+            gamesPlayed={shareProps.gamesPlayed}
+            playerCount={shareProps.playerCount}
+            durationMinutes={shareProps.durationMinutes}
+            playerNames={shareProps.playerNames}
+          />
+        </motion.div>
+      )}
+
       <motion.p
-        className="text-ball-yellow text-sm font-semibold"
+        className="text-ball-yellow text-xs font-semibold"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.6, duration: 0.4 }}
+        transition={{ delay: 0.7, duration: 0.4 }}
       >
-        DinkDay · Game day, handled.
+        DinkDay - Game day, handled.
       </motion.p>
     </div>
   );
@@ -288,9 +373,22 @@ interface SlideEntry {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export function GameDayRecap({ data, sessionId: _sessionId, groupSlug: _groupSlug, onDone }: GameDayRecapProps) {
+export function GameDayRecap({ data, sessionId: _sessionId, groupSlug, groupName, sessionDate, onDone }: GameDayRecapProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [direction, setDirection] = useState<1 | -1>(1);
+
+  // Resolve share card props
+  const resolvedDate = sessionDate ?? new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
+  const shareProps = {
+    groupName: groupName ?? groupSlug,
+    date: resolvedDate,
+    awards: data.awards,
+    gamesPlayed: data.gamesPlayed,
+    playerCount: data.playerCount,
+    durationMinutes: data.durationMinutes,
+    playerNames: data.playerNames,
+  };
 
   // Build slides dynamically based on available awards
   const slides: SlideEntry[] = [
@@ -307,7 +405,7 @@ export function GameDayRecap({ data, sessionId: _sessionId, groupSlug: _groupSlu
   ];
 
   if (data.awards.mvp) {
-    slides.push({ key: "mvp", node: <MvpSlide mvp={data.awards.mvp} /> });
+    slides.push({ key: "mvp", node: <MvpSlide mvp={data.awards.mvp} date={resolvedDate} /> });
   }
 
   if (data.awards.hottestDuo) {
@@ -321,7 +419,7 @@ export function GameDayRecap({ data, sessionId: _sessionId, groupSlug: _groupSlu
     });
   }
 
-  slides.push({ key: "final", node: <FinalSlide /> });
+  slides.push({ key: "final", node: <FinalSlide shareProps={shareProps} /> });
 
   const isLastSlide = currentSlide === slides.length - 1;
 

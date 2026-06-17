@@ -11,6 +11,8 @@ export interface SessionDetailResult {
   readonly awards: SessionAwards | null;
   readonly matches: readonly Match[];
   readonly playerNames: Record<string, string>;
+  /** Display name of the group, e.g. "Thursday Crew". */
+  readonly groupName?: string;
   readonly error?: string;
 }
 
@@ -23,11 +25,11 @@ export async function getSessionDetail(
 ): Promise<SessionDetailResult> {
   const supabase = createServerClient();
 
-  // Get group ID from slug
+  // Get group ID and name from slug
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: group, error: groupError } = await (supabase as any)
     .from("groups")
-    .select("id")
+    .select("id, name")
     .eq("slug", groupSlug)
     .single();
 
@@ -81,5 +83,6 @@ export async function getSessionDetail(
     awards,
     matches: allMatches,
     playerNames,
+    groupName: (group as { id: string; name: string }).name,
   };
 }
