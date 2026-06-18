@@ -17,4 +17,5 @@ export type {
   MvpAward,
   HottestDuoAward,
   BestMatchAward,
+  LongestMatchAward,
 } from "./awards";

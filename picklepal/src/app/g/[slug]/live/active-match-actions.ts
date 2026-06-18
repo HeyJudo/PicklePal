@@ -214,6 +214,17 @@ export async function completeActiveMatch(
 
   const supabase = getSupabase();
 
+  // Fetch started_at to compute server-authoritative duration
+  const { data: matchRow } = await supabase
+    .from("matches")
+    .select("started_at")
+    .eq("id", input.matchId)
+    .single();
+  const nowMs = Date.now();
+  const durationSeconds = matchRow?.started_at
+    ? Math.round((nowMs - new Date(matchRow.started_at).getTime()) / 1000)
+    : null;
+
   // Update match to completed
   const { error: matchError } = await supabase
     .from("matches")
@@ -224,8 +235,9 @@ export async function completeActiveMatch(
       winning_team: input.winningTeam,
       losing_team: input.losingTeam,
       current_snapshot: null,
-      completed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      completed_at: new Date(nowMs).toISOString(),
+      duration_seconds: durationSeconds,
+      updated_at: new Date(nowMs).toISOString(),
     })
     .eq("id", input.matchId)
     .eq("status", "active");
@@ -255,7 +267,7 @@ export async function completeActiveMatch(
       // Rally save failed — revert match to active so scorer can retry
       await supabase
         .from("matches")
-        .update({ status: "active", completed_at: null, updated_at: new Date().toISOString() })
+        .update({ status: "active", completed_at: null, duration_seconds: null, updated_at: new Date().toISOString() })
         .eq("id", input.matchId);
       return { success: false, error: "Failed to save rally events. Match not completed." };
     }

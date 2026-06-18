@@ -46,6 +46,29 @@ export function computePlayerStats(
   const winRate = gamesPlayed > 0 ? wins / gamesPlayed : 0;
   const pointDifferential = pointsFor - pointsAgainst;
 
+  // Duration stats — only from matches with a non-null duration
+  const matchesWithDuration = playerMatches.filter(
+    (m) => (m as { duration_seconds?: number | null }).duration_seconds != null,
+  );
+  const avgMatchDurationSeconds =
+    matchesWithDuration.length > 0
+      ? Math.round(
+          matchesWithDuration.reduce(
+            (sum, m) =>
+              sum + ((m as { duration_seconds?: number | null }).duration_seconds ?? 0),
+            0,
+          ) / matchesWithDuration.length,
+        )
+      : null;
+  const longestMatchSeconds =
+    matchesWithDuration.length > 0
+      ? Math.max(
+          ...matchesWithDuration.map(
+            (m) => (m as { duration_seconds?: number | null }).duration_seconds ?? 0,
+          ),
+        )
+      : null;
+
   // Recent matches sorted by played date (newest first)
   const recentMatches: readonly MatchSummary[] = playerMatches
     .sort((a, b) => {
@@ -65,6 +88,7 @@ export function computePlayerStats(
       winningTeam: m.winning_team,
       playedAt: (m as { played_at?: string }).played_at ?? null,
       completedAt: m.completed_at,
+      durationSeconds: (m as { duration_seconds?: number | null }).duration_seconds ?? null,
     }));
 
   return {
@@ -76,6 +100,8 @@ export function computePlayerStats(
     gamesPlayed,
     winRate,
     pointDifferential,
+    avgMatchDurationSeconds,
+    longestMatchSeconds,
     recentMatches,
   };
 }

@@ -158,6 +158,7 @@ export interface Database {
           current_snapshot: MatchSnapshot | null;
           started_at: string | null;
           completed_at: string | null;
+          duration_seconds: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -182,6 +183,7 @@ export interface Database {
           current_snapshot?: MatchSnapshot | null;
           started_at?: string | null;
           completed_at?: string | null;
+          duration_seconds?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -206,6 +208,7 @@ export interface Database {
           current_snapshot?: MatchSnapshot | null;
           started_at?: string | null;
           completed_at?: string | null;
+          duration_seconds?: number | null;
           updated_at?: string;
         };
       };

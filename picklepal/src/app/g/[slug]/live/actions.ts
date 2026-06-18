@@ -221,6 +221,7 @@ interface SaveMatchInput {
   readonly startingServerPlayerId: string;
   readonly targetScore: number;
   readonly winBy: number;
+  readonly durationSeconds?: number | null;
   readonly rallyEvents: readonly RallyEventInput[];
 }
 
@@ -263,6 +264,7 @@ export async function saveCompletedMatch(
       win_by: input.winBy,
       started_at: new Date().toISOString(),
       completed_at: new Date().toISOString(),
+      duration_seconds: input.durationSeconds ?? null,
     })
     .select("id")
     .single();
