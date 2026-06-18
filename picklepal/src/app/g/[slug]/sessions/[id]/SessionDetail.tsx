@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { Match, Session } from "@/lib/supabase";
-import type { SessionSummary, SessionAwards, MvpAward, HottestDuoAward, BestMatchAward } from "@/lib/stats";
+import type { SessionSummary, SessionAwards, MvpAward, HottestDuoAward, BestMatchAward, LongestMatchAward } from "@/lib/stats";
+import { formatMatchDuration, formatSessionDuration } from "@/lib/format/duration";
 import { MvpShareButton, SessionRecapShareButton } from "@/components/share";
 
 interface SessionDetailProps {
@@ -28,10 +29,7 @@ function formatDate(dateStr: string): string {
 
 function formatDuration(minutes: number | null): string {
   if (minutes === null) return "In progress";
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+  return formatSessionDuration(minutes);
 }
 
 function formatWinRate(rate: number): string {
@@ -119,6 +117,37 @@ function BestMatchCard({
         </p>
         <p className="text-xs text-text-secondary">
           {teamANames} vs {teamBNames}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function LongestMatchCard({
+  match,
+  playerNames,
+}: {
+  readonly match: LongestMatchAward;
+  readonly playerNames: Record<string, string>;
+}) {
+  const teamANames = match.teamAPlayerIds.map((id) => playerNames[id] ?? "Unknown").join(" & ");
+  const teamBNames = match.teamBPlayerIds.map((id) => playerNames[id] ?? "Unknown").join(" & ");
+
+  return (
+    <div className="rounded-xl border border-ball-yellow/30 bg-ball-yellow/5 p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <svg className="h-4 w-4 text-ball-yellow" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <path strokeLinecap="round" d="M12 7v5l3 3" />
+        </svg>
+        <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider">
+          Marathon Match
+        </h3>
+      </div>
+      <div>
+        <p className="font-bold text-text-primary">{formatMatchDuration(match.durationSeconds)}</p>
+        <p className="text-xs text-text-secondary">
+          {match.teamAScore}–{match.teamBScore} · {teamANames} vs {teamBNames}
         </p>
       </div>
     </div>
@@ -338,7 +367,7 @@ export function SessionDetail({
       </header>
 
       {/* Awards */}
-      {(awards.mvp || awards.hottestDuo || awards.bestMatch) && (
+      {(awards.mvp || awards.hottestDuo || awards.bestMatch || awards.longestMatch) && (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">
             Awards
@@ -348,6 +377,9 @@ export function SessionDetail({
             {awards.hottestDuo && <HottestDuoCard duo={awards.hottestDuo} />}
             {awards.bestMatch && (
               <BestMatchCard match={awards.bestMatch} playerNames={playerNames} />
+            )}
+            {awards.longestMatch && (
+              <LongestMatchCard match={awards.longestMatch} playerNames={playerNames} />
             )}
           </div>
         </section>

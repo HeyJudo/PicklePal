@@ -78,6 +78,7 @@ interface ActiveMatchInfo {
   readonly startingServerPlayerId: string | null;
   readonly targetScore: number;
   readonly winBy: number;
+  readonly startedAt: string | null;
 }
 
 interface LivePageClientProps {
@@ -122,6 +123,7 @@ export function LivePageClient({
   const [completedMatch, setCompletedMatch] = useState<CompletedMatchData | null>(null);
   const [activeMatchId, setActiveMatchId] = useState<string | null>(initialActiveMatch?.id ?? null);
   const [dbActiveMatch, setDbActiveMatch] = useState<ActiveMatchInfo | null>(initialActiveMatch);
+  const [activeMatchStartedAt, setActiveMatchStartedAt] = useState<string | null>(initialActiveMatch?.startedAt ?? null);
   const [showResumePrompt, setShowResumePrompt] = useState(false);
   const [recapData, setRecapData] = useState<{
     gamesPlayed: number;
@@ -184,6 +186,7 @@ export function LivePageClient({
       setMatchConfig(config);
       setMatchLocalId(initialActiveMatch.id);
       setActiveMatchId(initialActiveMatch.id);
+      setActiveMatchStartedAt(initialActiveMatch.startedAt ?? null);
 
       // Rebuild history from snapshot rally count
       const snapshot = initialActiveMatch.currentSnapshot;
@@ -292,6 +295,7 @@ export function LivePageClient({
       setActiveMatchId(result.data.matchId);
       // Use DB match ID as the local match ID so auto-resume can find it
       matchLocalIdToUse = result.data.matchId;
+      setActiveMatchStartedAt(new Date().toISOString());
     }
     // If DB creation fails, still allow local scoring (offline resilience)
 
@@ -307,7 +311,7 @@ export function LivePageClient({
   };
 
   const handleMatchComplete = async (completedHistory: MatchHistory) => {
-    const matchData = buildCompletedMatchData(completedHistory);
+    const matchData = buildCompletedMatchData(completedHistory, activeMatchStartedAt);
     setCompletedMatch(matchData);
 
     // If we have an active DB match, transition it to completed
@@ -333,7 +337,7 @@ export function LivePageClient({
     }
     setMatchConfig(null); setMatchLocalId(null); setRecoveredHistory(null);
     setRecoverableMatch(null); setCurrentMatchup(null); setCompletedMatch(null);
-    setActiveMatchId(null); setDbActiveMatch(null);
+    setActiveMatchId(null); setDbActiveMatch(null); setActiveMatchStartedAt(null);
     setStep("active");
   };
 
@@ -388,6 +392,7 @@ export function LivePageClient({
     setMatchConfig(config);
     setMatchLocalId(dbActiveMatch.id);
     setActiveMatchId(dbActiveMatch.id);
+    setActiveMatchStartedAt(dbActiveMatch.startedAt ?? null);
     setShowResumePrompt(false);
 
     // Try local rally queue for exact state
@@ -554,6 +559,7 @@ export function LivePageClient({
           players={players} targetScore={activeSession.target_score}
           winBy={activeSession.win_by} trackScorers={activeSession.track_scorers}
           activeMatchId={activeMatchId}
+          startedAt={activeMatchStartedAt}
           onMatchComplete={handleMatchComplete}
         />
       )}
@@ -804,6 +810,7 @@ export function LivePageClient({
             players={players} targetScore={activeSession.target_score}
             winBy={activeSession.win_by} trackScorers={activeSession.track_scorers}
             activeMatchId={activeMatchId}
+            startedAt={activeMatchStartedAt}
             onMatchComplete={handleMatchComplete}
           />
         )}
@@ -1030,17 +1037,23 @@ function createLocalMatchId(): string {
   return `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function buildCompletedMatchData(history: MatchHistory): CompletedMatchData {
+function buildCompletedMatchData(
+  history: MatchHistory,
+  startedAt?: string | null,
+): CompletedMatchData {
   const rallyEvents = buildRallyEvents(history);
   const state = history.currentState;
   const input = history.initialInput;
   const teamAIds = input.matchType === "doubles" ? [...input.teamAPlayerIds] : [input.teamAPlayerId];
   const teamBIds = input.matchType === "doubles" ? [...input.teamBPlayerIds] : [input.teamBPlayerId];
+  const durationSeconds = startedAt
+    ? Math.max(0, Math.round((Date.now() - new Date(startedAt).getTime()) / 1000))
+    : null;
   return {
     matchType: input.matchType, teamAPlayerIds: teamAIds, teamBPlayerIds: teamBIds,
     teamAScore: state.teamAScore, teamBScore: state.teamBScore,
     winner: state.winner!, startingServerPlayerId: input.startingServerPlayerId,
-    totalRallies: history.rallyWinners.length, rallyEvents,
+    totalRallies: history.rallyWinners.length, rallyEvents, durationSeconds,
   };
 }
 

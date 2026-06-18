@@ -23,6 +23,8 @@ export interface PlayerStats {
   readonly gamesPlayed: number;
   readonly winRate: number;
   readonly pointDifferential: number;
+  readonly avgMatchDurationSeconds: number | null;
+  readonly longestMatchSeconds: number | null;
   readonly recentMatches: readonly MatchSummary[];
 }
 
@@ -38,6 +40,7 @@ export interface MatchSummary {
   readonly winningTeam: string | null;
   readonly playedAt: string | null;
   readonly completedAt: string | null;
+  readonly durationSeconds: number | null;
 }
 
 /** Duo pairing stats */

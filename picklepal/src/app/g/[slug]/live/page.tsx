@@ -40,6 +40,7 @@ export default async function LivePage({ params }: LivePageProps) {
     startingServerPlayerId: string | null;
     targetScore: number;
     winBy: number;
+    startedAt: string | null;
   } | null = null;
 
   if (activeSession) {
@@ -82,6 +83,7 @@ export default async function LivePage({ params }: LivePageProps) {
         startingServerPlayerId: am.starting_server_player_id,
         targetScore: am.target_score,
         winBy: am.win_by,
+        startedAt: am.started_at,
       };
     }
   }

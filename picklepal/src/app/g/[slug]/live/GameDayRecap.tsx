@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import type { SessionAwards, MvpAward, HottestDuoAward, BestMatchAward } from "@/lib/stats";
+import type { SessionAwards, MvpAward, HottestDuoAward, BestMatchAward, LongestMatchAward } from "@/lib/stats";
+import { formatMatchDuration, formatSessionDuration } from "@/lib/format/duration";
 import { RecapShareButton, MvpShareButton, SessionRecapShareButton } from "@/components/share";
 
 interface RecapData {
@@ -22,14 +23,6 @@ interface GameDayRecapProps {
   /** Formatted session date string, e.g. "June 17, 2026". */
   readonly sessionDate?: string;
   readonly onDone: () => void;
-}
-
-function formatDuration(minutes: number | null): string {
-  if (minutes === null) return "—";
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
 }
 
 // ─── Slide Components ────────────────────────────────────────────────────────
@@ -57,7 +50,7 @@ function SummarySlide({ gamesPlayed, playerCount, durationMinutes }: {
         {[
           { value: String(gamesPlayed), label: "Games", delay: 0.25 },
           { value: String(playerCount), label: "Players", delay: 0.35 },
-          { value: formatDuration(durationMinutes), label: "Duration", delay: 0.45 },
+          { value: formatSessionDuration(durationMinutes), label: "Duration", delay: 0.45 },
         ].map(({ value, label, delay }) => (
           <motion.div
             key={label}
@@ -274,6 +267,66 @@ function BestMatchSlide({ match, playerNames }: {
   );
 }
 
+function LongestMatchSlide({ match, playerNames }: {
+  readonly match: LongestMatchAward;
+  readonly playerNames: Record<string, string>;
+}) {
+  const teamANames = match.teamAPlayerIds
+    .map((id) => playerNames[id] ?? "Unknown")
+    .join(" & ");
+  const teamBNames = match.teamBPlayerIds
+    .map((id) => playerNames[id] ?? "Unknown")
+    .join(" & ");
+
+  return (
+    <div className="flex flex-col items-center justify-center text-center space-y-6 w-full">
+      <motion.p
+        className="text-xs font-semibold text-ball-yellow/80 uppercase tracking-widest"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.1, duration: 0.3 }}
+      >
+        Marathon Match
+      </motion.p>
+
+      <motion.div
+        className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-ball-yellow/20"
+        initial={{ scale: 0, rotate: -20 }}
+        animate={{ scale: 1, rotate: 0 }}
+        transition={{ delay: 0.2, type: "spring", stiffness: 280, damping: 18 }}
+      >
+        <svg className="w-8 h-8 text-ball-yellow" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <path strokeLinecap="round" d="M12 7v5l3 3" />
+        </svg>
+      </motion.div>
+
+      <motion.p
+        className="font-display text-5xl text-ball-yellow leading-none tabular-nums"
+        initial={{ opacity: 0, scale: 0.6 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.3, type: "spring", stiffness: 260, damping: 18 }}
+      >
+        {formatMatchDuration(match.durationSeconds)}
+      </motion.p>
+
+      <motion.div
+        className="space-y-2"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.45, duration: 0.4, ease: "easeOut" }}
+      >
+        <p className="font-display text-3xl text-white leading-none tabular-nums">
+          {match.teamAScore}–{match.teamBScore}
+        </p>
+        <p className="text-white/70 text-sm">{teamANames}</p>
+        <p className="text-white/50 text-xs">vs</p>
+        <p className="text-white/70 text-sm">{teamBNames}</p>
+      </motion.div>
+    </div>
+  );
+}
+
 function FinalSlide({
   shareProps,
 }: {
@@ -416,6 +469,13 @@ export function GameDayRecap({ data, sessionId: _sessionId, groupSlug, groupName
     slides.push({
       key: "best",
       node: <BestMatchSlide match={data.awards.bestMatch} playerNames={data.playerNames} />,
+    });
+  }
+
+  if (data.awards.longestMatch) {
+    slides.push({
+      key: "longest",
+      node: <LongestMatchSlide match={data.awards.longestMatch} playerNames={data.playerNames} />,
     });
   }
 

@@ -8,6 +8,7 @@ import { PlayerAvatar } from "@/components/players";
 import { EditPlayerForm } from "./EditPlayerForm";
 import type { PlayerStats, DuoStats, RivalryStats, MatchSummary } from "@/lib/stats";
 import type { Player } from "@/lib/supabase";
+import { formatMatchDuration } from "@/lib/format/duration";
 
 interface PlayerProfileProps {
   readonly stats: PlayerStats;
@@ -617,6 +618,20 @@ export function PlayerProfile({
           }
         />
       </div>
+
+      {/* ── Duration stat tiles — only when data available ── */}
+      {(stats.avgMatchDurationSeconds != null || stats.longestMatchSeconds != null) && (
+        <div className="rounded-xl border border-border bg-surface grid grid-cols-2 divide-x divide-border-muted">
+          <StatTile
+            label="Avg Duration"
+            value={formatMatchDuration(stats.avgMatchDurationSeconds)}
+          />
+          <StatTile
+            label="Longest"
+            value={formatMatchDuration(stats.longestMatchSeconds)}
+          />
+        </div>
+      )}
 
       {/* ── Recent matches ── */}
       <section className="space-y-2">
