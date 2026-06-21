@@ -76,42 +76,15 @@ export default function FeaturesSection() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            className="bg-surface rounded-3xl p-8 border border-outline-variant/20 shadow-sm lg:order-1 flex flex-col gap-4"
+            className="rounded-3xl overflow-hidden border border-outline-variant/20 shadow-sm lg:order-1"
           >
-            <div className="bg-surface-container rounded-xl p-4 border border-outline-variant/30">
-              <div className="text-center font-label text-[10px] font-semibold text-on-surface-variant uppercase mb-3 tracking-widest">
-                Court 1
-              </div>
-              <div className="flex justify-between items-center font-headline text-sm font-bold">
-                <span>Maya + Gio</span>
-                <span className="text-outline-variant font-label text-xs uppercase px-2">vs</span>
-                <span>Andre + Kai</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="font-label text-[10px] uppercase font-semibold text-on-surface-variant">
-                Sitting out:
-              </span>
-              <div className="flex -space-x-3">
-                {['J', 'S', 'N'].map((initial) => (
-                  <div
-                    key={initial}
-                    className="w-9 h-9 rounded-full bg-primary-fixed text-primary-dark border-2 border-surface flex items-center justify-center text-sm font-bold shadow-sm"
-                  >
-                    {initial}
-                  </div>
-                ))}
-              </div>
-              <span className="font-label text-[10px] text-on-surface-variant ml-1">
-                rotates in next
-              </span>
-            </div>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              <span className="font-label text-[10px] uppercase font-semibold text-primary tracking-wider">
-                Auto-rotated
-              </span>
-            </div>
+            <Image
+              src="/screenshots/fair-rotations.png"
+              alt="DinkDay fair rotations showing court matchups and bench queue"
+              width={800}
+              height={500}
+              className="w-full h-auto"
+            />
           </motion.div>
 
           <motion.div

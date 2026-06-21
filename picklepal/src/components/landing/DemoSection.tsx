@@ -44,7 +44,7 @@ export default function DemoSection() {
             <div className="flex-1 bg-surface rounded-full px-4 py-1.5 flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-outline-variant/40 shrink-0" />
               <span className="font-label text-[11px] text-on-surface-variant truncate">
-                dinkday.site/g/picklepal
+                dinkday.site/g/coolpalss
               </span>
             </div>
           </div>
@@ -68,7 +68,7 @@ export default function DemoSection() {
           className="flex flex-col sm:flex-row items-start sm:items-center gap-4"
         >
           <Link
-            href="/g/picklepal"
+            href="https://www.dinkday.site/g/coolpalss"
             className="bg-primary text-on-primary font-label text-xs uppercase font-semibold tracking-wider px-8 py-4 rounded-lg hover:-translate-y-1 transition-all duration-300 flex items-center gap-2 shadow-[0_4px_0_#065a33] hover:shadow-[0_6px_0_#065a33] active:translate-y-1 active:shadow-none relative overflow-hidden group"
           >
             <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
