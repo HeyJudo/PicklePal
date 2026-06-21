@@ -218,24 +218,18 @@ export function MvpOverlayCard({ mvp, date }: MvpOverlayCardProps) {
           </span>
         </div>
 
-        {/* Player name — full width block, responsive size, 2-line max */}
+        {/* Player name — full width block, responsive size */}
         <div
           style={{
             fontSize: fontSize,
             fontFamily: "Anton, Impact, system-ui, sans-serif",
             fontWeight: 400,
             color: C.white,
-            // Allow up to 2 lines so long names wrap instead of overflow
             lineHeight: 1.05,
             textTransform: "uppercase" as const,
             letterSpacing: "1px",
             textShadow: C.shadow,
-            // Max 2 lines with overflow ellipsis as final guard
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical" as const,
-            overflow: "hidden",
-            // Width constrained to safe area
+            // Width constrained to safe area — wordBreak ensures wrapping
             maxWidth: nameMaxWidth,
             wordBreak: "break-word" as const,
             marginBottom: 12,

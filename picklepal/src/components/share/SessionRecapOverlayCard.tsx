@@ -227,10 +227,6 @@ export function SessionRecapOverlayCard({
     });
   }
 
-  // Max width for truncatable award value text:
-  // 540 - 2*40 (safe pad) - ~60 (icon + label + separator) = ~360px
-  const awardValueMaxWidth = W - PAD_H * 2 - 60;
-
   return (
     <div
       style={{
@@ -369,7 +365,7 @@ export function SessionRecapOverlayCard({
         {awardRows.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column" as const, gap: 8, marginBottom: 18 }}>
             {awardRows.map((row, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 7, overflow: "hidden" }}>
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 7 }}>
                 {row.icon}
                 <span style={{
                   fontSize: 11,
@@ -388,12 +384,8 @@ export function SessionRecapOverlayCard({
                   fontFamily: "system-ui, -apple-system, sans-serif",
                   fontWeight: 700,
                   color: row.isGold ? C.gold : C.white80,
-                  textShadow: C.shadow,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
+                  textShadow: C.shadowSm,
                   whiteSpace: "nowrap" as const,
-                  // Explicit max width so long names (e.g. "Sangalang, Jude Louis") truncate
-                  maxWidth: awardValueMaxWidth,
                 }}>
                   {row.value}
                 </span>
