@@ -79,10 +79,10 @@ function DinkDayWordmark() {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
       <svg width={18} height={18} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
-        <circle cx="12" cy="12" r="9" stroke={C.white} strokeWidth="1.6" />
-        <circle cx="9"  cy="9"  r="1.2" fill={C.courtGreen} />
-        <circle cx="15" cy="9"  r="1.2" fill={C.courtGreen} />
-        <circle cx="12" cy="13" r="1.2" fill={C.courtGreen} />
+        <circle cx="12" cy="12" r="9" fill={C.courtGreen} stroke={C.courtGreen} strokeWidth="1.6" />
+        <circle cx="9"  cy="9"  r="1.2" fill={C.white} />
+        <circle cx="15" cy="9"  r="1.2" fill={C.white} />
+        <circle cx="12" cy="13" r="1.2" fill={C.white} />
         <circle cx="8"  cy="14" r="1.2" fill={C.white} />
         <circle cx="16" cy="14" r="1.2" fill={C.white} />
       </svg>
@@ -189,7 +189,7 @@ export function MvpOverlayCard({ mvp, date }: MvpOverlayCardProps) {
             {date}
           </span>
         </div>
-        <div style={{ height: 1, backgroundColor: C.white20, marginTop: 14 }} />
+        <div style={{ height: 1, backgroundColor: C.courtGreen, marginTop: 14 }} />
       </div>
 
       {/* ── BOTTOM BLOCK ── */}
@@ -218,24 +218,18 @@ export function MvpOverlayCard({ mvp, date }: MvpOverlayCardProps) {
           </span>
         </div>
 
-        {/* Player name — full width block, responsive size, 2-line max */}
+        {/* Player name — full width block, responsive size */}
         <div
           style={{
             fontSize: fontSize,
             fontFamily: "Anton, Impact, system-ui, sans-serif",
             fontWeight: 400,
             color: C.white,
-            // Allow up to 2 lines so long names wrap instead of overflow
             lineHeight: 1.05,
             textTransform: "uppercase" as const,
             letterSpacing: "1px",
             textShadow: C.shadow,
-            // Max 2 lines with overflow ellipsis as final guard
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical" as const,
-            overflow: "hidden",
-            // Width constrained to safe area
+            // Width constrained to safe area — wordBreak ensures wrapping
             maxWidth: nameMaxWidth,
             wordBreak: "break-word" as const,
             marginBottom: 12,
@@ -245,7 +239,7 @@ export function MvpOverlayCard({ mvp, date }: MvpOverlayCardProps) {
         </div>
 
         {/* Thin divider */}
-        <div style={{ height: 1, backgroundColor: C.divider, marginBottom: 14 }} />
+        <div style={{ height: 1, backgroundColor: C.courtGreen, marginBottom: 14 }} />
 
         {/* Stat strip: WINS · WIN RATE · POINT DIFF */}
         <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 18 }}>
@@ -335,7 +329,7 @@ export function MvpOverlayCard({ mvp, date }: MvpOverlayCardProps) {
             fontSize: 11,
             fontFamily: "system-ui, -apple-system, sans-serif",
             fontWeight: 600,
-            color: C.white60,
+            color: C.courtGreen,
             textShadow: C.shadowSm,
             letterSpacing: "0.3px",
           }}>

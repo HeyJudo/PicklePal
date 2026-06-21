@@ -78,10 +78,10 @@ function DinkDayWordmark() {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
       <svg width={18} height={18} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
-        <circle cx="12" cy="12" r="9" stroke={C.white} strokeWidth="1.6" />
-        <circle cx="9"  cy="9"  r="1.2" fill={C.courtGreen} />
-        <circle cx="15" cy="9"  r="1.2" fill={C.courtGreen} />
-        <circle cx="12" cy="13" r="1.2" fill={C.courtGreen} />
+        <circle cx="12" cy="12" r="9" fill={C.courtGreen} stroke={C.courtGreen} strokeWidth="1.6" />
+        <circle cx="9"  cy="9"  r="1.2" fill={C.white} />
+        <circle cx="15" cy="9"  r="1.2" fill={C.white} />
+        <circle cx="12" cy="13" r="1.2" fill={C.white} />
         <circle cx="8"  cy="14" r="1.2" fill={C.white} />
         <circle cx="16" cy="14" r="1.2" fill={C.white} />
       </svg>
@@ -227,10 +227,6 @@ export function SessionRecapOverlayCard({
     });
   }
 
-  // Max width for truncatable award value text:
-  // 540 - 2*40 (safe pad) - ~60 (icon + label + separator) = ~360px
-  const awardValueMaxWidth = W - PAD_H * 2 - 60;
-
   return (
     <div
       style={{
@@ -317,7 +313,7 @@ export function SessionRecapOverlayCard({
         </div>
 
         {/* Thin rule before stats */}
-        <div style={{ height: 1, backgroundColor: C.divider, marginBottom: 14 }} />
+        <div style={{ height: 1, backgroundColor: C.courtGreen, marginBottom: 14 }} />
 
         {/* Metric row: GAMES · PLAYERS · DURATION (if plausible) */}
         <div style={{ display: "flex", alignItems: "flex-start", gap: 0, marginBottom: 18 }}>
@@ -369,7 +365,7 @@ export function SessionRecapOverlayCard({
         {awardRows.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column" as const, gap: 8, marginBottom: 18 }}>
             {awardRows.map((row, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 7, overflow: "hidden" }}>
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 7 }}>
                 {row.icon}
                 <span style={{
                   fontSize: 11,
@@ -388,12 +384,8 @@ export function SessionRecapOverlayCard({
                   fontFamily: "system-ui, -apple-system, sans-serif",
                   fontWeight: 700,
                   color: row.isGold ? C.gold : C.white80,
-                  textShadow: C.shadow,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
+                  textShadow: C.shadowSm,
                   whiteSpace: "nowrap" as const,
-                  // Explicit max width so long names (e.g. "Sangalang, Jude Louis") truncate
-                  maxWidth: awardValueMaxWidth,
                 }}>
                   {row.value}
                 </span>
@@ -408,7 +400,7 @@ export function SessionRecapOverlayCard({
             fontSize: 11,
             fontFamily: "system-ui, -apple-system, sans-serif",
             fontWeight: 600,
-            color: C.white60,
+            color: C.courtGreen,
             textShadow: C.shadowSm,
             letterSpacing: "0.3px",
           }}>
