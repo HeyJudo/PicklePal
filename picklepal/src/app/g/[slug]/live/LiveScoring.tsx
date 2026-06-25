@@ -23,7 +23,7 @@ import {
   getSyncDisplay,
   removeLastOfflineRallyEvent,
 } from "@/lib/offline";
-import { updateMatchSnapshot } from "./active-match-actions";
+import { updateMatchSnapshot, flushRallyEvents } from "./active-match-actions";
 import { formatClock } from "@/lib/format/duration";
 import type { MatchStartConfig } from "./PositionConfirmation";
 
@@ -45,7 +45,7 @@ interface LiveScoringProps {
   readonly trackScorers?: boolean;
   readonly activeMatchId: string | null;
   readonly startedAt?: string | null;
-  readonly onMatchComplete: (history: MatchHistory) => void;
+  readonly onMatchComplete: (history: MatchHistory, lastFlushedSequence: number) => void;
 }
 
 export function LiveScoring({
@@ -136,6 +136,7 @@ export function LiveScoring({
 
   // Sync snapshot to DB every 5 seconds while match is active
   const lastSnapshotRef = useRef<string>("");
+  const lastFlushedSequenceRef = useRef(-1);
   useEffect(() => {
     if (!activeMatchId || history.currentState.isComplete) return;
 
@@ -163,6 +164,30 @@ export function LiveScoring({
       lastSnapshotRef.current = snapshotKey;
 
       await updateMatchSnapshot(activeMatchId, snapshot);
+
+      // Flush any rally events not yet sent to the DB
+      const queue = getOfflineRallyEvents(sessionId, matchLocalId);
+      const unflushed = queue.filter(
+        (e) => e.sequenceNumber > lastFlushedSequenceRef.current,
+      );
+      if (unflushed.length > 0) {
+        const result = await flushRallyEvents(
+          activeMatchId,
+          unflushed.map((e) => ({
+            sequenceNumber: e.sequenceNumber,
+            rallyWinnerTeam: e.rallyWinnerTeam,
+            resultingTeamAScore: e.resultingTeamAScore,
+            resultingTeamBScore: e.resultingTeamBScore,
+            serverPlayerId: e.serverPlayerId,
+            serverNumber: e.serverNumber,
+            sideOutOccurred: e.sideOutOccurred,
+          })),
+        );
+        if (result.success) {
+          lastFlushedSequenceRef.current =
+            unflushed[unflushed.length - 1].sequenceNumber;
+        }
+      }
     };
 
     const intervalId = setInterval(syncSnapshot, 5000);
@@ -170,7 +195,7 @@ export function LiveScoring({
     syncSnapshot();
 
     return () => clearInterval(intervalId);
-  }, [activeMatchId, history]);
+  }, [activeMatchId, history, matchLocalId, sessionId]);
 
   const playerMap = new Map(players.map((p) => [p.id, p]));
   const getPlayer = (id: string) => playerMap.get(id);
@@ -205,7 +230,7 @@ export function LiveScoring({
       setPendingRallyCount(nextQueue.length);
 
       if (newHistory.currentState.isComplete) {
-        setTimeout(() => onMatchComplete(newHistory), 600);
+        setTimeout(() => onMatchComplete(newHistory, lastFlushedSequenceRef.current), 600);
       }
     },
     [history, matchLocalId, onMatchComplete, sessionId, state.isComplete],

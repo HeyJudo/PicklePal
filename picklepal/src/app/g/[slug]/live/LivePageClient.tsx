@@ -310,20 +310,24 @@ export function LivePageClient({
     setStep("scoring");
   };
 
-  const handleMatchComplete = async (completedHistory: MatchHistory) => {
+  const handleMatchComplete = async (completedHistory: MatchHistory, lastFlushedSequence: number) => {
     const matchData = buildCompletedMatchData(completedHistory, activeMatchStartedAt);
     setCompletedMatch(matchData);
 
     // If we have an active DB match, transition it to completed
     if (activeMatchId) {
       const rallyEvents = buildRallyEvents(completedHistory);
+      // Only send rallies not yet flushed during the match — the rest are already in the DB
+      const unflushedRallyEvents = rallyEvents.filter(
+        (e) => e.sequenceNumber > lastFlushedSequence,
+      );
       await completeActiveMatch({
         matchId: activeMatchId,
         teamAScore: matchData.teamAScore,
         teamBScore: matchData.teamBScore,
         winningTeam: matchData.winner,
         losingTeam: matchData.winner === "A" ? "B" : "A",
-        rallyEvents,
+        rallyEvents: unflushedRallyEvents,
       });
     }
 
