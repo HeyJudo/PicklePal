@@ -9,6 +9,10 @@ import { EditPlayerForm } from "./EditPlayerForm";
 import type { PlayerStats, DuoStats, RivalryStats, MatchSummary } from "@/lib/stats";
 import type { Player } from "@/lib/supabase";
 import { formatMatchDuration } from "@/lib/format/duration";
+import { BeltMedallion } from "@/components/belts/BeltMedallion";
+import { getBeltMeta } from "@/components/belts/BeltBadge";
+import { formatReignDuration } from "@/lib/belts/formatReignDuration";
+import type { PlayerReignView } from "../actions";
 
 interface PlayerProfileProps {
   readonly stats: PlayerStats;
@@ -17,6 +21,7 @@ interface PlayerProfileProps {
   readonly groupSlug: string;
   readonly player: Player;
   readonly isAdmin?: boolean;
+  readonly playerReigns: readonly PlayerReignView[];
 }
 
 function formatWinRate(rate: number): string {
@@ -509,6 +514,7 @@ export function PlayerProfile({
   groupSlug,
   player,
   isAdmin = false,
+  playerReigns,
 }: PlayerProfileProps) {
   const playerColor = player.color ?? "#2D8B4E";
 
@@ -733,6 +739,53 @@ export function PlayerProfile({
           </div>
         )}
       </section>
+
+      {/* ── Titles ── */}
+      {playerReigns.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-xs font-label font-semibold text-text-muted uppercase tracking-widest px-1">
+            Titles
+          </h2>
+          <div className="rounded-xl border border-border bg-surface px-4">
+            <ul>
+              {playerReigns.map((reign) => {
+                const meta = getBeltMeta(reign.beltType);
+                return (
+                  <li
+                    key={reign.id}
+                    className="flex items-center gap-3 py-3 border-b border-border-muted last:border-0"
+                  >
+                    <BeltMedallion beltType={reign.beltType} size="md" className="shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-text-primary leading-tight">
+                        {meta.label}
+                        {reign.subjectName && (
+                          <span className="text-text-muted font-normal">
+                            {" "}
+                            · owns {reign.subjectName}
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-text-muted">
+                        {reign.isCurrent ? "Current holder" : "Past reign"}
+                      </p>
+                    </div>
+                    <span className="font-score text-sm font-bold tabular-nums text-text-secondary shrink-0">
+                      {formatReignDuration(reign.durationMs)}
+                      {reign.isCurrent && (
+                        <span className="ml-1 text-[10px] font-label uppercase text-court-green">
+                          {" "}
+                          · live
+                        </span>
+                      )}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

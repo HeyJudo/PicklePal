@@ -1,7 +1,7 @@
 import { getActiveSession, getGroupPlayers, getSessionMatches } from "./actions";
 import { getSessionPlayers } from "./session-player-actions";
 import { getActiveMatch } from "./active-match-actions";
-import { getLeaderboard } from "../board/actions";
+import { getLeaderboard, getBoardBelts } from "../board/actions";
 import { getGroupSettings } from "../settings/settings-actions";
 import { getViewerAccess } from "@/lib/auth";
 import { LivePageClient } from "./LivePageClient";
@@ -13,18 +13,23 @@ interface LivePageProps {
 export default async function LivePage({ params }: LivePageProps) {
   const { slug } = await params;
 
-  const [sessionResult, players, leaderboardResult, groupSettingsResult, viewerAccess] = await Promise.all([
+  const [sessionResult, players, leaderboardResult, groupSettingsResult, viewerAccess, currentBelts] = await Promise.all([
     getActiveSession(slug),
     getGroupPlayers(slug),
     getLeaderboard(slug),
     getGroupSettings(slug),
     getViewerAccess(slug),
+    getBoardBelts(slug),
   ]);
 
   const activeSession = sessionResult.success ? sessionResult.data ?? null : null;
   const groupSettings = groupSettingsResult.data?.settings ?? null;
   const clerkUserId = viewerAccess.clerkUserId;
   const isAdmin = viewerAccess.isAdmin;
+
+  // Derive King of the Kitchen holder ID from active belts
+  const kingBelt = currentBelts.find((b) => b.beltType === "king_of_the_kitchen");
+  const kingHolderId = kingBelt?.holderPlayerIds[0] ?? null;
 
   // Fetch session players and matches if there's an active session
   let sessionPlayers: { playerId: string; status: "active" | "benched" | "removed" }[] = [];
@@ -101,6 +106,8 @@ export default async function LivePage({ params }: LivePageProps) {
       clerkUserId={clerkUserId}
       isAdmin={isAdmin}
       initialActiveMatch={activeMatchData}
+      kingHolderId={kingHolderId}
+      currentBelts={currentBelts}
     />
   );
 }

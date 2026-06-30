@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Crown } from "lucide-react";
 import {
   HomeIcon,
   LiveIcon,
@@ -27,6 +27,7 @@ function getNavItems(groupSlug: string): readonly NavItem[] {
     { label: "Board", href: `${base}/board`, icon: <BoardIcon className="w-5 h-5" /> },
     { label: "History", href: `${base}/history`, icon: <HistoryIcon className="w-5 h-5" /> },
     { label: "Players", href: `${base}/players`, icon: <PlayersIcon className="w-5 h-5" /> },
+    { label: "Titles", href: `${base}/belts`, icon: <Crown className="w-5 h-5" /> },
   ] as const;
 }
 

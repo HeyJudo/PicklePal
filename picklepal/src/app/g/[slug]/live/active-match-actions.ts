@@ -3,6 +3,7 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
 import { authorizeGroupWrite, resolveGroupIdFromSession, resolveGroupIdFromMatch } from "@/lib/auth";
+import { recomputeBelts } from "@/lib/belts/recomputeBelts";
 import type { MatchType, MatchSnapshot } from "@/lib/supabase";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -272,6 +273,10 @@ export async function completeActiveMatch(
       return { success: false, error: "Failed to save rally events. Match not completed." };
     }
   }
+
+  // Recompute belt holders after successful match completion.
+  // Failure is swallowed inside recomputeBelts — never reverts this match.
+  void recomputeBelts(groupId);
 
   return { success: true };
 }

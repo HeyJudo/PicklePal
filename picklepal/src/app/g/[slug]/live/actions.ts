@@ -2,6 +2,7 @@
 
 import { createServerClient } from "@/lib/supabase";
 import { authorizeGroupWrite, resolveGroupIdFromSession } from "@/lib/auth";
+import { recomputeBelts } from "@/lib/belts/recomputeBelts";
 import type { MatchType } from "@/lib/supabase";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -179,6 +180,9 @@ export async function endSession(
     return { success: false, error: error.message };
   }
 
+  // Recompute belts now that the game day is over (best-effort, never throws).
+  await recomputeBelts(groupId);
+
   return { success: true };
 }
 
@@ -299,6 +303,9 @@ export async function saveCompletedMatch(
       console.error("Failed to save rally events:", rallyError);
     }
   }
+
+  // Recompute belts now that a match has completed (best-effort, never throws).
+  await recomputeBelts(groupId);
 
   return { success: true, data: { matchId: match.id } };
 }

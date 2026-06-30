@@ -169,6 +169,12 @@ body {
   100% { transform: scale(1.4); opacity: 0; }
 }
 
+/* Gentle gold ring pulse for the King of the Kitchen medallion */
+@keyframes beltCrownGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 197, 24, 0.0), 0 0 6px 1px rgba(245, 197, 24, 0.35); }
+  50% { box-shadow: 0 0 0 3px rgba(245, 197, 24, 0.22), 0 0 12px 3px rgba(245, 197, 24, 0.55); }
+}
+
 /* =====================================================
    ANIMATION UTILITY CLASSES
    ===================================================== */
@@ -200,6 +206,11 @@ body {
   }
   .fade-rise {
     animation: fadeRise 0.4s ease-out forwards;
+  }
+
+  /* King belt medallion gold glow */
+  .belt-crown-glow {
+    animation: beltCrownGlow 2.4s ease-in-out infinite;
   }
 
   /* Skeleton shimmer */
@@ -257,6 +268,7 @@ body {
     .score-tick,
     .win-pop,
     .fade-rise,
+    .belt-crown-glow,
     .skeleton-shimmer,
     .stagger-1,
     .stagger-2,

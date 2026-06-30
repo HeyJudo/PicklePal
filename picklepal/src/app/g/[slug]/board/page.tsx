@@ -1,5 +1,6 @@
-import { getLeaderboard } from "./actions";
+import { getLeaderboard, getBoardBelts } from "./actions";
 import { LeaderboardTable } from "./LeaderboardTable";
+import { BeltLegend } from "@/components/belts/BeltLegend";
 
 interface BoardPageProps {
   readonly params: Promise<{ slug: string }>;
@@ -7,7 +8,10 @@ interface BoardPageProps {
 
 export default async function BoardPage({ params }: BoardPageProps) {
   const { slug } = await params;
-  const { entries, error } = await getLeaderboard(slug);
+  const [{ entries, error }, currentBelts] = await Promise.all([
+    getLeaderboard(slug),
+    getBoardBelts(slug),
+  ]);
 
   const qualified = entries.filter((e) => e.isQualified);
 
@@ -50,7 +54,15 @@ export default async function BoardPage({ params }: BoardPageProps) {
           <p className="text-hype-red text-sm font-medium">{error}</p>
         </div>
       ) : (
-        <LeaderboardTable entries={entries} />
+        <div className="space-y-3">
+          {/* Slim legend trigger — belts now live inline in the rows below */}
+          {currentBelts.length > 0 && (
+            <div className="flex justify-end">
+              <BeltLegend hallOfFameHref={`/g/${slug}/belts`} />
+            </div>
+          )}
+          <LeaderboardTable entries={entries} currentBelts={currentBelts} />
+        </div>
       )}
     </div>
   );

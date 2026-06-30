@@ -1,9 +1,95 @@
 "use client";
 
 import type { LeaderboardEntry } from "@/lib/stats";
+import type { BeltType, CurrentBelt } from "@/lib/belts/recomputeBelts";
+import { BeltMedallion } from "@/components/belts/BeltMedallion";
+import { getBeltMeta } from "@/components/belts/BeltBadge";
+import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 
 interface LeaderboardTableProps {
   readonly entries: readonly LeaderboardEntry[];
+  readonly currentBelts?: readonly CurrentBelt[];
+}
+
+// One medallion to render for a player. Pickler collapses into a single
+// medallion with a count + the list of owned opponents for the tooltip.
+interface HeldBelt {
+  readonly beltType: BeltType;
+  readonly count: number;
+  readonly title: string;
+}
+
+const BELT_RENDER_ORDER: readonly BeltType[] = ["king_of_the_kitchen", "poacher", "pickler"];
+
+/**
+ * Build playerId → ordered belts. King/Poacher holders each get a medallion.
+ * Pickler holders (holderPlayerIds[0]) collapse multiple reigns into one
+ * medallion with ×N and a tooltip listing the owned opponents.
+ */
+function buildBeltMap(
+  belts: readonly CurrentBelt[],
+  nameOf: (id: string) => string | undefined,
+): Map<string, HeldBelt[]> {
+  const king: string[] = [];
+  const poacher: string[] = [];
+  // playerId → list of subject names they own (Pickler)
+  const picklerSubjects = new Map<string, string[]>();
+
+  for (const belt of belts) {
+    if (belt.beltType === "king_of_the_kitchen") {
+      king.push(...belt.holderPlayerIds);
+    } else if (belt.beltType === "poacher") {
+      poacher.push(...belt.holderPlayerIds);
+    } else if (belt.beltType === "pickler") {
+      const holder = belt.holderPlayerIds[0];
+      if (!holder) continue;
+      const list = picklerSubjects.get(holder) ?? [];
+      const subjectName = belt.subjectPlayerId ? nameOf(belt.subjectPlayerId) : undefined;
+      if (subjectName) list.push(subjectName);
+      picklerSubjects.set(holder, list);
+    }
+  }
+
+  const map = new Map<string, HeldBelt[]>();
+  const push = (playerId: string, held: HeldBelt) => {
+    const list = map.get(playerId) ?? [];
+    list.push(held);
+    map.set(playerId, list);
+  };
+
+  const kingMeta = getBeltMeta("king_of_the_kitchen");
+  const poacherMeta = getBeltMeta("poacher");
+  const picklerMeta = getBeltMeta("pickler");
+
+  for (const id of new Set(king)) {
+    push(id, { beltType: "king_of_the_kitchen", count: 1, title: `${kingMeta.label} — ${kingMeta.description}` });
+  }
+  for (const id of new Set(poacher)) {
+    push(id, { beltType: "poacher", count: 1, title: `${poacherMeta.label} — ${poacherMeta.description}` });
+  }
+  for (const [id, subjects] of picklerSubjects) {
+    const owns = subjects.length > 0 ? ` — owns ${subjects.join(", ")}` : "";
+    push(id, { beltType: "pickler", count: subjects.length, title: `${picklerMeta.label}${owns}` });
+  }
+
+  // Order each player's belts King → Poacher → Pickler
+  for (const list of map.values()) {
+    list.sort(
+      (a, b) => BELT_RENDER_ORDER.indexOf(a.beltType) - BELT_RENDER_ORDER.indexOf(b.beltType),
+    );
+  }
+  return map;
+}
+
+function BeltMedallions({ held, size = "sm" }: { readonly held: HeldBelt[]; readonly size?: "sm" | "md" }) {
+  if (held.length === 0) return null;
+  return (
+    <span className="inline-flex items-center gap-1 align-middle">
+      {held.map((b) => (
+        <BeltMedallion key={b.beltType} beltType={b.beltType} size={size} count={b.count} title={b.title} />
+      ))}
+    </span>
+  );
 }
 
 function formatWinRate(rate: number): string {
@@ -13,47 +99,6 @@ function formatWinRate(rate: number): string {
 function formatPointDiff(diff: number): string {
   if (diff > 0) return `+${diff}`;
   return `${diff}`;
-}
-
-function PlayerAvatar({
-  displayName,
-  color,
-  avatarUrl,
-  size = "md",
-}: {
-  readonly displayName: string;
-  readonly color: string | null;
-  readonly avatarUrl?: string | null;
-  readonly size?: "sm" | "md";
-}) {
-  const initials = displayName
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
-  const sizeClasses = size === "sm" ? "h-7 w-7 text-xs" : "h-9 w-9 text-sm";
-
-  if (avatarUrl) {
-    return (
-      <img
-        src={avatarUrl}
-        alt={displayName}
-        className={`${sizeClasses} rounded-full object-cover shrink-0`}
-      />
-    );
-  }
-
-  return (
-    <div
-      className={`flex ${sizeClasses} items-center justify-center rounded-full font-bold text-white shrink-0`}
-      style={{ backgroundColor: color ?? "#64748B" }}
-      aria-hidden="true"
-    >
-      {initials}
-    </div>
-  );
 }
 
 // Desktop: subtle row tinting for top 3
@@ -90,7 +135,7 @@ function RankBadge({ rank }: { readonly rank: number | null }) {
   );
 }
 
-function RankCard({ entry }: { readonly entry: LeaderboardEntry }) {
+function RankCard({ entry, held }: { readonly entry: LeaderboardEntry; readonly held: HeldBelt[] }) {
   const style =
     entry.rank !== null && entry.rank <= 3
       ? CARD_RANK_STYLE[entry.rank]
@@ -124,9 +169,12 @@ function RankCard({ entry }: { readonly entry: LeaderboardEntry }) {
 
       {/* Name + record */}
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-text-primary text-sm truncate">
-          {entry.displayName}
-        </p>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <p className="font-semibold text-text-primary text-sm truncate">
+            {entry.displayName}
+          </p>
+          <BeltMedallions held={held} size="sm" />
+        </div>
         <p className="text-xs text-text-muted mt-0.5 tabular-nums font-label">
           {entry.wins}W&nbsp;&nbsp;{entry.losses}L&nbsp;&nbsp;{entry.gamesPlayed}&nbsp;GP
         </p>
@@ -153,7 +201,13 @@ function RankCard({ entry }: { readonly entry: LeaderboardEntry }) {
   );
 }
 
-export function LeaderboardTable({ entries }: LeaderboardTableProps) {
+const EMPTY_HELD: HeldBelt[] = [];
+
+export function LeaderboardTable({ entries, currentBelts = [] }: LeaderboardTableProps) {
+  const nameOf = (id: string) => entries.find((e) => e.playerId === id)?.displayName;
+  const beltMap = buildBeltMap(currentBelts, nameOf);
+  const heldFor = (playerId: string) => beltMap.get(playerId) ?? EMPTY_HELD;
+
   if (entries.length === 0) {
     return (
       <div className="rounded-xl border border-border bg-surface-muted p-8 text-center">
@@ -172,7 +226,7 @@ export function LeaderboardTable({ entries }: LeaderboardTableProps) {
       {/* ── MOBILE: Stacked rank cards ── */}
       <div className="md:hidden space-y-2">
         {qualified.map((entry) => (
-          <RankCard key={entry.playerId} entry={entry} />
+          <RankCard key={entry.playerId} entry={entry} held={heldFor(entry.playerId)} />
         ))}
       </div>
 
@@ -227,6 +281,7 @@ export function LeaderboardTable({ entries }: LeaderboardTableProps) {
                     <span className="font-medium text-text-primary truncate">
                       {entry.displayName}
                     </span>
+                    <BeltMedallions held={heldFor(entry.playerId)} size="sm" />
                   </div>
                 </td>
                 <td className="px-3 py-3 text-center font-semibold text-court-green tabular-nums">

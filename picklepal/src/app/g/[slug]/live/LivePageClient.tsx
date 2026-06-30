@@ -15,6 +15,8 @@ import { RecordMatchForm } from "./RecordMatchForm";
 import { ActiveMatchBanner } from "./ActiveMatchBanner";
 import { ViewOnlyScoring } from "./ViewOnlyScoring";
 import { OverlayRenderer, RecapShareButton, SessionRecapShareButton, MvpShareButton } from "@/components/share";
+import { BeltMedallion } from "@/components/belts/BeltMedallion";
+import { getBeltMeta } from "@/components/belts/BeltBadge";
 import { endSession, getSessionRecap, getSessionMatches } from "./actions";
 import { createActiveMatch, completeActiveMatch } from "./active-match-actions";
 import type { MatchStartConfig } from "./PositionConfirmation";
@@ -94,6 +96,10 @@ interface LivePageClientProps {
   readonly clerkUserId: string | null;
   readonly isAdmin: boolean;
   readonly initialActiveMatch: ActiveMatchInfo | null;
+  /** Player ID of the current King of the Kitchen belt holder, if any */
+  readonly kingHolderId?: string | null;
+  /** Currently active belt reigns for compact display in the leaderboard panel */
+  readonly currentBelts?: readonly import("@/lib/belts/recomputeBelts").CurrentBelt[];
 }
 
 export function LivePageClient({
@@ -108,6 +114,8 @@ export function LivePageClient({
   clerkUserId,
   isAdmin,
   initialActiveMatch,
+  kingHolderId,
+  currentBelts,
 }: LivePageClientProps) {
   const [activeSession, setActiveSession] = useState<SessionData | null>(initialSession);
   const [sessionPlayers, setSessionPlayers] = useState<readonly SessionPlayerEntry[]>(initialSessionPlayers);
@@ -166,6 +174,13 @@ export function LivePageClient({
     [players, activePlayerIds],
   );
   const matchType = activeSession?.default_match_type === "singles" ? "singles" : "doubles";
+
+  // Belt-on-the-line: King holder is in the current match roster
+  const beltOnTheLine = useMemo(() => {
+    if (!kingHolderId || !matchConfig) return false;
+    const roster = [...(matchConfig.teamA ?? []), ...(matchConfig.teamB ?? [])];
+    return roster.includes(kingHolderId);
+  }, [kingHolderId, matchConfig]);
 
   // ── Auto-resume from DB active match ────────────────────────────────────────
 
@@ -557,15 +572,24 @@ export function LivePageClient({
         />
       )}
       {step === "scoring" && matchConfig && matchLocalId && (
-        <LiveScoring
-          config={matchConfig} sessionId={activeSession.id}
-          matchLocalId={matchLocalId} initialHistory={recoveredHistory ?? undefined}
-          players={players} targetScore={activeSession.target_score}
-          winBy={activeSession.win_by} trackScorers={activeSession.track_scorers}
-          activeMatchId={activeMatchId}
-          startedAt={activeMatchStartedAt}
-          onMatchComplete={handleMatchComplete}
-        />
+        <>
+          {/* 👑 Belt on the line banner — mobile */}
+          {beltOnTheLine && (
+            <div className="flex items-center gap-2 rounded-xl border border-ball-yellow/50 bg-ball-yellow/10 px-4 py-2.5 mb-2">
+              <BeltMedallion beltType="king_of_the_kitchen" size="sm" />
+              <span className="text-sm font-semibold text-court-green-dark">Belt on the line!</span>
+            </div>
+          )}
+          <LiveScoring
+            config={matchConfig} sessionId={activeSession.id}
+            matchLocalId={matchLocalId} initialHistory={recoveredHistory ?? undefined}
+            players={players} targetScore={activeSession.target_score}
+            winBy={activeSession.win_by} trackScorers={activeSession.track_scorers}
+            activeMatchId={activeMatchId}
+            startedAt={activeMatchStartedAt}
+            onMatchComplete={handleMatchComplete}
+          />
+        </>
       )}
       {step === "result" && completedMatch && (
         <MatchResult
@@ -808,15 +832,24 @@ export function LivePageClient({
 
         {/* Live scoring */}
         {step === "scoring" && matchConfig && matchLocalId && (
-          <LiveScoring
-            config={matchConfig} sessionId={activeSession.id}
-            matchLocalId={matchLocalId} initialHistory={recoveredHistory ?? undefined}
-            players={players} targetScore={activeSession.target_score}
-            winBy={activeSession.win_by} trackScorers={activeSession.track_scorers}
-            activeMatchId={activeMatchId}
-            startedAt={activeMatchStartedAt}
-            onMatchComplete={handleMatchComplete}
-          />
+          <>
+            {/* 👑 Belt on the line banner — desktop */}
+            {beltOnTheLine && (
+              <div className="flex items-center gap-2 rounded-xl border border-ball-yellow/50 bg-ball-yellow/10 px-4 py-2.5 mb-2">
+                <BeltMedallion beltType="king_of_the_kitchen" size="sm" />
+                <span className="text-sm font-semibold text-court-green-dark">Belt on the line!</span>
+              </div>
+            )}
+            <LiveScoring
+              config={matchConfig} sessionId={activeSession.id}
+              matchLocalId={matchLocalId} initialHistory={recoveredHistory ?? undefined}
+              players={players} targetScore={activeSession.target_score}
+              winBy={activeSession.win_by} trackScorers={activeSession.track_scorers}
+              activeMatchId={activeMatchId}
+              startedAt={activeMatchStartedAt}
+              onMatchComplete={handleMatchComplete}
+            />
+          </>
         )}
 
         {/* Match result */}
@@ -917,6 +950,7 @@ export function LivePageClient({
           groupSlug={groupSlug}
           sessionMatches={sessionMatches}
           players={players}
+          currentBelts={currentBelts}
         />
       </aside>
     </div>
@@ -937,13 +971,42 @@ interface LiveLeaderboardPanelProps {
   readonly groupSlug: string;
   readonly sessionMatches: readonly SessionMatchData[];
   readonly players: readonly Player[];
+  readonly currentBelts?: readonly import("@/lib/belts/recomputeBelts").CurrentBelt[];
 }
 
-function LiveLeaderboardPanel({ entries, groupSlug, sessionMatches, players }: LiveLeaderboardPanelProps) {
+function LiveLeaderboardPanel({ entries, groupSlug, sessionMatches, players, currentBelts }: LiveLeaderboardPanelProps) {
   const playerMap = new Map(players.map((p) => [p.id, p]));
 
   return (
     <div className="space-y-4">
+      {/* Compact belt strip */}
+      {currentBelts && currentBelts.length > 0 && (
+        <div className="rounded-xl border border-ball-yellow/30 bg-ball-yellow/5 px-3 py-2.5 space-y-2">
+          <p className="text-[10px] font-label font-semibold text-text-muted uppercase tracking-widest">Belts</p>
+          {currentBelts.map((belt) => {
+            const meta = getBeltMeta(belt.beltType);
+            const subjectName =
+              belt.beltType === "pickler" && belt.subjectPlayerId
+                ? playerMap.get(belt.subjectPlayerId)?.display_name
+                : undefined;
+            const holderNames = belt.holderPlayerIds
+              .map((id) => playerMap.get(id)?.display_name ?? "?")
+              .join(", ");
+            return (
+              <div key={`${belt.beltType}-${belt.subjectPlayerId ?? ""}`} className="flex items-center gap-2 text-xs">
+                <BeltMedallion beltType={belt.beltType} size="sm" />
+                <span className="font-semibold text-court-green-dark">{meta.label}</span>
+                {holderNames && (
+                  <span className="text-text-muted truncate">
+                    · {holderNames}
+                    {subjectName && <span> owns {subjectName}</span>}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
       {/* Standings */}
       <div className="rounded-xl border border-border bg-surface overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
