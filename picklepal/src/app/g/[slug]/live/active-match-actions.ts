@@ -3,6 +3,7 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
 import { authorizeGroupWrite, resolveGroupIdFromSession, resolveGroupIdFromMatch } from "@/lib/auth";
+import { recomputeBelts } from "@/lib/belts/recomputeBelts";
 import type { MatchType, MatchSnapshot } from "@/lib/supabase";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -273,6 +274,49 @@ export async function completeActiveMatch(
     }
   }
 
+  // Recompute belt holders after successful match completion.
+  // Failure is swallowed inside recomputeBelts — never reverts this match.
+  void recomputeBelts(groupId);
+
+  return { success: true };
+}
+
+// ─── Flush Rally Events ──────────────────────────────────────────────────────
+
+/**
+ * Progressively inserts rally events for an active match during scoring.
+ * Called alongside the snapshot sync so match completion only needs to insert
+ * the last few unflushed rallies instead of the entire game's worth at once.
+ */
+export async function flushRallyEvents(
+  matchId: string,
+  rallyEvents: readonly RallyEventInput[],
+): Promise<ActionResult> {
+  if (rallyEvents.length === 0) return { success: true };
+
+  const user = await currentUser();
+  if (!user) return { success: false, error: "You must be signed in" };
+
+  const groupId = await resolveGroupIdFromMatch(matchId);
+  if (!groupId) return { success: false, error: "Match not found" };
+  const auth = await authorizeGroupWrite(groupId);
+  if (!auth.authorized) return { success: false, error: auth.error };
+
+  const supabase = getSupabase();
+
+  const rallyRows = rallyEvents.map((event) => ({
+    match_id: matchId,
+    sequence_number: event.sequenceNumber,
+    rally_winner_team: event.rallyWinnerTeam,
+    resulting_team_a_score: event.resultingTeamAScore,
+    resulting_team_b_score: event.resultingTeamBScore,
+    server_player_id: event.serverPlayerId,
+    server_number: event.serverNumber,
+    side_out_occurred: event.sideOutOccurred,
+  }));
+
+  const { error } = await supabase.from("rally_events").insert(rallyRows);
+  if (error) return { success: false, error: error.message };
   return { success: true };
 }
 

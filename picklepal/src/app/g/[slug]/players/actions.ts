@@ -4,10 +4,20 @@ import { createServerClient } from "@/lib/supabase";
 import type { Player, Match } from "@/lib/supabase";
 import { computePlayerStats, computeDuoStats, computeRivalryStats } from "@/lib/stats";
 import type { PlayerStats, DuoStats, RivalryStats } from "@/lib/stats";
+import { getBeltReigns } from "@/lib/belts/recomputeBelts";
+import type { BeltType } from "@/lib/belts/recomputeBelts";
 
 interface PlayersListResult {
   readonly players: readonly Player[];
   readonly error?: string;
+}
+
+export interface PlayerReignView {
+  readonly id: string;
+  readonly beltType: BeltType;
+  readonly subjectName: string | null;
+  readonly isCurrent: boolean;
+  readonly durationMs: number;
 }
 
 interface PlayerDetailResult {
@@ -15,6 +25,7 @@ interface PlayerDetailResult {
   readonly stats: PlayerStats | null;
   readonly duos: readonly DuoStats[];
   readonly rivalries: readonly RivalryStats[];
+  readonly playerReigns: readonly PlayerReignView[];
   readonly error?: string;
 }
 
@@ -68,7 +79,7 @@ export async function getPlayerDetail(
     .single();
 
   if (groupError || !group) {
-    return { player: null, stats: null, duos: [], rivalries: [], error: "Group not found" };
+    return { player: null, stats: null, duos: [], rivalries: [], playerReigns: [], error: "Group not found" };
   }
 
   // Fetch the player
@@ -81,7 +92,7 @@ export async function getPlayerDetail(
     .single();
 
   if (playerError || !player) {
-    return { player: null, stats: null, duos: [], rivalries: [], error: "Player not found" };
+    return { player: null, stats: null, duos: [], rivalries: [], playerReigns: [], error: "Player not found" };
   }
 
   // Fetch all players for duo stats
@@ -101,7 +112,7 @@ export async function getPlayerDetail(
 
   if (!sessions || sessions.length === 0) {
     const stats = computePlayerStats(player, []);
-    return { player, stats, duos: [], rivalries: [] };
+    return { player, stats, duos: [], rivalries: [], playerReigns: [] };
   }
 
   const sessionIds = sessions.map((s: { id: string }) => s.id);
@@ -125,5 +136,28 @@ export async function getPlayerDetail(
   // Compute head-to-head rivalry stats for this player
   const rivalries = computeRivalryStats(playerId, allPlayers ?? [], allMatches);
 
-  return { player, stats, duos: playerDuos, rivalries };
+  // Belt reigns held by this player (current + historical), newest first.
+  const nameById = new Map<string, string>();
+  for (const p of (allPlayers ?? []) as Player[]) {
+    nameById.set(p.id, p.display_name);
+  }
+  const reigns = await getBeltReigns(group.id);
+  const now = new Date().getTime();
+  const playerReigns: PlayerReignView[] = reigns
+    .filter((r) => r.holder_player_id === playerId)
+    .map((r) => {
+      const startedMs = new Date(r.started_at).getTime();
+      const endMs = r.ended_at ? new Date(r.ended_at).getTime() : now;
+      return {
+        id: r.id,
+        beltType: r.belt_type,
+        subjectName: r.subject_player_id
+          ? nameById.get(r.subject_player_id) ?? "Unknown player"
+          : null,
+        isCurrent: r.ended_at === null,
+        durationMs: Math.max(0, endMs - startedMs),
+      };
+    });
+
+  return { player, stats, duos: playerDuos, rivalries, playerReigns };
 }

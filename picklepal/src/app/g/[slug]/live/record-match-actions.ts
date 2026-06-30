@@ -3,6 +3,7 @@
 import { createServerClient } from "@/lib/supabase";
 import { authorizeGroupWrite, resolveGroupIdFromSession } from "@/lib/auth";
 import { findOrCreateManualBucket } from "@/lib/sessions/manualBucket";
+import { recomputeBelts } from "@/lib/belts/recomputeBelts";
 import {
   validateManualMatchScores,
   validateTeams,
@@ -105,6 +106,10 @@ export async function recordManualMatch(
       error: matchError?.message ?? "Failed to record match",
     };
   }
+
+  // Recompute belt holders after successful manual match record.
+  // Failure is swallowed inside recomputeBelts — never reverts this match.
+  void recomputeBelts(groupId);
 
   return { success: true, data: { matchId: match.id } };
 }
@@ -212,6 +217,10 @@ export async function recordPastMatch(
       error: matchError?.message ?? "Failed to record past match",
     };
   }
+
+  // Recompute belt holders after successful past match record.
+  // Failure is swallowed inside recomputeBelts — never reverts this match.
+  void recomputeBelts(group.id);
 
   return { success: true, data: { matchId: match.id } };
 }
