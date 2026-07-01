@@ -232,12 +232,10 @@ function MatchActionSheet({
 function TeamBlock({
   match,
   playerIds,
-  align,
   won,
 }: {
   readonly match: MatchWithPlayers;
   readonly playerIds: readonly string[];
-  readonly align: "left" | "right";
   readonly won: boolean;
 }) {
   const isCancelled = match.status === "cancelled";
@@ -246,7 +244,7 @@ function TeamBlock({
 
   return (
     <div
-      className={`flex-1 min-w-0 flex items-center gap-2 rounded-lg p-1.5 ${align === "right" ? "flex-row-reverse text-right" : ""} ${dimmed ? "opacity-45" : ""} ${tinted ? "bg-court-green/8" : ""}`}
+      className={`flex-1 min-w-0 flex flex-col items-center gap-1.5 rounded-lg p-1.5 ${dimmed ? "opacity-45" : ""} ${tinted ? "bg-court-green/8" : ""}`}
     >
       <div className="flex shrink-0 -space-x-2 sm:-space-x-3">
         {playerIds.map((id) => {
@@ -263,11 +261,11 @@ function TeamBlock({
           );
         })}
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 w-full text-center">
         {playerIds.map((id) => (
           <p
             key={id}
-            className={`text-sm truncate leading-tight ${
+            className={`text-xs sm:text-sm truncate leading-tight ${
               won && !isCancelled ? "font-bold text-text-primary" : "font-medium text-text-secondary"
             }`}
           >
@@ -331,10 +329,10 @@ function MatchCard({
           </button>
         )}
 
-        <div className="flex items-center gap-2.5 pr-6 min-w-0">
-          <TeamBlock match={match} playerIds={match.team_a_player_ids} align="left" won={teamAWon} />
+        <div className="flex items-start gap-2 pr-6 min-w-0">
+          <TeamBlock match={match} playerIds={match.team_a_player_ids} won={teamAWon} />
 
-          <div className="flex flex-col items-center gap-1 shrink-0 px-1">
+          <div className="flex flex-col items-center gap-1 shrink-0 px-1 pt-1">
             <div className="flex items-baseline gap-1">
               <span
                 className={`font-score text-3xl font-bold tabular-nums leading-none ${
@@ -365,7 +363,7 @@ function MatchCard({
             )}
           </div>
 
-          <TeamBlock match={match} playerIds={match.team_b_player_ids} align="right" won={!teamAWon} />
+          <TeamBlock match={match} playerIds={match.team_b_player_ids} won={!teamAWon} />
         </div>
 
         <div className="flex items-center justify-end mt-2.5">
