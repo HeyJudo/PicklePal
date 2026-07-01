@@ -25,7 +25,7 @@ export default async function GroupLayout({
     <div className="flex min-h-dvh">
       <DesktopNav groupSlug={slug} />
 
-      <main className="flex-1 md:ml-56 lg:ml-64 pb-20 md:pb-0">
+      <main className="flex-1 min-w-0 md:ml-56 lg:ml-64 pb-20 md:pb-0">
         {/* Mobile top header */}
         <header className="sticky top-0 z-40 flex items-center h-14 px-4 border-b border-court-green/15 bg-surface/98 backdrop-blur-md md:hidden">
           {/* Wordmark — Outfit bold, DinkDay brand treatment */}

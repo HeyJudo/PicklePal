@@ -6,6 +6,7 @@ import { HISTORY_PAGE_SIZE } from "./constants";
 
 export interface MatchWithPlayers extends Match {
   readonly playerNames: Record<string, string>;
+  readonly playerInfo: Record<string, { name: string; color: string | null; avatarUrl: string | null }>;
 }
 
 export interface SessionGroup {
@@ -99,9 +100,11 @@ export async function getMatchHistory(
     .order("display_name", { ascending: true });
 
   const playerNameMap: Record<string, string> = {};
+  const playerInfoMap: MatchWithPlayers["playerInfo"] = {};
   if (players) {
     for (const p of players as Player[]) {
       playerNameMap[p.id] = p.display_name;
+      playerInfoMap[p.id] = { name: p.display_name, color: p.color, avatarUrl: p.avatar_url };
     }
   }
 
@@ -111,7 +114,7 @@ export async function getMatchHistory(
   const matchesBySession = new Map<string, MatchWithPlayers[]>();
   for (const match of (matches ?? []) as Match[]) {
     const sessionMatches = matchesBySession.get(match.session_id) ?? [];
-    sessionMatches.push({ ...match, playerNames: playerNameMap });
+    sessionMatches.push({ ...match, playerNames: playerNameMap, playerInfo: playerInfoMap });
     matchesBySession.set(match.session_id, sessionMatches);
   }
 
