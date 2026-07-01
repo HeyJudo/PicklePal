@@ -548,16 +548,6 @@ function applyMatchupToState(
     });
   }
 
-  // Decrement countdowns
-  for (const [playerId, session] of newPlayerSessions) {
-    if (session.sitOutCountdown > 0) {
-      newPlayerSessions.set(playerId, {
-        ...session,
-        sitOutCountdown: session.sitOutCountdown - 1,
-      });
-    }
-  }
-
   return {
     ...state,
     round: nextRound,
