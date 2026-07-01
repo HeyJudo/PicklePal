@@ -21,7 +21,13 @@ import { endSession, getSessionRecap, getSessionMatches } from "./actions";
 import { createActiveMatch, completeActiveMatch } from "./active-match-actions";
 import type { MatchStartConfig } from "./PositionConfirmation";
 import type { CompletedMatchData } from "./MatchResult";
-import type { Matchup } from "@/lib/matchmaking";
+import {
+  createMatchmakingState,
+  generateNextMatchup,
+  generateQueue,
+  shuffleMatchup,
+} from "@/lib/matchmaking";
+import type { Matchup, MatchmakingState } from "@/lib/matchmaking";
 import type { SessionMatchData } from "./actions";
 import type { MatchSnapshot } from "@/lib/supabase";
 import {
@@ -122,6 +128,11 @@ export function LivePageClient({
   const [sessionMatches, setSessionMatches] = useState<readonly SessionMatchData[]>(initialSessionMatches);
   const [confirmEndDesktop, setConfirmEndDesktop] = useState(false);
   const [currentMatchup, setCurrentMatchup] = useState<Matchup | null>(null);
+  // Matchmaking queue state (lifted from MatchQueue)
+  const [matchQueue, setMatchQueue] = useState<Matchup[]>([]);
+  const [matchmakingEngineState, setMatchmakingEngineState] = useState<MatchmakingState | null>(null);
+  // ponytail: tracks engine state after all queued matchups are projected, so handleNextMatch appends correctly
+  const [projectedEngineState, setProjectedEngineState] = useState<MatchmakingState | null>(null);
   const [matchConfig, setMatchConfig] = useState<MatchStartConfig | null>(null);
   const [matchLocalId, setMatchLocalId] = useState<string | null>(null);
   const [recoveredHistory, setRecoveredHistory] = useState<MatchHistory | null>(null);
@@ -174,6 +185,30 @@ export function LivePageClient({
     [players, activePlayerIds],
   );
   const matchType = activeSession?.default_match_type === "singles" ? "singles" : "doubles";
+
+  // ── Matchmaking queue initialization & roster-change regeneration ───────────
+  // Re-run whenever the set of active players changes (join, bench, activate)
+  useEffect(() => {
+    if (!activeSession || activePlayersForMatchmaking.length === 0) return;
+    const playerIds = activePlayersForMatchmaking.map((p) => p.id);
+    const newState = createMatchmakingState(playerIds, matchType, {
+      sessionId: activeSession.id,
+    });
+    const queue = generateQueue(newState, 3);
+    setMatchmakingEngineState(newState);
+    setMatchQueue(queue);
+    // Advance through the 3 queued matchups to get the projected state for future appends
+    let projected = newState;
+    for (let i = 0; i < queue.length; i++) {
+      try {
+        const { newState: next } = generateNextMatchup(projected);
+        projected = next;
+      } catch { break; }
+    }
+    setProjectedEngineState(projected);
+  // ponytail: stringify so effect only fires on actual player set changes, not reference churn
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSession?.id, activePlayersForMatchmaking.map((p) => p.id).join(","), matchType]);
 
   // Belt-on-the-line: King holder is in the current match roster
   const beltOnTheLine = useMemo(() => {
@@ -243,6 +278,22 @@ export function LivePageClient({
   }, [dbActiveMatch]);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
+
+  // ── Queue handlers ───────────────────────────────────────────────────────────
+
+  const handleShuffle = useCallback((): boolean => {
+    if (!matchmakingEngineState || matchQueue.length === 0) return false;
+    const alt = shuffleMatchup(matchQueue[0], matchmakingEngineState);
+    if (alt) {
+      setMatchQueue((prev) => [alt, ...prev.slice(1)]);
+      return true;
+    }
+    return false;
+  }, [matchmakingEngineState, matchQueue]);
+
+  // canShuffle: true when no scoring has started (step is "active", no rallies recorded)
+  // ponytail: once step leaves "active" scoring has started; simplest proxy
+  const canShuffle = step === "active";
 
   const handleSessionStarted = (sessionId: string) => {
     setActiveSession({
@@ -332,11 +383,10 @@ export function LivePageClient({
     // If we have an active DB match, transition it to completed
     if (activeMatchId) {
       const rallyEvents = buildRallyEvents(completedHistory);
-      // Only send rallies not yet flushed during the match — the rest are already in the DB
       const unflushedRallyEvents = rallyEvents.filter(
         (e) => e.sequenceNumber > lastFlushedSequence,
       );
-      await completeActiveMatch({
+      const completeResult = await completeActiveMatch({
         matchId: activeMatchId,
         teamAScore: matchData.teamAScore,
         teamBScore: matchData.teamBScore,
@@ -344,6 +394,11 @@ export function LivePageClient({
         losingTeam: matchData.winner === "A" ? "B" : "A",
         rallyEvents: unflushedRallyEvents,
       });
+      // If completeActiveMatch failed, clear activeMatchId so MatchResult falls
+      // back to saveCompletedMatch instead of silently skipping the save.
+      if (!completeResult.success) {
+        setActiveMatchId(null);
+      }
     }
 
     setStep("result");
@@ -357,6 +412,35 @@ export function LivePageClient({
     setMatchConfig(null); setMatchLocalId(null); setRecoveredHistory(null);
     setRecoverableMatch(null); setCurrentMatchup(null); setCompletedMatch(null);
     setActiveMatchId(null); setDbActiveMatch(null); setActiveMatchStartedAt(null);
+
+    // Advance base engine state so gamesPlayed chips reflect the completed match
+    setMatchmakingEngineState((prev) => {
+      if (!prev) return prev;
+      try {
+        const { newState } = generateNextMatchup(prev);
+        return newState;
+      } catch {
+        return prev;
+      }
+    });
+
+    // Advance queue: promote on-deck cards forward, append a new on-deck
+    setMatchQueue((prevQueue) => {
+      if (prevQueue.length === 0) return prevQueue;
+      const shifted = prevQueue.slice(1);
+      // Use projectedEngineState — the state after all currently-queued matchups were projected
+      if (projectedEngineState) {
+        try {
+          const { matchup: newSlot, newState } = generateNextMatchup(projectedEngineState);
+          setProjectedEngineState(newState);
+          return [...shifted, newSlot];
+        } catch {
+          // Not enough players — just return shifted
+        }
+      }
+      return shifted;
+    });
+
     setStep("active");
   };
 
@@ -665,6 +749,11 @@ export function LivePageClient({
             onSessionEnded={handleSessionEnded}
             onMatchConfirmed={handleMatchConfirmed}
             onPlayerStatusChanged={handlePlayerStatusChanged}
+            matchQueue={matchQueue}
+            matchmakingState={matchmakingEngineState ?? createMatchmakingState(activePlayersForMatchmaking.map((p) => p.id), matchType)}
+            matchType={matchType}
+            canShuffle={canShuffle}
+            onShuffle={handleShuffle}
           />
           {/* Record Past Match — admin only, utility action, low visual weight */}
           {isAdmin && !showRecordMatch && (
@@ -758,6 +847,7 @@ export function LivePageClient({
           sessionPlayers={sessionPlayers}
           isHost={isAdmin}
           onPlayerStatusChanged={handlePlayerStatusChanged}
+          matchmakingState={matchmakingEngineState}
         />
 
         {/* Completed matches */}
@@ -813,10 +903,13 @@ export function LivePageClient({
         {/* Queue step — generate/preview matchup */}
         {step === "active" && (
           <MatchQueue
-            key={activePlayersForMatchmaking.map((p) => p.id).join(",")}
             players={activePlayersForMatchmaking}
+            queue={matchQueue}
+            matchmakingState={matchmakingEngineState ?? createMatchmakingState(activePlayersForMatchmaking.map((p) => p.id), matchType)}
             matchType={matchType}
             isHost={isAdmin}
+            canShuffle={canShuffle}
+            onShuffle={handleShuffle}
             onMatchSelected={handleMatchConfirmed}
           />
         )}

@@ -2,12 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { PlayerAvatar } from "@/components/players";
+import { Chip } from "@/components/ui/Chip";
 import {
   benchPlayer,
   activatePlayer,
   removePlayerFromSession,
 } from "./session-player-actions";
 import type { SessionPlayerStatus } from "@/lib/supabase";
+import type { MatchmakingState, PlayerSession } from "@/lib/matchmaking";
 
 interface Player {
   readonly id: string;
@@ -30,6 +32,7 @@ interface SessionPlayerListProps {
     playerId: string,
     newStatus: SessionPlayerStatus,
   ) => void;
+  readonly matchmakingState?: MatchmakingState | null;
 }
 
 export function SessionPlayerList({
@@ -38,6 +41,7 @@ export function SessionPlayerList({
   sessionPlayers,
   isHost,
   onPlayerStatusChanged,
+  matchmakingState,
 }: SessionPlayerListProps) {
   const [isPending, startTransition] = useTransition();
   const [expanded, setExpanded] = useState(false);
@@ -173,6 +177,7 @@ export function SessionPlayerList({
                       status="active"
                       isHost={isHost}
                       isPending={isPending}
+                      playerSession={matchmakingState?.playerSessions.get(sp.playerId) ?? null}
                       onBench={() => handleBench(sp.playerId)}
                       onRemove={() => handleRemove(sp.playerId)}
                     />
@@ -199,6 +204,7 @@ export function SessionPlayerList({
                       status="benched"
                       isHost={isHost}
                       isPending={isPending}
+                      playerSession={matchmakingState?.playerSessions.get(sp.playerId) ?? null}
                       onActivate={() => handleActivate(sp.playerId)}
                       onRemove={() => handleRemove(sp.playerId)}
                     />
@@ -273,6 +279,7 @@ interface PlayerChipProps {
   readonly status: "active" | "benched";
   readonly isHost: boolean;
   readonly isPending: boolean;
+  readonly playerSession?: PlayerSession | null;
   readonly onBench?: () => void;
   readonly onActivate?: () => void;
   readonly onRemove?: () => void;
@@ -283,6 +290,7 @@ function PlayerChip({
   status,
   isHost,
   isPending,
+  playerSession,
   onBench,
   onActivate,
   onRemove,
@@ -309,6 +317,11 @@ function PlayerChip({
         <span className={status === "benched" ? "text-amber-700" : "text-text-primary"}>
           {player.display_name}
         </span>
+        {playerSession != null && (
+          playerSession.gamesPlayed === 0
+            ? <Chip variant="neutral" size="sm" dot>NEW</Chip>
+            : <Chip variant="green" size="sm">{playerSession.gamesPlayed}G · {playerSession.gamesSatOut}S</Chip>
+        )}
         {status === "benched" && (
           <span className="text-[10px] text-amber-500" aria-label="Benched">&#x23F8;</span>
         )}

@@ -5,7 +5,7 @@ import { endSession } from "./actions";
 import { MatchQueue } from "./MatchQueue";
 import { SessionPlayerList } from "./SessionPlayerList";
 import { SessionMatchHistory } from "./SessionMatchHistory";
-import type { Matchup } from "@/lib/matchmaking";
+import type { Matchup, MatchmakingState, MatchType } from "@/lib/matchmaking";
 import type { SessionPlayerStatus } from "@/lib/supabase";
 import type { SessionMatchData } from "./actions";
 
@@ -38,6 +38,12 @@ interface ActiveSessionProps {
   readonly onSessionEnded: () => void;
   readonly onMatchConfirmed: (matchup: Matchup) => void;
   readonly onPlayerStatusChanged: (playerId: string, newStatus: SessionPlayerStatus) => void;
+  // Queue props lifted from MatchQueue
+  readonly matchQueue: Matchup[];
+  readonly matchmakingState: MatchmakingState;
+  readonly matchType: MatchType;
+  readonly canShuffle: boolean;
+  readonly onShuffle: () => boolean;
 }
 
 export function ActiveSession({
@@ -50,6 +56,11 @@ export function ActiveSession({
   onSessionEnded,
   onMatchConfirmed,
   onPlayerStatusChanged,
+  matchQueue,
+  matchmakingState,
+  matchType,
+  canShuffle,
+  onShuffle,
 }: ActiveSessionProps) {
   const [isPending, startTransition] = useTransition();
   const [confirmEnd, setConfirmEnd] = useState(false);
@@ -83,8 +94,6 @@ export function ActiveSession({
     hour: "numeric",
     minute: "2-digit",
   });
-
-  const matchType = session.default_match_type === "singles" ? "singles" : "doubles";
 
   return (
     <div className="space-y-6">
@@ -150,10 +159,13 @@ export function ActiveSession({
 
       {/* Match Queue */}
       <MatchQueue
-        key={activePlayersForMatchmaking.map((p) => p.id).join(",")}
         players={activePlayersForMatchmaking}
+        queue={matchQueue}
+        matchmakingState={matchmakingState}
         matchType={matchType}
         isHost={isHost}
+        canShuffle={canShuffle}
+        onShuffle={onShuffle}
         onMatchSelected={onMatchConfirmed}
       />
 
@@ -164,6 +176,7 @@ export function ActiveSession({
         sessionPlayers={sessionPlayers}
         isHost={isHost}
         onPlayerStatusChanged={onPlayerStatusChanged}
+        matchmakingState={matchmakingState}
       />
 
       {/* Completed Matches */}

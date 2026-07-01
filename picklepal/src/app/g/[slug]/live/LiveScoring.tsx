@@ -303,15 +303,17 @@ export function LiveScoring({
 
   return (
     <div className="space-y-3">
-      {/* Sync Status — compact */}
-      <div
-        className={`rounded-lg px-3 py-1.5 text-[11px] font-medium flex items-center gap-1.5 ${getSyncToneClass(syncDisplay.tone)}`}
-      >
-        <span
-          className={`h-1.5 w-1.5 rounded-full ${getSyncDotClass(syncDisplay.tone)}`}
-        />
-        {syncDisplay.label}
-      </div>
+      {/* Sync Status — only show when offline or error, not during normal online buffering */}
+      {syncDisplay.tone !== "pending" && (
+        <div
+          className={`rounded-lg px-3 py-1.5 text-[11px] font-medium flex items-center gap-1.5 ${getSyncToneClass(syncDisplay.tone)}`}
+        >
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${getSyncDotClass(syncDisplay.tone)}`}
+          />
+          {syncDisplay.label}
+        </div>
+      )}
 
       {/* Court View — Top-down pickleball court */}
       <div className="relative rounded-2xl overflow-hidden p-3" style={{ backgroundColor: "#8BA86B" }}>
