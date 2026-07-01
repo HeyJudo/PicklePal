@@ -383,11 +383,10 @@ export function LivePageClient({
     // If we have an active DB match, transition it to completed
     if (activeMatchId) {
       const rallyEvents = buildRallyEvents(completedHistory);
-      // Only send rallies not yet flushed during the match — the rest are already in the DB
       const unflushedRallyEvents = rallyEvents.filter(
         (e) => e.sequenceNumber > lastFlushedSequence,
       );
-      await completeActiveMatch({
+      const completeResult = await completeActiveMatch({
         matchId: activeMatchId,
         teamAScore: matchData.teamAScore,
         teamBScore: matchData.teamBScore,
@@ -395,6 +394,11 @@ export function LivePageClient({
         losingTeam: matchData.winner === "A" ? "B" : "A",
         rallyEvents: unflushedRallyEvents,
       });
+      // If completeActiveMatch failed, clear activeMatchId so MatchResult falls
+      // back to saveCompletedMatch instead of silently skipping the save.
+      if (!completeResult.success) {
+        setActiveMatchId(null);
+      }
     }
 
     setStep("result");
@@ -408,6 +412,17 @@ export function LivePageClient({
     setMatchConfig(null); setMatchLocalId(null); setRecoveredHistory(null);
     setRecoverableMatch(null); setCurrentMatchup(null); setCompletedMatch(null);
     setActiveMatchId(null); setDbActiveMatch(null); setActiveMatchStartedAt(null);
+
+    // Advance base engine state so gamesPlayed chips reflect the completed match
+    setMatchmakingEngineState((prev) => {
+      if (!prev) return prev;
+      try {
+        const { newState } = generateNextMatchup(prev);
+        return newState;
+      } catch {
+        return prev;
+      }
+    });
 
     // Advance queue: promote on-deck cards forward, append a new on-deck
     setMatchQueue((prevQueue) => {
