@@ -9,7 +9,7 @@ import {
   removePlayerFromSession,
 } from "./session-player-actions";
 import type { SessionPlayerStatus } from "@/lib/supabase";
-import type { MatchmakingState } from "@/lib/matchmaking";
+import type { MatchmakingState, PlayerSession } from "@/lib/matchmaking";
 
 interface Player {
   readonly id: string;
@@ -279,7 +279,7 @@ interface PlayerChipProps {
   readonly status: "active" | "benched";
   readonly isHost: boolean;
   readonly isPending: boolean;
-  readonly playerSession?: import("@/lib/matchmaking").PlayerSession | null;
+  readonly playerSession?: PlayerSession | null;
   readonly onBench?: () => void;
   readonly onActivate?: () => void;
   readonly onRemove?: () => void;
@@ -319,7 +319,7 @@ function PlayerChip({
         </span>
         {playerSession != null && (
           playerSession.gamesPlayed === 0
-            ? <Chip variant="neutral" size="sm">NEW</Chip>
+            ? <Chip variant="neutral" size="sm" dot>NEW</Chip>
             : <Chip variant="green" size="sm">{playerSession.gamesPlayed}G · {playerSession.gamesSatOut}S</Chip>
         )}
         {status === "benched" && (
