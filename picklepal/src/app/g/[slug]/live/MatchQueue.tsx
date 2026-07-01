@@ -18,7 +18,7 @@ export interface MatchQueueProps {
   readonly matchType: MatchType;
   readonly isHost: boolean;
   readonly canShuffle: boolean;
-  readonly onShuffle: () => void;
+  readonly onShuffle: () => boolean;
   readonly onMatchSelected: (matchup: Matchup) => void;
 }
 
@@ -33,8 +33,6 @@ export function MatchQueue({
   onMatchSelected,
 }: MatchQueueProps) {
   const [shuffleMsg, setShuffleMsg] = useState<string | null>(null);
-  // Which player slot the host is currently swapping (playerId | null)
-  const [swappingPlayerId, setSwappingPlayerId] = useState<string | null>(null);
 
   const playerMap = new Map(players.map((p) => [p.id, p]));
 
@@ -49,24 +47,14 @@ export function MatchQueue({
   const getGamesPlayed = (id: string) => matchmakingState.playerSessions.get(id)?.gamesPlayed ?? 0;
 
   const handleShuffle = () => {
-    onShuffle();
-    // onShuffle returns void; parent sets queue[0]. If no change visible (null from engine),
-    // parent sets shuffleNoAlt flag — but simpler: we just show msg briefly if queue doesn't change.
-    // ponytail: parent handles null case; we just call through
-    setShuffleMsg(null);
+    const shuffled = onShuffle();
+    setShuffleMsg(shuffled ? null : "No alternative available");
   };
 
   const handleConfirm = () => {
     if (currentMatchup) {
       onMatchSelected(currentMatchup);
     }
-  };
-
-  const handleSwap = (outgoingId: string, incomingId: string) => {
-    // ponytail: swap handled locally within the current card display only
-    // We don't have a direct setQueue here — parent must handle via onShuffle or similar.
-    // For now, inline swap mutates the local display. This matches old behavior.
-    setSwappingPlayerId(null);
   };
 
   if (!hasEnoughPlayers) {
@@ -119,13 +107,6 @@ export function MatchQueue({
           <p className="px-4 text-[10px] text-text-muted italic">{shuffleMsg}</p>
         )}
 
-        {/* Edit hint */}
-        {currentMatchup.sittingOut.length > 0 && (
-          <p className="px-4 text-xs text-center text-text-muted pb-1">
-            Tap a player to swap them out
-          </p>
-        )}
-
         {/* Teams */}
         <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-start px-3 pb-3">
           {/* Team A */}
@@ -137,13 +118,6 @@ export function MatchQueue({
                 name={getPlayerName(id)}
                 color={getPlayerColor(id)}
                 gamesPlayed={getGamesPlayed(id)}
-                isHost={isHost}
-                canSwap={currentMatchup.sittingOut.length > 0}
-                isSwapping={swappingPlayerId === id}
-                sittingOut={currentMatchup.sittingOut}
-                playerMap={playerMap}
-                onStartSwap={() => setSwappingPlayerId(swappingPlayerId === id ? null : id)}
-                onSwap={(incomingId) => handleSwap(id, incomingId)}
               />
             ))}
           </div>
@@ -160,13 +134,6 @@ export function MatchQueue({
                 name={getPlayerName(id)}
                 color={getPlayerColor(id)}
                 gamesPlayed={getGamesPlayed(id)}
-                isHost={isHost}
-                canSwap={currentMatchup.sittingOut.length > 0}
-                isSwapping={swappingPlayerId === id}
-                sittingOut={currentMatchup.sittingOut}
-                playerMap={playerMap}
-                onStartSwap={() => setSwappingPlayerId(swappingPlayerId === id ? null : id)}
-                onSwap={(incomingId) => handleSwap(id, incomingId)}
               />
             ))}
           </div>
@@ -218,7 +185,6 @@ export function MatchQueue({
               getPlayerName={getPlayerName}
               getPlayerColor={getPlayerColor}
               getGamesPlayed={getGamesPlayed}
-              matchType={matchType}
             />
           ))}
         </div>
@@ -257,7 +223,6 @@ interface OnDeckCardProps {
   readonly getPlayerName: (id: string) => string;
   readonly getPlayerColor: (id: string) => string;
   readonly getGamesPlayed: (id: string) => number;
-  readonly matchType: MatchType;
 }
 
 function OnDeckCard({ matchup, label, getPlayerName, getPlayerColor, getGamesPlayed }: OnDeckCardProps) {
@@ -317,102 +282,21 @@ interface PlayerSlotProps {
   readonly name: string;
   readonly color: string;
   readonly gamesPlayed: number;
-  readonly isHost: boolean;
-  readonly canSwap: boolean;
-  readonly isSwapping: boolean;
-  readonly sittingOut: readonly string[];
-  readonly playerMap: Map<string, { display_name: string; color: string | null }>;
-  readonly onStartSwap: () => void;
-  readonly onSwap: (incomingId: string) => void;
 }
 
-function PlayerSlot({
-  name,
-  color,
-  gamesPlayed,
-  isHost,
-  canSwap,
-  isSwapping,
-  sittingOut,
-  playerMap,
-  onStartSwap,
-  onSwap,
-}: PlayerSlotProps) {
-  const interactive = canSwap;
-
+function PlayerSlot({ name, color, gamesPlayed }: PlayerSlotProps) {
   return (
-    <div className="relative">
-      <button
-        onClick={interactive ? onStartSwap : undefined}
-        disabled={!interactive}
-        aria-label={interactive ? (isSwapping ? `Cancel swap for ${name}` : `Change player: ${name}`) : name}
-        className={`flex w-full items-center gap-2 rounded-lg transition-colors ${
-          interactive
-            ? isSwapping
-              ? "bg-court-green/10 ring-1 ring-court-green/40 px-2 py-1 cursor-pointer"
-              : "hover:bg-surface-muted px-2 py-1 cursor-pointer"
-            : "cursor-default"
-        }`}
+    <div className="flex items-center gap-2">
+      <div
+        className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+        style={{ backgroundColor: color }}
       >
-        <div
-          className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-          style={{ backgroundColor: color }}
-        >
-          {name.charAt(0)}
-        </div>
-        <span className="text-sm font-medium text-text-primary truncate flex-1 text-left">
-          {name}
-        </span>
-        <GameCountChip gamesPlayed={gamesPlayed} />
-        {interactive && (
-          <span
-            className={`text-[10px] font-semibold shrink-0 transition-colors ${
-              isSwapping ? "text-court-green" : "text-text-muted"
-            }`}
-            aria-hidden="true"
-          >
-            {isSwapping ? "Cancel" : "Change"}
-          </span>
-        )}
-      </button>
-
-      {/* Swap picker dropdown */}
-      {isSwapping && (
-        <>
-          {/* Backdrop to close on outside click */}
-          <div
-            className="fixed inset-0 z-40"
-            onClick={onStartSwap}
-            aria-hidden="true"
-          />
-          <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[160px] rounded-xl border border-border bg-surface shadow-lg py-1.5">
-            <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-              Swap with
-            </p>
-            {sittingOut.map((incomingId) => {
-              const p = playerMap.get(incomingId);
-              if (!p) return null;
-              return (
-                <button
-                  key={incomingId}
-                  onClick={() => onSwap(incomingId)}
-                  className="flex w-full items-center gap-2 px-3 py-2 hover:bg-surface-muted transition-colors cursor-pointer"
-                >
-                  <div
-                    className="h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
-                    style={{ backgroundColor: p.color ?? "#6366f1" }}
-                  >
-                    {p.display_name.charAt(0)}
-                  </div>
-                  <span className="text-sm text-text-primary">
-                    {p.display_name}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </>
-      )}
+        {name.charAt(0)}
+      </div>
+      <span className="text-sm font-medium text-text-primary truncate flex-1">
+        {name}
+      </span>
+      <GameCountChip gamesPlayed={gamesPlayed} />
     </div>
   );
 }

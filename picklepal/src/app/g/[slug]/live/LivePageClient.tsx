@@ -131,6 +131,8 @@ export function LivePageClient({
   // Matchmaking queue state (lifted from MatchQueue)
   const [matchQueue, setMatchQueue] = useState<Matchup[]>([]);
   const [matchmakingEngineState, setMatchmakingEngineState] = useState<MatchmakingState | null>(null);
+  // ponytail: tracks engine state after all queued matchups are projected, so handleNextMatch appends correctly
+  const [projectedEngineState, setProjectedEngineState] = useState<MatchmakingState | null>(null);
   const [matchConfig, setMatchConfig] = useState<MatchStartConfig | null>(null);
   const [matchLocalId, setMatchLocalId] = useState<string | null>(null);
   const [recoveredHistory, setRecoveredHistory] = useState<MatchHistory | null>(null);
@@ -195,6 +197,15 @@ export function LivePageClient({
     const queue = generateQueue(newState, 3);
     setMatchmakingEngineState(newState);
     setMatchQueue(queue);
+    // Advance through the 3 queued matchups to get the projected state for future appends
+    let projected = newState;
+    for (let i = 0; i < queue.length; i++) {
+      try {
+        const { newState: next } = generateNextMatchup(projected);
+        projected = next;
+      } catch { break; }
+    }
+    setProjectedEngineState(projected);
   // ponytail: stringify so effect only fires on actual player set changes, not reference churn
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSession?.id, activePlayersForMatchmaking.map((p) => p.id).join(","), matchType]);
@@ -270,13 +281,14 @@ export function LivePageClient({
 
   // ── Queue handlers ───────────────────────────────────────────────────────────
 
-  const handleShuffle = useCallback(() => {
-    if (!matchmakingEngineState || matchQueue.length === 0) return;
+  const handleShuffle = useCallback((): boolean => {
+    if (!matchmakingEngineState || matchQueue.length === 0) return false;
     const alt = shuffleMatchup(matchQueue[0], matchmakingEngineState);
     if (alt) {
       setMatchQueue((prev) => [alt, ...prev.slice(1)]);
+      return true;
     }
-    // If alt is null, no alternative — queue unchanged (silent, per plan)
+    return false;
   }, [matchmakingEngineState, matchQueue]);
 
   // canShuffle: true when no scoring has started (step is "active", no rallies recorded)
@@ -398,16 +410,14 @@ export function LivePageClient({
     setActiveMatchId(null); setDbActiveMatch(null); setActiveMatchStartedAt(null);
 
     // Advance queue: promote on-deck cards forward, append a new on-deck
-    // Engine state is advanced by applying the completed matchup then generating one more
     setMatchQueue((prevQueue) => {
       if (prevQueue.length === 0) return prevQueue;
       const shifted = prevQueue.slice(1);
-      // Append a new on-deck if engine state available
-      if (matchmakingEngineState) {
+      // Use projectedEngineState — the state after all currently-queued matchups were projected
+      if (projectedEngineState) {
         try {
-          // Project state forward through all queued matchups to find what comes next
-          const { matchup: newSlot, newState } = generateNextMatchup(matchmakingEngineState);
-          setMatchmakingEngineState(newState);
+          const { matchup: newSlot, newState } = generateNextMatchup(projectedEngineState);
+          setProjectedEngineState(newState);
           return [...shifted, newSlot];
         } catch {
           // Not enough players — just return shifted

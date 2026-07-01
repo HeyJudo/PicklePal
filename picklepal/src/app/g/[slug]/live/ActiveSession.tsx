@@ -43,7 +43,7 @@ interface ActiveSessionProps {
   readonly matchmakingState: MatchmakingState;
   readonly matchType: MatchType;
   readonly canShuffle: boolean;
-  readonly onShuffle: () => void;
+  readonly onShuffle: () => boolean;
 }
 
 export function ActiveSession({
