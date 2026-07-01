@@ -114,7 +114,7 @@ export function MatchQueue({
         )}
 
         {/* Teams */}
-        <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-start px-3 pb-3">
+        <div className="flex flex-col gap-2 px-3 pb-3 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:gap-3 sm:items-start">
           {/* Team A */}
           <div className="rounded-xl border border-court-green/25 bg-court-green/5 p-4 space-y-2">
             <p className="text-xs font-semibold text-court-green text-center">Team A</p>
@@ -129,7 +129,7 @@ export function MatchQueue({
           </div>
 
           {/* VS */}
-          <div className="font-display text-xl text-text-muted pt-9">vs</div>
+          <div className="font-display text-xl text-text-muted text-center sm:pt-9">vs</div>
 
           {/* Team B */}
           <div className="rounded-xl border border-sky-blue/25 bg-sky-blue/5 p-4 space-y-2">
