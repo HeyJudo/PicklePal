@@ -2,6 +2,8 @@ export {
   createMatchmakingState,
   generateNextMatchup,
   generateMatchup,
+  generateQueue,
+  shuffleMatchup,
 } from "./matchmaking";
 
 export type {
@@ -10,4 +12,8 @@ export type {
   Matchup,
   MatchmakingState,
   GenerateMatchupInput,
+  MatchupReason,
+  ReasonKey,
 } from "./types";
+
+export { MatchmakingError } from "./types";
