@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Chip } from "@/components/ui/Chip";
 import type { MatchmakingState, Matchup, MatchType } from "@/lib/matchmaking";
 
@@ -33,6 +33,12 @@ export function MatchQueue({
   onMatchSelected,
 }: MatchQueueProps) {
   const [shuffleMsg, setShuffleMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!shuffleMsg) return;
+    const t = setTimeout(() => setShuffleMsg(null), 2000);
+    return () => clearTimeout(t);
+  }, [shuffleMsg]);
 
   const playerMap = new Map(players.map((p) => [p.id, p]));
 
