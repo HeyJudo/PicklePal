@@ -176,6 +176,7 @@ export function ActiveSession({
         sessionPlayers={sessionPlayers}
         isHost={isHost}
         onPlayerStatusChanged={onPlayerStatusChanged}
+        matchmakingState={matchmakingState}
       />
 
       {/* Completed Matches */}

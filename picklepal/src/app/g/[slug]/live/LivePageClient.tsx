@@ -822,6 +822,7 @@ export function LivePageClient({
           sessionPlayers={sessionPlayers}
           isHost={isAdmin}
           onPlayerStatusChanged={handlePlayerStatusChanged}
+          matchmakingState={matchmakingEngineState}
         />
 
         {/* Completed matches */}
