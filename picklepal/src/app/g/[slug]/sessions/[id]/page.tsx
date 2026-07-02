@@ -59,7 +59,7 @@ export async function generateMetadata({
 
 export default async function SessionDetailPage({ params }: SessionDetailPageProps) {
   const { slug, id } = await params;
-  const { session, summary, awards, matches, playerNames, groupName, error } = await getSessionDetail(slug, id);
+  const { session, summary, awards, matches, playerNames, playerColors, playerAvatars, groupName, error } = await getSessionDetail(slug, id);
 
   if (error === "Session not found" || !session || !summary || !awards) {
     notFound();
@@ -72,6 +72,8 @@ export default async function SessionDetailPage({ params }: SessionDetailPagePro
       awards={awards}
       matches={matches}
       playerNames={playerNames}
+      playerColors={playerColors}
+      playerAvatars={playerAvatars}
       groupSlug={slug}
       groupName={groupName}
     />

@@ -11,6 +11,8 @@ export interface SessionDetailResult {
   readonly awards: SessionAwards | null;
   readonly matches: readonly Match[];
   readonly playerNames: Record<string, string>;
+  readonly playerColors: Record<string, string | null>;
+  readonly playerAvatars: Record<string, string | null>;
   /** Display name of the group, e.g. "Thursday Crew". */
   readonly groupName?: string;
   readonly error?: string;
@@ -34,7 +36,7 @@ export async function getSessionDetail(
     .single();
 
   if (groupError || !group) {
-    return { session: null, summary: null, awards: null, matches: [], playerNames: {}, error: "Group not found" };
+    return { session: null, summary: null, awards: null, matches: [], playerNames: {}, playerColors: {}, playerAvatars: {}, error: "Group not found" };
   }
 
   // Fetch the session
@@ -47,7 +49,7 @@ export async function getSessionDetail(
     .single();
 
   if (sessionError || !session) {
-    return { session: null, summary: null, awards: null, matches: [], playerNames: {}, error: "Session not found" };
+    return { session: null, summary: null, awards: null, matches: [], playerNames: {}, playerColors: {}, playerAvatars: {}, error: "Session not found" };
   }
 
   // Fetch matches for this session
@@ -69,8 +71,12 @@ export async function getSessionDetail(
 
   const allPlayers: Player[] = players ?? [];
   const playerNames: Record<string, string> = {};
+  const playerColors: Record<string, string | null> = {};
+  const playerAvatars: Record<string, string | null> = {};
   for (const p of allPlayers) {
     playerNames[p.id] = p.display_name;
+    playerColors[p.id] = p.color;
+    playerAvatars[p.id] = p.avatar_url;
   }
 
   // Compute summary and awards
@@ -83,6 +89,8 @@ export async function getSessionDetail(
     awards,
     matches: allMatches,
     playerNames,
+    playerColors,
+    playerAvatars,
     groupName: (group as { id: string; name: string }).name,
   };
 }
