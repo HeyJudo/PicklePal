@@ -175,6 +175,34 @@ body {
   50% { box-shadow: 0 0 0 3px rgba(245, 197, 24, 0.22), 0 0 12px 3px rgba(245, 197, 24, 0.55); }
 }
 
+/* Session detail "premium motion" — entrance + continuous effects (ported from Stitch design) */
+@keyframes revealHero {
+  0% { opacity: 0; transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes springPop {
+  0% { opacity: 0; transform: scale(0.8); }
+  60% { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes slideUpFade {
+  0% { opacity: 0; transform: translateY(30px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes stretchTag {
+  0% { opacity: 0; transform: scaleX(0.5); }
+  50% { opacity: 1; transform: scaleX(1.1); }
+  100% { opacity: 1; transform: scaleX(1); }
+}
+@keyframes shimmerSweep {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+@keyframes gentlePulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.8; }
+}
+
 /* =====================================================
    ANIMATION UTILITY CLASSES
    ===================================================== */
@@ -259,6 +287,49 @@ body {
   .stagger-4 { animation-delay: 0.20s; }
   .stagger-5 { animation-delay: 0.25s; }
 
+  /* Session detail entrance animations (ported from Stitch design) */
+  .anim-reveal-hero {
+    animation: revealHero 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  }
+  .anim-spring-pop {
+    animation: springPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+  .anim-slide-up {
+    animation: slideUpFade 0.5s ease-out forwards;
+  }
+  .anim-stretch-tag {
+    animation: stretchTag 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+  .effect-shimmer {
+    background-image: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0) 100%);
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+    animation: shimmerSweep 4s infinite linear;
+  }
+  .effect-pulse {
+    animation: gentlePulse 2s ease-in-out infinite;
+  }
+
+  /* Section-header stagger */
+  .delay-100 { animation-delay: 100ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-400 { animation-delay: 400ms; }
+  .delay-500 { animation-delay: 500ms; }
+  .delay-600 { animation-delay: 600ms; }
+
+  /* Match row stagger */
+  .match-delay-1 { animation-delay: 600ms; }
+  .match-delay-2 { animation-delay: 700ms; }
+  .match-delay-3 { animation-delay: 800ms; }
+  .match-delay-4 { animation-delay: 900ms; }
+  .match-delay-5 { animation-delay: 1000ms; }
+
+  /* Snappy spring-based hover transition */
+  .snappy-hover {
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
   /* Reduced motion: disable all nonessential animations */
   @media (prefers-reduced-motion: reduce) {
     .streak-fire,
@@ -274,7 +345,13 @@ body {
     .stagger-2,
     .stagger-3,
     .stagger-4,
-    .stagger-5 {
+    .stagger-5,
+    .anim-reveal-hero,
+    .anim-spring-pop,
+    .anim-slide-up,
+    .anim-stretch-tag,
+    .effect-shimmer,
+    .effect-pulse {
       animation: none !important;
       transition: none !important;
       opacity: 1 !important;
