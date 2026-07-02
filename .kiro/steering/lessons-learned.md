@@ -328,3 +328,16 @@ const { data, error } = await supabase
 
 if (!data) return { success: false, error: "Ownership lost" };
 ```
+
+### Rally Winners ≠ Scoring Events — Always Replay to Determine Points
+`history.rallyWinners` records which team won each rally, but in side-out scoring, winning a rally as the receiving team doesn't score a point. Any derived stat that depends on "who scored" (streaks, momentum, point runs) must replay the rally history through `processRally` and check `result.scoringTeam !== null` — never assume every rally win is a point. Pattern:
+```typescript
+const scoringTeams: Team[] = [];
+let state = createMatch(history.initialInput);
+for (let i = 0; i < history.rallyWinners.length; i++) {
+  const result = processRally(state, history.rallyWinners[i], i + 1);
+  if (result.scoringTeam !== null) scoringTeams.push(result.scoringTeam);
+  state = result.newState;
+}
+```
+This applies to any future feature that needs "point-level" analysis (scoring runs, comeback detection, momentum graphs).

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { PlayerAvatar } from "@/components/players";
-import { takeOverScoring } from "./active-match-actions";
+import { takeOverScoring, getActiveMatch } from "./active-match-actions";
 import type { MatchSnapshot } from "@/lib/supabase";
 
 interface Player {
@@ -14,6 +14,7 @@ interface Player {
 
 interface ActiveMatchBannerProps {
   readonly matchId: string;
+  readonly sessionId: string;
   readonly snapshot: MatchSnapshot | null;
   readonly teamAPlayerIds: readonly string[];
   readonly teamBPlayerIds: readonly string[];
@@ -26,7 +27,8 @@ interface ActiveMatchBannerProps {
 
 export function ActiveMatchBanner({
   matchId,
-  snapshot,
+  sessionId,
+  snapshot: initialSnapshot,
   teamAPlayerIds,
   teamBPlayerIds,
   players,
@@ -35,9 +37,35 @@ export function ActiveMatchBanner({
   onTakeOver,
   onViewMatch,
 }: ActiveMatchBannerProps) {
+  // Local snapshot state — updated by viewer polling (read-only; does not touch scorer state)
+  const [snapshot, setSnapshot] = useState<MatchSnapshot | null>(initialSnapshot);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isTakingOver, setIsTakingOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Guard: only poll when activeMatchRelation === "viewer" (enforced by parent rendering this component).
+  // This component is rendered only when the current user is NOT the scorer.
+  useEffect(() => {
+    const pollSnapshot = async () => {
+      const result = await getActiveMatch(sessionId);
+      if (result.success) {
+        if (!result.data) {
+          // Match is no longer active — stop polling (parent will re-render anyway on next interaction)
+          if (pollRef.current) clearInterval(pollRef.current);
+          return;
+        }
+        if (result.data.id === matchId && result.data.current_snapshot) {
+          setSnapshot(result.data.current_snapshot);
+        }
+      }
+    };
+
+    pollRef.current = setInterval(pollSnapshot, 4000);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [matchId, sessionId]);
 
   const playerMap = new Map(players.map((p) => [p.id, p]));
   const getPlayerName = (id: string) =>

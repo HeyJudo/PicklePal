@@ -8,6 +8,8 @@ import {
   undoRally,
   canUndo,
   isDoublesState,
+  createMatch,
+  processRally,
 } from "@/lib/engine";
 import type {
   MatchHistory,
@@ -21,7 +23,8 @@ import {
   getSyncDisplay,
   removeLastOfflineRallyEvent,
 } from "@/lib/offline";
-import { updateMatchSnapshot } from "./active-match-actions";
+import { updateMatchSnapshot, flushRallyEvents } from "./active-match-actions";
+import { formatClock } from "@/lib/format/duration";
 import type { MatchStartConfig } from "./PositionConfirmation";
 
 interface Player {
@@ -41,7 +44,8 @@ interface LiveScoringProps {
   readonly winBy: number;
   readonly trackScorers?: boolean;
   readonly activeMatchId: string | null;
-  readonly onMatchComplete: (history: MatchHistory) => void;
+  readonly startedAt?: string | null;
+  readonly onMatchComplete: (history: MatchHistory, lastFlushedSequence: number) => void;
 }
 
 export function LiveScoring({
@@ -54,6 +58,7 @@ export function LiveScoring({
   winBy,
   trackScorers = false,
   activeMatchId,
+  startedAt,
   onMatchComplete,
 }: LiveScoringProps) {
   const [history, setHistory] = useState<MatchHistory>(() => {
@@ -86,6 +91,10 @@ export function LiveScoring({
   );
   const [bouncedPlayerId, setBouncedPlayerId] = useState<string | null>(null);
   const [scorerLog, setScorerLog] = useState<(string | null)[]>([]);
+  // Live count-up timer: capture a fallback start time when scoring begins
+  // Use null initially; the effect will set it on first mount
+  const matchStartFallback = useRef<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -100,11 +109,34 @@ export function LiveScoring({
     };
   }, []);
 
+  // Live count-up timer — ticks every second, stops when match is complete
+  useEffect(() => {
+    if (history.currentState.isComplete) return;
+
+    // Initialize fallback start time on first run (avoids calling Date.now during render)
+    if (matchStartFallback.current === null) {
+      matchStartFallback.current = Date.now();
+    }
+
+    const startMs = startedAt
+      ? new Date(startedAt).getTime()
+      : matchStartFallback.current;
+
+    const tick = () => {
+      setElapsedSeconds(Math.floor((Date.now() - startMs) / 1000));
+    };
+    tick(); // immediate first tick
+
+    const timerId = setInterval(tick, 1000);
+    return () => clearInterval(timerId);
+  }, [startedAt, history.currentState.isComplete]);
+
   const state = history.currentState;
   const isDoubles = isDoublesState(state);
 
   // Sync snapshot to DB every 5 seconds while match is active
   const lastSnapshotRef = useRef<string>("");
+  const lastFlushedSequenceRef = useRef(-1);
   useEffect(() => {
     if (!activeMatchId || history.currentState.isComplete) return;
 
@@ -132,6 +164,30 @@ export function LiveScoring({
       lastSnapshotRef.current = snapshotKey;
 
       await updateMatchSnapshot(activeMatchId, snapshot);
+
+      // Flush any rally events not yet sent to the DB
+      const queue = getOfflineRallyEvents(sessionId, matchLocalId);
+      const unflushed = queue.filter(
+        (e) => e.sequenceNumber > lastFlushedSequenceRef.current,
+      );
+      if (unflushed.length > 0) {
+        const result = await flushRallyEvents(
+          activeMatchId,
+          unflushed.map((e) => ({
+            sequenceNumber: e.sequenceNumber,
+            rallyWinnerTeam: e.rallyWinnerTeam,
+            resultingTeamAScore: e.resultingTeamAScore,
+            resultingTeamBScore: e.resultingTeamBScore,
+            serverPlayerId: e.serverPlayerId,
+            serverNumber: e.serverNumber,
+            sideOutOccurred: e.sideOutOccurred,
+          })),
+        );
+        if (result.success) {
+          lastFlushedSequenceRef.current =
+            unflushed[unflushed.length - 1].sequenceNumber;
+        }
+      }
     };
 
     const intervalId = setInterval(syncSnapshot, 5000);
@@ -139,7 +195,7 @@ export function LiveScoring({
     syncSnapshot();
 
     return () => clearInterval(intervalId);
-  }, [activeMatchId, history]);
+  }, [activeMatchId, history, matchLocalId, sessionId]);
 
   const playerMap = new Map(players.map((p) => [p.id, p]));
   const getPlayer = (id: string) => playerMap.get(id);
@@ -174,7 +230,7 @@ export function LiveScoring({
       setPendingRallyCount(nextQueue.length);
 
       if (newHistory.currentState.isComplete) {
-        setTimeout(() => onMatchComplete(newHistory), 600);
+        setTimeout(() => onMatchComplete(newHistory, lastFlushedSequenceRef.current), 600);
       }
     },
     [history, matchLocalId, onMatchComplete, sessionId, state.isComplete],
@@ -224,9 +280,9 @@ export function LiveScoring({
     ? `${state.teamAScore}-${state.teamBScore}-${serverNumber}`
     : `${state.teamAScore}-${state.teamBScore}`;
 
-  // Streak detection — count consecutive points from the end of rallyWinners
+  // Streak detection — count consecutive actual scoring rallies (not side-outs)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const streak = getStreak(history.rallyWinners);
+  const streak = getScoringStreak(history);
 
   const syncDisplay = getSyncDisplay({
     pendingCount: pendingRallyCount,
@@ -247,15 +303,17 @@ export function LiveScoring({
 
   return (
     <div className="space-y-3">
-      {/* Sync Status — compact */}
-      <div
-        className={`rounded-lg px-3 py-1.5 text-[11px] font-medium flex items-center gap-1.5 ${getSyncToneClass(syncDisplay.tone)}`}
-      >
-        <span
-          className={`h-1.5 w-1.5 rounded-full ${getSyncDotClass(syncDisplay.tone)}`}
-        />
-        {syncDisplay.label}
-      </div>
+      {/* Sync Status — only show when offline or error, not during normal online buffering */}
+      {syncDisplay.tone !== "pending" && (
+        <div
+          className={`rounded-lg px-3 py-1.5 text-[11px] font-medium flex items-center gap-1.5 ${getSyncToneClass(syncDisplay.tone)}`}
+        >
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${getSyncDotClass(syncDisplay.tone)}`}
+          />
+          {syncDisplay.label}
+        </div>
+      )}
 
       {/* Court View — Top-down pickleball court */}
       <div className="relative rounded-2xl overflow-hidden p-3" style={{ backgroundColor: "#8BA86B" }}>
@@ -410,27 +468,39 @@ export function LiveScoring({
         </div>
 
         {/* Scoreboard overlay — floating on top of court */}
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-black/75 backdrop-blur-sm px-5 py-2 shadow-lg">
-          <span className={`font-display text-3xl leading-none tabular-nums ${servingTeam === "A" ? "text-ball-yellow" : "text-white"}`}>
-            {state.teamAScore}
-          </span>
-          <span className="text-white/40 text-base font-medium">–</span>
-          <span className={`font-display text-3xl leading-none tabular-nums ${servingTeam === "B" ? "text-ball-yellow" : "text-white"}`}>
-            {state.teamBScore}
-          </span>
-          {isDoubles && (
-            <>
-              <span className="text-white/30 text-xs">|</span>
-              <span className="text-[10px] font-mono text-white/60">{scoreCall}</span>
-            </>
-          )}
-          {streak && streak.count >= 3 && (
-            <span className="flex items-center gap-0.5 text-[11px] font-bold text-hype-orange streak-flame">
-              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 23c-4.97 0-9-3.58-9-8 0-3.07 2.25-5.77 4.5-7.5.42-.32 1.02-.06 1.08.47.12 1.04.58 2.03 1.42 2.78.14.12.36.04.38-.13.1-.94.56-2.2 1.62-3.62.28-.37.85-.3 1.03.12C14.23 10.5 16 12.5 16 15c0 .55-.04 1.08-.13 1.58-.04.22.16.4.36.3.56-.28 1.07-.72 1.47-1.28.2-.28.6-.28.73.04.33.82.57 1.74.57 2.86 0 4.42-4.03 8-9 8z"/>
-              </svg>
-              {streak.count}
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 flex flex-col items-center rounded-2xl bg-black/75 backdrop-blur-sm px-5 py-2 shadow-lg">
+          <div className="flex items-center gap-2">
+            <span className={`font-display text-3xl leading-none tabular-nums ${servingTeam === "A" ? "text-ball-yellow" : "text-white"}`}>
+              {state.teamAScore}
             </span>
+            <span className="text-white/40 text-base font-medium">–</span>
+            <span className={`font-display text-3xl leading-none tabular-nums ${servingTeam === "B" ? "text-ball-yellow" : "text-white"}`}>
+              {state.teamBScore}
+            </span>
+            {isDoubles && (
+              <>
+                <span className="text-white/30 text-xs">|</span>
+                <span className="text-[10px] font-mono text-white/60">{scoreCall}</span>
+              </>
+            )}
+            {streak && streak.count >= 3 && (
+              <span className="flex items-center gap-0.5 text-[11px] font-bold text-hype-orange streak-flame">
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 23c-4.97 0-9-3.58-9-8 0-3.07 2.25-5.77 4.5-7.5.42-.32 1.02-.06 1.08.47.12 1.04.58 2.03 1.42 2.78.14.12.36.04.38-.13.1-.94.56-2.2 1.62-3.62.28-.37.85-.3 1.03.12C14.23 10.5 16 12.5 16 15c0 .55-.04 1.08-.13 1.58-.04.22.16.4.36.3.56-.28 1.07-.72 1.47-1.28.2-.28.6-.28.73.04.33.82.57 1.74.57 2.86 0 4.42-4.03 8-9 8z"/>
+                </svg>
+                {streak.count}
+              </span>
+            )}
+          </div>
+          {/* Live timer */}
+          {!state.isComplete && (
+            <div className="flex items-center gap-1 mt-0.5">
+              <svg className="h-2.5 w-2.5 text-white/40" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path strokeLinecap="round" d="M12 7v5l3 3" />
+              </svg>
+              <span className="text-[10px] font-mono text-white/50 tabular-nums">{formatClock(elapsedSeconds)}</span>
+            </div>
           )}
         </div>
 
@@ -608,21 +678,40 @@ export function LiveScoring({
 }
 
 /**
- * Count consecutive scoring rallies by the same team from the end of the list.
- * Returns { team, count } or null if no rallies yet.
+ * Count consecutive actual scoring rallies (where a point was earned) by the
+ * same team from the end of the match. In pickleball side-out scoring, only
+ * the serving team can score — winning a rally as the receiving team is just
+ * a side-out (no point). This replays the rally history to determine which
+ * rallies actually produced points, then counts the trailing streak.
  */
-function getStreak(
-  rallyWinners: readonly Team[],
+function getScoringStreak(
+  history: MatchHistory,
 ): { team: Team; count: number } | null {
-  if (rallyWinners.length === 0) return null;
+  if (history.rallyWinners.length === 0) return null;
 
-  const lastTeam = rallyWinners[rallyWinners.length - 1];
+  // Replay rallies to determine which ones resulted in actual points
+  const scoringTeams: Team[] = [];
+  let state = createMatch(history.initialInput);
+
+  for (let i = 0; i < history.rallyWinners.length; i++) {
+    const result = processRally(state, history.rallyWinners[i], i + 1);
+    if (result.scoringTeam !== null) {
+      scoringTeams.push(result.scoringTeam);
+    }
+    state = result.newState;
+  }
+
+  if (scoringTeams.length === 0) return null;
+
+  // Count consecutive scoring rallies from the end
+  const lastScoringTeam = scoringTeams[scoringTeams.length - 1];
   let count = 0;
-  for (let i = rallyWinners.length - 1; i >= 0; i--) {
-    if (rallyWinners[i] !== lastTeam) break;
+  for (let i = scoringTeams.length - 1; i >= 0; i--) {
+    if (scoringTeams[i] !== lastScoringTeam) break;
     count++;
   }
-  return { team: lastTeam, count };
+
+  return { team: lastScoringTeam, count };
 }
 
 function getSyncToneClass(tone: "success" | "pending" | "warning" | "error") {

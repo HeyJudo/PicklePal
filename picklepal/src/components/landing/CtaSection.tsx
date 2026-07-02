@@ -1,59 +1,87 @@
+"use client";
 import React from 'react';
 import Link from 'next/link';
-import { motion } from 'motion/react';
-import { ArrowRight, Star } from 'lucide-react';
+import Image from 'next/image';
+import { motion, useReducedMotion } from 'motion/react';
+import { ArrowRight } from 'lucide-react';
 
 export default function CtaSection() {
+  const reduce = useReducedMotion();
+
   return (
-    <section className="py-32 px-5 md:px-12 bg-surface text-center overflow-hidden">
-      <div className="max-w-4xl mx-auto">
-        <motion.h2 
-          initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-          className="font-display text-[72px] text-primary-dark tracking-tighter leading-none uppercase italic mb-12"
-        >
-          Ready for your next DinkDay?
-        </motion.h2>
+    <section className="py-32 px-5 md:px-12 bg-surface overflow-hidden">
+      <div className="max-w-[1280px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
 
-        {/* Recap Mini Card Visual */}
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9, rotate: 2 }} whileInView={{ opacity: 1, scale: 1, rotate: 1 }} viewport={{ once: true }}
-          className="bg-surface-container-high rounded-2xl p-6 shadow-md border border-outline-variant/30 max-w-2xl mx-auto mb-16 flex flex-col md:flex-row gap-6 md:gap-0 items-center justify-between hover:rotate-0 hover:scale-105 hover:shadow-xl transition-all duration-500"
+        {/* Left: headline + CTAs */}
+        <div className="lg:col-span-7 flex flex-col gap-8">
+          <motion.h2
+            initial={reduce ? false : { opacity: 0, y: 28 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            className="font-display text-[64px] md:text-[72px] text-primary-dark tracking-tighter leading-[1.1] uppercase italic pb-2"
+          >
+            Ready for your next DinkDay?
+          </motion.h2>
+
+          <motion.p
+            initial={reduce ? false : { opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+            className="font-body text-lg text-on-surface-variant max-w-md"
+          >
+            Create your group, invite your crew, and keep the games moving from first serve to final recap.
+          </motion.p>
+
+          <motion.div
+            initial={reduce ? false : { opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            className="flex flex-wrap gap-4"
+          >
+            <Link
+              href="/sign-up"
+              className="bg-primary text-on-primary font-label text-xs font-semibold uppercase tracking-wider px-8 py-4 rounded-lg hover:bg-primary-container hover:-translate-y-1 transition-all duration-300 flex items-center gap-2 shadow-[0_4px_0_#065a33] hover:shadow-[0_6px_0_#065a33] active:translate-y-1 active:shadow-none relative overflow-hidden group"
+            >
+              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              Create Your Group <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link
+              href="/g/picklepal"
+              className="bg-surface text-primary border-2 border-primary/20 font-label text-xs font-semibold uppercase tracking-wider px-8 py-4 rounded-lg hover:border-primary hover:bg-primary/5 hover:-translate-y-1 transition-all duration-300 flex items-center gap-2"
+            >
+              View Demo Group
+            </Link>
+          </motion.div>
+        </div>
+
+        {/* Right: real history screenshot, tilted */}
+        <motion.div
+          initial={reduce ? false : { opacity: 0, x: 32, rotate: 4 }}
+          whileInView={{ opacity: 1, x: 0, rotate: 3 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          className="lg:col-span-5 flex justify-center lg:justify-end"
         >
-          <div className="text-center px-8 border-b md:border-b-0 md:border-r border-outline-variant/40 pb-4 md:pb-0 w-full group">
-            <div className="font-label text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-2">MVP</div>
-            <div className="font-headline text-xl font-bold text-celebration flex items-center justify-center gap-2">
-              <Star className="w-4 h-4 fill-celebration group-hover:animate-spin" /> Jordan
+          <motion.div
+            animate={reduce ? {} : { y: [0, -10, 0] }}
+            transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+            className="w-[220px] bg-[#111] rounded-[2.2rem] p-2 shadow-2xl"
+          >
+            <div className="rounded-[1.8rem] overflow-hidden">
+              <Image
+                src="/screenshots/history-phone.webp"
+                alt="DinkDay match history recap"
+                width={390}
+                height={844}
+                className="w-full h-auto"
+              />
             </div>
-          </div>
-          <div className="text-center px-8 border-b md:border-b-0 md:border-r border-outline-variant/40 pb-4 md:pb-0 w-full group">
-            <div className="font-label text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-2">Hottest Duo</div>
-            <div className="font-headline text-xl font-bold text-primary-dark group-hover:text-accent transition-colors">Maya + Gio</div>
-          </div>
-          <div className="text-center px-8 w-full group">
-            <div className="font-label text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-2">Best Match</div>
-            <div className="font-score text-3xl font-bold text-primary group-hover:scale-110 transition-transform inline-block">11–9</div>
-          </div>
+          </motion.div>
         </motion.div>
 
-        <motion.p 
-          initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-          className="font-body text-xl text-on-surface-variant mb-12 max-w-2xl mx-auto"
-        >
-          Create your group, invite your crew, and keep the games moving from first serve to final recap.
-        </motion.p>
-
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-          className="flex flex-col sm:flex-row justify-center items-center gap-4"
-        >
-          <Link href="/sign-up" className="bg-primary text-on-primary font-label text-xs font-semibold uppercase tracking-wider px-8 py-4 rounded-lg hover:bg-primary-container hover:-translate-y-1 transition-all duration-300 flex items-center gap-2 shadow-[0_4px_0_#065a33] hover:shadow-[0_6px_0_#065a33] active:translate-y-1 active:shadow-none relative overflow-hidden group">
-             <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></span>
-             Create Your Group <ArrowRight className="w-4 h-4" />
-          </Link>
-          <Link href="/g/picklepal" className="bg-surface text-primary border-2 border-primary/20 font-label text-xs font-semibold uppercase tracking-wider px-8 py-4 rounded-lg hover:border-primary hover:bg-primary/5 hover:-translate-y-1 transition-all duration-300 flex items-center gap-2">
-            View Demo Group
-          </Link>
-        </motion.div>
       </div>
     </section>
   );

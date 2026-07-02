@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { saveCompletedMatch } from "./actions";
+import { formatMatchDuration } from "@/lib/format/duration";
 import {
   clearRecoverableMatch,
   formatSyncErrorMessage,
@@ -35,6 +36,7 @@ export interface CompletedMatchData {
   readonly winner: "A" | "B";
   readonly startingServerPlayerId: string;
   readonly totalRallies: number;
+  readonly durationSeconds?: number | null;
   readonly rallyEvents: readonly RallyEventData[];
 }
 
@@ -133,6 +135,7 @@ export function MatchResult({
         targetScore,
         winBy,
         rallyEvents: [...matchData.rallyEvents],
+        durationSeconds: matchData.durationSeconds ?? null,
       });
 
       if (result.success) {
@@ -244,6 +247,18 @@ export function MatchResult({
           </p>
           <p className="text-xs text-text-muted mt-2 tabular-nums">
             {matchData.totalRallies} rallies played
+            {matchData.durationSeconds != null && (
+              <>
+                {" · "}
+                <span className="inline-flex items-center gap-0.5">
+                  <svg className="inline h-3 w-3 mb-px" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" />
+                    <path strokeLinecap="round" d="M12 7v5l3 3" />
+                  </svg>
+                  {formatMatchDuration(matchData.durationSeconds)}
+                </span>
+              </>
+            )}
           </p>
         </div>
       </div>

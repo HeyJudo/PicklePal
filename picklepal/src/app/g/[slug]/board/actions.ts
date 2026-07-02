@@ -2,7 +2,9 @@
 
 import { createServerClient } from "@/lib/supabase";
 import { computeLeaderboard } from "@/lib/stats";
+import { getCurrentBelts } from "@/lib/belts/recomputeBelts";
 import type { LeaderboardEntry } from "@/lib/stats";
+import type { CurrentBelt } from "@/lib/belts/recomputeBelts";
 
 interface LeaderboardResult {
   readonly entries: readonly LeaderboardEntry[];
@@ -67,4 +69,25 @@ export async function getLeaderboard(groupSlug: string): Promise<LeaderboardResu
 
   const entries = computeLeaderboard(players, matches ?? []);
   return { entries };
+}
+
+/**
+ * Fetch the currently active belt reigns for the board page.
+ * Resolves group ID from slug internally.
+ */
+export async function getBoardBelts(
+  groupSlug: string,
+): Promise<readonly CurrentBelt[]> {
+  const supabase = createServerClient();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: group, error: groupError } = await (supabase as any)
+    .from("groups")
+    .select("id")
+    .eq("slug", groupSlug)
+    .single();
+
+  if (groupError || !group) return [];
+
+  return getCurrentBelts(group.id);
 }

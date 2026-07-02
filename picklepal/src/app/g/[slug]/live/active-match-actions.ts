@@ -2,6 +2,8 @@
 
 import { currentUser } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
+import { authorizeGroupWrite, resolveGroupIdFromSession, resolveGroupIdFromMatch } from "@/lib/auth";
+import { recomputeBelts } from "@/lib/belts/recomputeBelts";
 import type { MatchType, MatchSnapshot } from "@/lib/supabase";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -67,6 +69,11 @@ export async function createActiveMatch(
   if (!user) {
     return { success: false, error: "You must be signed in" };
   }
+
+  const groupId = await resolveGroupIdFromSession(input.sessionId);
+  if (!groupId) return { success: false, error: "Session not found" };
+  const auth = await authorizeGroupWrite(groupId);
+  if (!auth.authorized) return { success: false, error: auth.error };
 
   const supabase = getSupabase();
 
@@ -135,6 +142,11 @@ export async function updateMatchSnapshot(
     return { success: false, error: "You must be signed in" };
   }
 
+  const groupId = await resolveGroupIdFromMatch(matchId);
+  if (!groupId) return { success: false, error: "Match not found" };
+  const auth = await authorizeGroupWrite(groupId);
+  if (!auth.authorized) return { success: false, error: auth.error };
+
   const supabase = getSupabase();
 
   const { data, error } = await supabase
@@ -196,7 +208,23 @@ export async function completeActiveMatch(
     return { success: false, error: "You must be signed in" };
   }
 
+  const groupId = await resolveGroupIdFromMatch(input.matchId);
+  if (!groupId) return { success: false, error: "Match not found" };
+  const auth = await authorizeGroupWrite(groupId);
+  if (!auth.authorized) return { success: false, error: auth.error };
+
   const supabase = getSupabase();
+
+  // Fetch started_at to compute server-authoritative duration
+  const { data: matchRow } = await supabase
+    .from("matches")
+    .select("started_at")
+    .eq("id", input.matchId)
+    .single();
+  const nowMs = Date.now();
+  const durationSeconds = matchRow?.started_at
+    ? Math.round((nowMs - new Date(matchRow.started_at).getTime()) / 1000)
+    : null;
 
   // Update match to completed
   const { error: matchError } = await supabase
@@ -208,8 +236,9 @@ export async function completeActiveMatch(
       winning_team: input.winningTeam,
       losing_team: input.losingTeam,
       current_snapshot: null,
-      completed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      completed_at: new Date(nowMs).toISOString(),
+      duration_seconds: durationSeconds,
+      updated_at: new Date(nowMs).toISOString(),
     })
     .eq("id", input.matchId)
     .eq("status", "active");
@@ -239,12 +268,55 @@ export async function completeActiveMatch(
       // Rally save failed — revert match to active so scorer can retry
       await supabase
         .from("matches")
-        .update({ status: "active", completed_at: null, updated_at: new Date().toISOString() })
+        .update({ status: "active", completed_at: null, duration_seconds: null, updated_at: new Date().toISOString() })
         .eq("id", input.matchId);
       return { success: false, error: "Failed to save rally events. Match not completed." };
     }
   }
 
+  // Recompute belt holders after successful match completion.
+  // Failure is swallowed inside recomputeBelts — never reverts this match.
+  void recomputeBelts(groupId);
+
+  return { success: true };
+}
+
+// ─── Flush Rally Events ──────────────────────────────────────────────────────
+
+/**
+ * Progressively inserts rally events for an active match during scoring.
+ * Called alongside the snapshot sync so match completion only needs to insert
+ * the last few unflushed rallies instead of the entire game's worth at once.
+ */
+export async function flushRallyEvents(
+  matchId: string,
+  rallyEvents: readonly RallyEventInput[],
+): Promise<ActionResult> {
+  if (rallyEvents.length === 0) return { success: true };
+
+  const user = await currentUser();
+  if (!user) return { success: false, error: "You must be signed in" };
+
+  const groupId = await resolveGroupIdFromMatch(matchId);
+  if (!groupId) return { success: false, error: "Match not found" };
+  const auth = await authorizeGroupWrite(groupId);
+  if (!auth.authorized) return { success: false, error: auth.error };
+
+  const supabase = getSupabase();
+
+  const rallyRows = rallyEvents.map((event) => ({
+    match_id: matchId,
+    sequence_number: event.sequenceNumber,
+    rally_winner_team: event.rallyWinnerTeam,
+    resulting_team_a_score: event.resultingTeamAScore,
+    resulting_team_b_score: event.resultingTeamBScore,
+    server_player_id: event.serverPlayerId,
+    server_number: event.serverNumber,
+    side_out_occurred: event.sideOutOccurred,
+  }));
+
+  const { error } = await supabase.from("rally_events").insert(rallyRows);
+  if (error) return { success: false, error: error.message };
   return { success: true };
 }
 
@@ -324,6 +396,11 @@ export async function takeOverScoring(
   if (!user) {
     return { success: false, error: "You must be signed in" };
   }
+
+  const groupId = await resolveGroupIdFromMatch(matchId);
+  if (!groupId) return { success: false, error: "Match not found" };
+  const auth = await authorizeGroupWrite(groupId);
+  if (!auth.authorized) return { success: false, error: auth.error };
 
   const supabase = getSupabase();
 

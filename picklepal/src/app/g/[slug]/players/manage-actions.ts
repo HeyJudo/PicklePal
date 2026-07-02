@@ -1,6 +1,7 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase";
+import { authorizeGroupWrite } from "@/lib/auth";
 import type { Player } from "@/lib/supabase";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -56,13 +57,15 @@ function validateColor(color: string | null): string | null {
 
 /**
  * Add a new player to the group roster.
- * PIN verification happens client-side before calling this action.
  */
 export async function addPlayer(
   groupSlug: string,
   displayName: string,
   color: string | null,
 ): Promise<AddPlayerResult> {
+  const auth = await authorizeGroupWrite(groupSlug);
+  if (!auth.authorized) return { success: false, error: auth.error };
+
   const groupId = await getGroupId(groupSlug);
   if (!groupId) return { success: false, error: "Group not found" };
 
@@ -95,7 +98,6 @@ export async function addPlayer(
 
 /**
  * Update an existing player's profile.
- * PIN verification happens client-side before calling this action.
  */
 export async function updatePlayer(
   groupSlug: string,
@@ -106,6 +108,9 @@ export async function updatePlayer(
     readonly avatarUrl?: string | null;
   },
 ): Promise<ActionResult> {
+  const auth = await authorizeGroupWrite(groupSlug);
+  if (!auth.authorized) return { success: false, error: auth.error };
+
   const groupId = await getGroupId(groupSlug);
   if (!groupId) return { success: false, error: "Group not found" };
 
@@ -151,13 +156,15 @@ export async function updatePlayer(
 
 /**
  * Toggle a player's active status (soft delete/restore).
- * PIN verification happens client-side before calling this action.
  */
 export async function togglePlayerActive(
   groupSlug: string,
   playerId: string,
   isActive: boolean,
 ): Promise<ActionResult> {
+  const auth = await authorizeGroupWrite(groupSlug);
+  if (!auth.authorized) return { success: false, error: auth.error };
+
   const groupId = await getGroupId(groupSlug);
   if (!groupId) return { success: false, error: "Group not found" };
 
@@ -181,7 +188,6 @@ export async function togglePlayerActive(
  * Upload a player avatar to Supabase Storage.
  * Accepts a base64-encoded image string (from client-side file reading).
  * Returns the public URL of the uploaded image.
- * PIN verification happens client-side before calling this action.
  */
 export async function uploadPlayerAvatar(
   groupSlug: string,
@@ -189,6 +195,9 @@ export async function uploadPlayerAvatar(
   fileBase64: string,
   fileType: string,
 ): Promise<UploadAvatarResult> {
+  const auth = await authorizeGroupWrite(groupSlug);
+  if (!auth.authorized) return { success: false, error: auth.error };
+
   const groupId = await getGroupId(groupSlug);
   if (!groupId) return { success: false, error: "Group not found" };
 

@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Geist_Mono, Outfit, Archivo_Narrow, Anton } from "next/font/google";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 const geistMono = Geist_Mono({
@@ -28,9 +30,33 @@ const anton = Anton({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.dinkday.site"),
   title: "DinkDay — Game day, handled.",
   description:
     "Live scoring, fair rotations, persistent rankings, and shareable Game Day recaps for your pickleball crew.",
+  openGraph: {
+    type: "website",
+    title: "DinkDay — Game day, handled.",
+    description:
+      "Live scoring, fair rotations, persistent rankings, and shareable Game Day recaps for your pickleball crew.",
+    url: "https://www.dinkday.site",
+    siteName: "DinkDay",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "DinkDay — Game day, handled.",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "DinkDay — Game day, handled.",
+    description:
+      "Live scoring, fair rotations, persistent rankings, and shareable Game Day recaps for your pickleball crew.",
+    images: ["/twitter-image"],
+  },
 };
 
 export const viewport: Viewport = {
@@ -52,7 +78,11 @@ export default function RootLayout({
         lang="en"
         className={`${outfit.variable} ${archivoNarrow.variable} ${anton.variable} ${geistMono.variable} h-full antialiased`}
       >
-        <body className="min-h-full flex flex-col">{children}</body>
+        <body className="min-h-full flex flex-col">
+          {children}
+          <Analytics />
+          <SpeedInsights />
+        </body>
       </html>
     </ClerkProvider>
   );

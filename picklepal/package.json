@@ -15,8 +15,11 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^7.4.3",
+    "@sentry/nextjs": "^10.58.0",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.106.2",
+    "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "html2canvas": "^1.4.1",
     "lucide-react": "^1.17.0",
     "motion": "^12.40.0",
@@ -33,7 +36,9 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "eslint-config-prettier": "^10.1.8",
+    "playwright": "^1.60.0",
     "prettier": "^3.8.3",
+    "sharp": "^0.35.1",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.7"

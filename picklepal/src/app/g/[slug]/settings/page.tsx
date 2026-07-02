@@ -1,10 +1,11 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
-import { isGroupAdmin } from "@/lib/membership";
+import { isGroupAdmin, isGroupOwner } from "@/lib/membership";
 import { ArrowLeft, Settings } from "lucide-react";
 import Link from "next/link";
 import { InviteManager } from "./InviteManager";
+import { MemberManager } from "./MemberManager";
 import { PrivacySettings } from "./PrivacySettings";
 import { GroupInfoSettings } from "./GroupInfoSettings";
 import { GameDefaultsSettings } from "./GameDefaultsSettings";
@@ -48,6 +49,8 @@ export default async function SettingsPage({ params }: SettingsPageProps) {
   if (!isAdmin) {
     redirect(`/g/${slug}`);
   }
+
+  const isOwner = await isGroupOwner(user.id, group.id);
 
   return (
     <main className="min-h-screen bg-background">
@@ -105,6 +108,12 @@ export default async function SettingsPage({ params }: SettingsPageProps) {
             qualification_threshold: group.settings?.qualification_threshold ?? 3,
           } as GroupSettings}
         />
+
+        {/* Divider */}
+        <div className="border-t border-border" />
+
+        {/* Member Management */}
+        <MemberManager slug={slug} isOwner={isOwner} />
 
         {/* Divider */}
         <div className="border-t border-border" />

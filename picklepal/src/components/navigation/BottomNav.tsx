@@ -10,6 +10,7 @@ import {
   HistoryIcon,
   PlayersIcon,
 } from "@/components/icons";
+import { Crown } from "lucide-react";
 
 interface NavItem {
   readonly label: string;
@@ -25,6 +26,7 @@ function getNavItems(groupSlug: string): readonly NavItem[] {
     { label: "Board", href: `${base}/board`, icon: <BoardIcon className="w-[22px] h-[22px]" /> },
     { label: "History", href: `${base}/history`, icon: <HistoryIcon className="w-[22px] h-[22px]" /> },
     { label: "Players", href: `${base}/players`, icon: <PlayersIcon className="w-[22px] h-[22px]" /> },
+    { label: "Titles", href: `${base}/belts`, icon: <Crown className="w-[22px] h-[22px]" /> },
   ] as const;
 }
 

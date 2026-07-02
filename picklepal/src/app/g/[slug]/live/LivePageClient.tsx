@@ -14,12 +14,20 @@ import { GameDayRecap } from "./GameDayRecap";
 import { RecordMatchForm } from "./RecordMatchForm";
 import { ActiveMatchBanner } from "./ActiveMatchBanner";
 import { ViewOnlyScoring } from "./ViewOnlyScoring";
-import { OverlayRenderer } from "@/components/share";
+import { OverlayRenderer, RecapShareButton, SessionRecapShareButton, MvpShareButton } from "@/components/share";
+import { BeltMedallion } from "@/components/belts/BeltMedallion";
+import { getBeltMeta } from "@/components/belts/BeltBadge";
 import { endSession, getSessionRecap, getSessionMatches } from "./actions";
 import { createActiveMatch, completeActiveMatch } from "./active-match-actions";
 import type { MatchStartConfig } from "./PositionConfirmation";
 import type { CompletedMatchData } from "./MatchResult";
-import type { Matchup } from "@/lib/matchmaking";
+import {
+  createMatchmakingState,
+  generateNextMatchup,
+  generateQueue,
+  shuffleMatchup,
+} from "@/lib/matchmaking";
+import type { Matchup, MatchmakingState } from "@/lib/matchmaking";
 import type { SessionMatchData } from "./actions";
 import type { MatchSnapshot } from "@/lib/supabase";
 import {
@@ -78,10 +86,13 @@ interface ActiveMatchInfo {
   readonly startingServerPlayerId: string | null;
   readonly targetScore: number;
   readonly winBy: number;
+  readonly startedAt: string | null;
 }
 
 interface LivePageClientProps {
   readonly groupSlug: string;
+  /** Display name of the group, used in share card. */
+  readonly groupName?: string;
   readonly initialSession: SessionData | null;
   readonly players: readonly Player[];
   readonly initialSessionPlayers: readonly SessionPlayerEntry[];
@@ -91,10 +102,15 @@ interface LivePageClientProps {
   readonly clerkUserId: string | null;
   readonly isAdmin: boolean;
   readonly initialActiveMatch: ActiveMatchInfo | null;
+  /** Player ID of the current King of the Kitchen belt holder, if any */
+  readonly kingHolderId?: string | null;
+  /** Currently active belt reigns for compact display in the leaderboard panel */
+  readonly currentBelts?: readonly import("@/lib/belts/recomputeBelts").CurrentBelt[];
 }
 
 export function LivePageClient({
   groupSlug,
+  groupName,
   initialSession,
   players,
   initialSessionPlayers,
@@ -104,11 +120,19 @@ export function LivePageClient({
   clerkUserId,
   isAdmin,
   initialActiveMatch,
+  kingHolderId,
+  currentBelts,
 }: LivePageClientProps) {
   const [activeSession, setActiveSession] = useState<SessionData | null>(initialSession);
   const [sessionPlayers, setSessionPlayers] = useState<readonly SessionPlayerEntry[]>(initialSessionPlayers);
   const [sessionMatches, setSessionMatches] = useState<readonly SessionMatchData[]>(initialSessionMatches);
+  const [confirmEndDesktop, setConfirmEndDesktop] = useState(false);
   const [currentMatchup, setCurrentMatchup] = useState<Matchup | null>(null);
+  // Matchmaking queue state (lifted from MatchQueue)
+  const [matchQueue, setMatchQueue] = useState<Matchup[]>([]);
+  const [matchmakingEngineState, setMatchmakingEngineState] = useState<MatchmakingState | null>(null);
+  // ponytail: tracks engine state after all queued matchups are projected, so handleNextMatch appends correctly
+  const [projectedEngineState, setProjectedEngineState] = useState<MatchmakingState | null>(null);
   const [matchConfig, setMatchConfig] = useState<MatchStartConfig | null>(null);
   const [matchLocalId, setMatchLocalId] = useState<string | null>(null);
   const [recoveredHistory, setRecoveredHistory] = useState<MatchHistory | null>(null);
@@ -118,6 +142,7 @@ export function LivePageClient({
   const [completedMatch, setCompletedMatch] = useState<CompletedMatchData | null>(null);
   const [activeMatchId, setActiveMatchId] = useState<string | null>(initialActiveMatch?.id ?? null);
   const [dbActiveMatch, setDbActiveMatch] = useState<ActiveMatchInfo | null>(initialActiveMatch);
+  const [activeMatchStartedAt, setActiveMatchStartedAt] = useState<string | null>(initialActiveMatch?.startedAt ?? null);
   const [showResumePrompt, setShowResumePrompt] = useState(false);
   const [recapData, setRecapData] = useState<{
     gamesPlayed: number;
@@ -161,6 +186,37 @@ export function LivePageClient({
   );
   const matchType = activeSession?.default_match_type === "singles" ? "singles" : "doubles";
 
+  // ── Matchmaking queue initialization & roster-change regeneration ───────────
+  // Re-run whenever the set of active players changes (join, bench, activate)
+  useEffect(() => {
+    if (!activeSession || activePlayersForMatchmaking.length === 0) return;
+    const playerIds = activePlayersForMatchmaking.map((p) => p.id);
+    const newState = createMatchmakingState(playerIds, matchType, {
+      sessionId: activeSession.id,
+    });
+    const queue = generateQueue(newState, 3);
+    setMatchmakingEngineState(newState);
+    setMatchQueue(queue);
+    // Advance through the 3 queued matchups to get the projected state for future appends
+    let projected = newState;
+    for (let i = 0; i < queue.length; i++) {
+      try {
+        const { newState: next } = generateNextMatchup(projected);
+        projected = next;
+      } catch { break; }
+    }
+    setProjectedEngineState(projected);
+  // ponytail: stringify so effect only fires on actual player set changes, not reference churn
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSession?.id, activePlayersForMatchmaking.map((p) => p.id).join(","), matchType]);
+
+  // Belt-on-the-line: King holder is in the current match roster
+  const beltOnTheLine = useMemo(() => {
+    if (!kingHolderId || !matchConfig) return false;
+    const roster = [...(matchConfig.teamA ?? []), ...(matchConfig.teamB ?? [])];
+    return roster.includes(kingHolderId);
+  }, [kingHolderId, matchConfig]);
+
   // ── Auto-resume from DB active match ────────────────────────────────────────
 
   // Set up matchConfig and history for auto-resume when step is "scoring" on mount
@@ -180,6 +236,7 @@ export function LivePageClient({
       setMatchConfig(config);
       setMatchLocalId(initialActiveMatch.id);
       setActiveMatchId(initialActiveMatch.id);
+      setActiveMatchStartedAt(initialActiveMatch.startedAt ?? null);
 
       // Rebuild history from snapshot rally count
       const snapshot = initialActiveMatch.currentSnapshot;
@@ -221,6 +278,22 @@ export function LivePageClient({
   }, [dbActiveMatch]);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
+
+  // ── Queue handlers ───────────────────────────────────────────────────────────
+
+  const handleShuffle = useCallback((): boolean => {
+    if (!matchmakingEngineState || matchQueue.length === 0) return false;
+    const alt = shuffleMatchup(matchQueue[0], matchmakingEngineState);
+    if (alt) {
+      setMatchQueue((prev) => [alt, ...prev.slice(1)]);
+      return true;
+    }
+    return false;
+  }, [matchmakingEngineState, matchQueue]);
+
+  // canShuffle: true when no scoring has started (step is "active", no rallies recorded)
+  // ponytail: once step leaves "active" scoring has started; simplest proxy
+  const canShuffle = step === "active";
 
   const handleSessionStarted = (sessionId: string) => {
     setActiveSession({
@@ -288,6 +361,7 @@ export function LivePageClient({
       setActiveMatchId(result.data.matchId);
       // Use DB match ID as the local match ID so auto-resume can find it
       matchLocalIdToUse = result.data.matchId;
+      setActiveMatchStartedAt(new Date().toISOString());
     }
     // If DB creation fails, still allow local scoring (offline resilience)
 
@@ -302,21 +376,29 @@ export function LivePageClient({
     setStep("scoring");
   };
 
-  const handleMatchComplete = async (completedHistory: MatchHistory) => {
-    const matchData = buildCompletedMatchData(completedHistory);
+  const handleMatchComplete = async (completedHistory: MatchHistory, lastFlushedSequence: number) => {
+    const matchData = buildCompletedMatchData(completedHistory, activeMatchStartedAt);
     setCompletedMatch(matchData);
 
     // If we have an active DB match, transition it to completed
     if (activeMatchId) {
       const rallyEvents = buildRallyEvents(completedHistory);
-      await completeActiveMatch({
+      const unflushedRallyEvents = rallyEvents.filter(
+        (e) => e.sequenceNumber > lastFlushedSequence,
+      );
+      const completeResult = await completeActiveMatch({
         matchId: activeMatchId,
         teamAScore: matchData.teamAScore,
         teamBScore: matchData.teamBScore,
         winningTeam: matchData.winner,
         losingTeam: matchData.winner === "A" ? "B" : "A",
-        rallyEvents,
+        rallyEvents: unflushedRallyEvents,
       });
+      // If completeActiveMatch failed, clear activeMatchId so MatchResult falls
+      // back to saveCompletedMatch instead of silently skipping the save.
+      if (!completeResult.success) {
+        setActiveMatchId(null);
+      }
     }
 
     setStep("result");
@@ -329,7 +411,36 @@ export function LivePageClient({
     }
     setMatchConfig(null); setMatchLocalId(null); setRecoveredHistory(null);
     setRecoverableMatch(null); setCurrentMatchup(null); setCompletedMatch(null);
-    setActiveMatchId(null); setDbActiveMatch(null);
+    setActiveMatchId(null); setDbActiveMatch(null); setActiveMatchStartedAt(null);
+
+    // Advance base engine state so gamesPlayed chips reflect the completed match
+    setMatchmakingEngineState((prev) => {
+      if (!prev) return prev;
+      try {
+        const { newState } = generateNextMatchup(prev);
+        return newState;
+      } catch {
+        return prev;
+      }
+    });
+
+    // Advance queue: promote on-deck cards forward, append a new on-deck
+    setMatchQueue((prevQueue) => {
+      if (prevQueue.length === 0) return prevQueue;
+      const shifted = prevQueue.slice(1);
+      // Use projectedEngineState — the state after all currently-queued matchups were projected
+      if (projectedEngineState) {
+        try {
+          const { matchup: newSlot, newState } = generateNextMatchup(projectedEngineState);
+          setProjectedEngineState(newState);
+          return [...shifted, newSlot];
+        } catch {
+          // Not enough players — just return shifted
+        }
+      }
+      return shifted;
+    });
+
     setStep("active");
   };
 
@@ -384,6 +495,7 @@ export function LivePageClient({
     setMatchConfig(config);
     setMatchLocalId(dbActiveMatch.id);
     setActiveMatchId(dbActiveMatch.id);
+    setActiveMatchStartedAt(dbActiveMatch.startedAt ?? null);
     setShowResumePrompt(false);
 
     // Try local rally queue for exact state
@@ -437,27 +549,61 @@ export function LivePageClient({
   if (step === "recap" && recapData && activeSession) {
     return (
       <GameDayRecap
-        data={recapData} sessionId={activeSession.id}
-        groupSlug={groupSlug} onDone={handleRecapDone}
+        data={recapData}
+        sessionId={activeSession.id}
+        groupSlug={groupSlug}
+        groupName={groupName}
+        sessionDate={new Date(activeSession.started_at).toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })}
+        onDone={handleRecapDone}
       />
     );
   }
 
   if (step === "overlay" && recapData && activeSession) {
+    const overlayDate = new Date(activeSession.started_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+    const overlayGroupName = groupName ?? groupSlug;
+
     return (
-      <div className="fixed inset-0 z-[100] bg-gradient-to-b from-court-green-dark via-[#1a3a26] to-[#0e2018] flex flex-col items-center justify-center px-4">
-        <div className="mb-6 text-center">
-          <p className="text-xs font-semibold text-ball-yellow/80 uppercase tracking-widest mb-2">DinkDay</p>
+      <div className="fixed inset-0 z-[100] bg-gradient-to-b from-court-green-dark via-[#1a3a26] to-[#0e2018] flex flex-col items-center justify-start px-4 py-8 overflow-y-auto">
+        {/* Header — one headline + one subtitle, no duplication below */}
+        <div className="mb-5 text-center w-full max-w-lg">
           <h2 className="font-display text-3xl text-white">Share Your Day</h2>
-          <p className="text-sm text-white/60 mt-1">Download the overlay and add it to your photo</p>
+          <p className="text-xs text-white/50 mt-1.5">Transparent 9:16 stickers - layer over any photo in your story.</p>
         </div>
-        <OverlayRenderer data={{
-          sessionTitle: activeSession.title ?? "Game Day",
-          date: new Date(activeSession.started_at).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" }),
-          matchCount: recapData.gamesPlayed, playerCount: recapData.playerCount,
-          mvpName: recapData.awards.mvp?.displayName ?? null,
-        }} />
-        <button onClick={handleOverlayDone} className="mt-6 text-sm text-white/50 hover:text-white/80 transition-colors cursor-pointer">
+
+        {/* Two share cards — side-by-side on sm+, stacked on mobile */}
+        <div className="w-full max-w-lg flex flex-col sm:flex-row items-start justify-center gap-6">
+          {/* MVP card — only when MVP exists */}
+          {recapData.awards.mvp && (
+            <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
+              <p className="text-[10px] font-semibold text-ball-yellow/70 uppercase tracking-widest">MVP</p>
+              <MvpShareButton
+                mvp={recapData.awards.mvp}
+                date={overlayDate}
+              />
+            </div>
+          )}
+
+          {/* Recap card */}
+          <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
+            <p className="text-[10px] font-semibold text-white/40 uppercase tracking-widest">Recap</p>
+            <SessionRecapShareButton
+              groupName={overlayGroupName}
+              date={overlayDate}
+              awards={recapData.awards}
+              gamesPlayed={recapData.gamesPlayed}
+              playerCount={recapData.playerCount}
+              durationMinutes={recapData.durationMinutes}
+              playerNames={recapData.playerNames}
+            />
+          </div>
+        </div>
+
+        <button onClick={handleOverlayDone} className="mt-8 text-sm text-white/50 hover:text-white/80 transition-colors cursor-pointer">
           Skip &amp; Finish
         </button>
       </div>
@@ -475,7 +621,11 @@ export function LivePageClient({
             Start a session and score matches in real time.
           </p>
         </header>
-        {players.length === 0 ? (
+        {!isAdmin ? (
+          <div className="rounded-xl border border-border bg-surface-muted p-8 text-center">
+            <p className="text-text-muted text-sm">No active game day. Check back when the organizer starts a session.</p>
+          </div>
+        ) : players.length === 0 ? (
           <div className="rounded-xl border border-border bg-surface-muted p-8 text-center">
             <p className="text-text-muted text-sm">No players yet. Add players from the Players tab first.</p>
           </div>
@@ -506,14 +656,24 @@ export function LivePageClient({
         />
       )}
       {step === "scoring" && matchConfig && matchLocalId && (
-        <LiveScoring
-          config={matchConfig} sessionId={activeSession.id}
-          matchLocalId={matchLocalId} initialHistory={recoveredHistory ?? undefined}
-          players={players} targetScore={activeSession.target_score}
-          winBy={activeSession.win_by} trackScorers={activeSession.track_scorers}
-          activeMatchId={activeMatchId}
-          onMatchComplete={handleMatchComplete}
-        />
+        <>
+          {/* 👑 Belt on the line banner — mobile */}
+          {beltOnTheLine && (
+            <div className="flex items-center gap-2 rounded-xl border border-ball-yellow/50 bg-ball-yellow/10 px-4 py-2.5 mb-2">
+              <BeltMedallion beltType="king_of_the_kitchen" size="sm" />
+              <span className="text-sm font-semibold text-court-green-dark">Belt on the line!</span>
+            </div>
+          )}
+          <LiveScoring
+            config={matchConfig} sessionId={activeSession.id}
+            matchLocalId={matchLocalId} initialHistory={recoveredHistory ?? undefined}
+            players={players} targetScore={activeSession.target_score}
+            winBy={activeSession.win_by} trackScorers={activeSession.track_scorers}
+            activeMatchId={activeMatchId}
+            startedAt={activeMatchStartedAt}
+            onMatchComplete={handleMatchComplete}
+          />
+        </>
       )}
       {step === "result" && completedMatch && (
         <MatchResult
@@ -568,6 +728,7 @@ export function LivePageClient({
           {dbActiveMatch && activeMatchRelation === "viewer" && (
             <ActiveMatchBanner
               matchId={dbActiveMatch.id}
+              sessionId={activeSession.id}
               snapshot={dbActiveMatch.currentSnapshot}
               teamAPlayerIds={dbActiveMatch.teamAPlayerIds}
               teamBPlayerIds={dbActiveMatch.teamBPlayerIds}
@@ -588,18 +749,25 @@ export function LivePageClient({
             onSessionEnded={handleSessionEnded}
             onMatchConfirmed={handleMatchConfirmed}
             onPlayerStatusChanged={handlePlayerStatusChanged}
+            matchQueue={matchQueue}
+            matchmakingState={matchmakingEngineState ?? createMatchmakingState(activePlayersForMatchmaking.map((p) => p.id), matchType)}
+            matchType={matchType}
+            canShuffle={canShuffle}
+            onShuffle={handleShuffle}
           />
-          {/* Record Past Match */}
-          {!showRecordMatch && (
-            <button
-              type="button"
-              onClick={handleRecordMatchClick}
-              className="w-full rounded-xl border border-dashed border-border px-4 py-3 text-sm font-medium text-text-secondary hover:bg-surface-muted hover:border-court-green/40 transition-colors cursor-pointer"
-            >
-              + Record Past Match
-            </button>
+          {/* Record Past Match — admin only, utility action, low visual weight */}
+          {isAdmin && !showRecordMatch && (
+            <div className="flex items-center border-t border-border-muted pt-3">
+              <button
+                type="button"
+                onClick={handleRecordMatchClick}
+                className="text-xs font-medium text-text-muted hover:text-court-green transition-colors cursor-pointer"
+              >
+                + Record past match
+              </button>
+            </div>
           )}
-          {showRecordMatch && (
+          {isAdmin && showRecordMatch && (
             <RecordMatchForm
               sessionId={activeSession.id}
               players={activePlayersForMatchmaking}
@@ -621,19 +789,55 @@ export function LivePageClient({
     <div className="hidden lg:grid lg:grid-cols-[260px_1fr_260px] lg:gap-8 lg:items-start">
       {/* LEFT SIDEBAR — session context */}
       <aside className="space-y-4 sticky top-6">
-        {/* Session status */}
-        <div className="rounded-xl border border-court-green/20 bg-court-green/5 px-4 py-3">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-court-green opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-court-green" />
-            </span>
-            <span className="text-xs font-semibold text-court-green">Game Day Active</span>
+        {/* Session status — branded gradient hero */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-court-green-dark via-court-green to-sky-blue-dark px-4 py-4">
+          {/* Court lines watermark */}
+          <div className="absolute inset-0 opacity-[0.07]" aria-hidden="true">
+            <svg viewBox="0 0 260 140" preserveAspectRatio="xMidYMid slice" className="w-full h-full" fill="none" stroke="white" strokeWidth="1.5">
+              <rect x="10" y="10" width="240" height="120" rx="2" />
+              <line x1="130" y1="10" x2="130" y2="130" strokeWidth="2" />
+              <line x1="80" y1="10" x2="80" y2="130" strokeDasharray="4 4" />
+              <line x1="180" y1="10" x2="180" y2="130" strokeDasharray="4 4" />
+              <line x1="10" y1="70" x2="80" y2="70" />
+              <line x1="180" y1="70" x2="250" y2="70" />
+            </svg>
           </div>
-          <p className="text-sm font-bold text-text-primary">{activeSession.title ?? "Game Day"}</p>
-          <p className="text-xs text-text-muted mt-0.5">
-            {matchType === "doubles" ? "Doubles" : "Singles"} · To {activeSession.target_score}, win by {activeSession.win_by}
-          </p>
+
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-ball-yellow opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-ball-yellow" />
+              </span>
+              <span className="text-[11px] font-label font-semibold text-white/60 uppercase tracking-widest">
+                Game Day Active
+              </span>
+            </div>
+
+            <p className="font-display text-xl text-white leading-tight">
+              {activeSession.title ?? "Game Day"}
+            </p>
+
+            <div className="flex items-center gap-3 mt-2.5">
+              <div>
+                <p className="font-display text-lg text-ball-yellow leading-none tabular-nums">
+                  {activeSession.target_score}
+                </p>
+                <p className="text-white/50 text-[9px] font-label font-semibold uppercase tracking-widest mt-0.5">
+                  {matchType === "doubles" ? "Doubles" : "Singles"}
+                </p>
+              </div>
+              <div className="w-px h-6 bg-white/15" aria-hidden="true" />
+              <div>
+                <p className="font-display text-lg text-ball-yellow leading-none tabular-nums">
+                  {activeSession.win_by}
+                </p>
+                <p className="text-white/50 text-[9px] font-label font-semibold uppercase tracking-widest mt-0.5">
+                  Win by
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Players panel */}
@@ -643,19 +847,40 @@ export function LivePageClient({
           sessionPlayers={sessionPlayers}
           isHost={isAdmin}
           onPlayerStatusChanged={handlePlayerStatusChanged}
+          matchmakingState={matchmakingEngineState}
         />
 
         {/* Completed matches */}
         <SessionMatchHistory matches={sessionMatches} players={players} />
 
-        {/* End session */}
+        {/* End session — utility footer with inline confirm */}
         {isAdmin && (
-          <button
-            onClick={handleSessionEnded}
-            className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors cursor-pointer"
-          >
-            End Game Day
-          </button>
+          <div className="flex items-center justify-end border-t border-border-muted pt-3 min-h-[28px]">
+            {!confirmEndDesktop ? (
+              <button
+                onClick={() => setConfirmEndDesktop(true)}
+                className="text-xs font-medium text-text-muted hover:text-red-500 transition-colors cursor-pointer"
+              >
+                End Game Day
+              </button>
+            ) : (
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-text-muted">End the session?</span>
+                <button
+                  onClick={() => setConfirmEndDesktop(false)}
+                  className="text-xs font-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSessionEnded}
+                  className="text-xs font-semibold text-red-500 hover:text-red-700 transition-colors cursor-pointer"
+                >
+                  Yes, end it
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </aside>
 
@@ -678,10 +903,13 @@ export function LivePageClient({
         {/* Queue step — generate/preview matchup */}
         {step === "active" && (
           <MatchQueue
-            key={activePlayersForMatchmaking.map((p) => p.id).join(",")}
             players={activePlayersForMatchmaking}
+            queue={matchQueue}
+            matchmakingState={matchmakingEngineState ?? createMatchmakingState(activePlayersForMatchmaking.map((p) => p.id), matchType)}
             matchType={matchType}
             isHost={isAdmin}
+            canShuffle={canShuffle}
+            onShuffle={handleShuffle}
             onMatchSelected={handleMatchConfirmed}
           />
         )}
@@ -697,14 +925,24 @@ export function LivePageClient({
 
         {/* Live scoring */}
         {step === "scoring" && matchConfig && matchLocalId && (
-          <LiveScoring
-            config={matchConfig} sessionId={activeSession.id}
-            matchLocalId={matchLocalId} initialHistory={recoveredHistory ?? undefined}
-            players={players} targetScore={activeSession.target_score}
-            winBy={activeSession.win_by} trackScorers={activeSession.track_scorers}
-            activeMatchId={activeMatchId}
-            onMatchComplete={handleMatchComplete}
-          />
+          <>
+            {/* 👑 Belt on the line banner — desktop */}
+            {beltOnTheLine && (
+              <div className="flex items-center gap-2 rounded-xl border border-ball-yellow/50 bg-ball-yellow/10 px-4 py-2.5 mb-2">
+                <BeltMedallion beltType="king_of_the_kitchen" size="sm" />
+                <span className="text-sm font-semibold text-court-green-dark">Belt on the line!</span>
+              </div>
+            )}
+            <LiveScoring
+              config={matchConfig} sessionId={activeSession.id}
+              matchLocalId={matchLocalId} initialHistory={recoveredHistory ?? undefined}
+              players={players} targetScore={activeSession.target_score}
+              winBy={activeSession.win_by} trackScorers={activeSession.track_scorers}
+              activeMatchId={activeMatchId}
+              startedAt={activeMatchStartedAt}
+              onMatchComplete={handleMatchComplete}
+            />
+          </>
         )}
 
         {/* Match result */}
@@ -761,6 +999,7 @@ export function LivePageClient({
         {step === "active" && dbActiveMatch && activeMatchRelation === "viewer" && (
           <ActiveMatchBanner
             matchId={dbActiveMatch.id}
+            sessionId={activeSession.id}
             snapshot={dbActiveMatch.currentSnapshot}
             teamAPlayerIds={dbActiveMatch.teamAPlayerIds}
             teamBPlayerIds={dbActiveMatch.teamBPlayerIds}
@@ -772,17 +1011,19 @@ export function LivePageClient({
           />
         )}
 
-        {/* Record Past Match */}
-        {step === "active" && !showRecordMatch && (
-          <button
-            type="button"
-            onClick={handleRecordMatchClick}
-            className="w-full rounded-xl border border-dashed border-border px-4 py-3 text-sm font-medium text-text-secondary hover:bg-surface-muted hover:border-court-green/40 transition-colors cursor-pointer"
-          >
-            + Record Past Match
-          </button>
+        {/* Record Past Match — admin only, utility action, low visual weight */}
+        {isAdmin && step === "active" && !showRecordMatch && (
+          <div className="flex items-center border-t border-border-muted pt-1">
+            <button
+              type="button"
+              onClick={handleRecordMatchClick}
+              className="text-xs font-medium text-text-muted hover:text-court-green transition-colors cursor-pointer"
+            >
+              + Record past match
+            </button>
+          </div>
         )}
-        {step === "active" && showRecordMatch && (
+        {isAdmin && step === "active" && showRecordMatch && (
           <RecordMatchForm
             sessionId={activeSession.id}
             players={activePlayersForMatchmaking}
@@ -802,6 +1043,7 @@ export function LivePageClient({
           groupSlug={groupSlug}
           sessionMatches={sessionMatches}
           players={players}
+          currentBelts={currentBelts}
         />
       </aside>
     </div>
@@ -822,13 +1064,42 @@ interface LiveLeaderboardPanelProps {
   readonly groupSlug: string;
   readonly sessionMatches: readonly SessionMatchData[];
   readonly players: readonly Player[];
+  readonly currentBelts?: readonly import("@/lib/belts/recomputeBelts").CurrentBelt[];
 }
 
-function LiveLeaderboardPanel({ entries, groupSlug, sessionMatches, players }: LiveLeaderboardPanelProps) {
+function LiveLeaderboardPanel({ entries, groupSlug, sessionMatches, players, currentBelts }: LiveLeaderboardPanelProps) {
   const playerMap = new Map(players.map((p) => [p.id, p]));
 
   return (
     <div className="space-y-4">
+      {/* Compact belt strip */}
+      {currentBelts && currentBelts.length > 0 && (
+        <div className="rounded-xl border border-ball-yellow/30 bg-ball-yellow/5 px-3 py-2.5 space-y-2">
+          <p className="text-[10px] font-label font-semibold text-text-muted uppercase tracking-widest">Belts</p>
+          {currentBelts.map((belt) => {
+            const meta = getBeltMeta(belt.beltType);
+            const subjectName =
+              belt.beltType === "pickler" && belt.subjectPlayerId
+                ? playerMap.get(belt.subjectPlayerId)?.display_name
+                : undefined;
+            const holderNames = belt.holderPlayerIds
+              .map((id) => playerMap.get(id)?.display_name ?? "?")
+              .join(", ");
+            return (
+              <div key={`${belt.beltType}-${belt.subjectPlayerId ?? ""}`} className="flex items-center gap-2 text-xs">
+                <BeltMedallion beltType={belt.beltType} size="sm" />
+                <span className="font-semibold text-court-green-dark">{meta.label}</span>
+                {holderNames && (
+                  <span className="text-text-muted truncate">
+                    · {holderNames}
+                    {subjectName && <span> owns {subjectName}</span>}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
       {/* Standings */}
       <div className="rounded-xl border border-border bg-surface overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
@@ -926,17 +1197,23 @@ function createLocalMatchId(): string {
   return `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function buildCompletedMatchData(history: MatchHistory): CompletedMatchData {
+function buildCompletedMatchData(
+  history: MatchHistory,
+  startedAt?: string | null,
+): CompletedMatchData {
   const rallyEvents = buildRallyEvents(history);
   const state = history.currentState;
   const input = history.initialInput;
   const teamAIds = input.matchType === "doubles" ? [...input.teamAPlayerIds] : [input.teamAPlayerId];
   const teamBIds = input.matchType === "doubles" ? [...input.teamBPlayerIds] : [input.teamBPlayerId];
+  const durationSeconds = startedAt
+    ? Math.max(0, Math.round((Date.now() - new Date(startedAt).getTime()) / 1000))
+    : null;
   return {
     matchType: input.matchType, teamAPlayerIds: teamAIds, teamBPlayerIds: teamBIds,
     teamAScore: state.teamAScore, teamBScore: state.teamBScore,
     winner: state.winner!, startingServerPlayerId: input.startingServerPlayerId,
-    totalRallies: history.rallyWinners.length, rallyEvents,
+    totalRallies: history.rallyWinners.length, rallyEvents, durationSeconds,
   };
 }
 

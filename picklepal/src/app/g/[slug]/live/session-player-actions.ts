@@ -1,6 +1,7 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase";
+import { authorizeGroupWrite, resolveGroupIdFromSession } from "@/lib/auth";
 import type { SessionPlayerStatus } from "@/lib/supabase";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -76,6 +77,11 @@ export async function benchPlayer(
   sessionId: string,
   playerId: string,
 ): Promise<ActionResult> {
+  const groupId = await resolveGroupIdFromSession(sessionId);
+  if (!groupId) return { success: false, error: "Session not found" };
+  const auth = await authorizeGroupWrite(groupId);
+  if (!auth.authorized) return { success: false, error: auth.error };
+
   const supabase = createServerClient();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -101,6 +107,11 @@ export async function activatePlayer(
   sessionId: string,
   playerId: string,
 ): Promise<ActionResult> {
+  const groupId = await resolveGroupIdFromSession(sessionId);
+  if (!groupId) return { success: false, error: "Session not found" };
+  const auth = await authorizeGroupWrite(groupId);
+  if (!auth.authorized) return { success: false, error: auth.error };
+
   const supabase = createServerClient();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -151,6 +162,11 @@ export async function removePlayerFromSession(
   sessionId: string,
   playerId: string,
 ): Promise<ActionResult> {
+  const groupId = await resolveGroupIdFromSession(sessionId);
+  if (!groupId) return { success: false, error: "Session not found" };
+  const auth = await authorizeGroupWrite(groupId);
+  if (!auth.authorized) return { success: false, error: auth.error };
+
   const supabase = createServerClient();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
