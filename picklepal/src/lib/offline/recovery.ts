@@ -1,4 +1,4 @@
-import type { MatchHistory } from "@/lib/engine";
+import type { MatchHistory, Team } from "@/lib/engine";
 import { createMatchHistory, recordRally } from "@/lib/engine";
 import { clearOfflineRallyQueue, getOfflineRallyEvents } from "./rallyQueue";
 
@@ -54,14 +54,25 @@ export function rebuildHistoryFromRecovery(
   match: RecoverableMatch,
   options: RecoveryOptions = {},
 ): MatchHistory {
-  const history = createMatchHistory(toCreateMatchInput(match));
-  return [...getOfflineRallyEvents(match.sessionId, match.matchLocalId, options)]
+  const winners = [...getOfflineRallyEvents(match.sessionId, match.matchLocalId, options)]
     .sort((a, b) => a.sequenceNumber - b.sequenceNumber)
-    .reduce(
-      (currentHistory, event) =>
-        recordRally(currentHistory, event.rallyWinnerTeam).history,
-      history,
-    );
+    .map((event) => event.rallyWinnerTeam);
+  return rebuildHistoryFromWinners(match, winners);
+}
+
+/**
+ * Rebuilds match history by replaying an ordered rally-winner list.
+ * Used to restore live scoring state from DB rally_events when the
+ * local rally queue is missing or incomplete.
+ */
+export function rebuildHistoryFromWinners(
+  match: Pick<RecoverableMatch, "config" | "targetScore" | "winBy">,
+  winners: readonly Team[],
+): MatchHistory {
+  return winners.reduce(
+    (currentHistory, winner) => recordRally(currentHistory, winner).history,
+    createMatchHistory(toCreateMatchInput(match)),
+  );
 }
 
 export function clearRecoverableMatch(
@@ -78,7 +89,7 @@ function getRecoveryKey(sessionId: string): string {
   return `${STORAGE_PREFIX}:${sessionId}`;
 }
 
-function toCreateMatchInput(match: RecoverableMatch) {
+function toCreateMatchInput(match: Pick<RecoverableMatch, "config" | "targetScore" | "winBy">) {
   if (match.config.matchType === "doubles") {
     return {
       matchType: "doubles" as const,

@@ -349,6 +349,34 @@ export async function getActiveMatch(
   return { success: true, data: data as ActiveMatchData | null };
 }
 
+// ─── Get Active Match Rally Winners ──────────────────────────────────────────
+
+/**
+ * Returns the ordered rally-winner list for a match, replayed from rally_events.
+ * Used to reconstruct exact scoring state on resume when the local rally queue
+ * is missing or incomplete. Read-only, same visibility as getActiveMatch.
+ */
+export async function getActiveMatchRallyWinners(
+  matchId: string,
+): Promise<ActionResult<("A" | "B")[]>> {
+  const supabase = getSupabase();
+
+  const { data, error } = await supabase
+    .from("rally_events")
+    .select("sequence_number, rally_winner_team")
+    .eq("match_id", matchId)
+    .order("sequence_number", { ascending: true });
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return {
+    success: true,
+    data: (data ?? []).map((row) => row.rally_winner_team as "A" | "B"),
+  };
+}
+
 // ─── Abandon Active Match ────────────────────────────────────────────────────
 
 /**
