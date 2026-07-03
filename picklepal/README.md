@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DinkDay (PicklePal)
+
+Mobile-first pickleball web app — live scoring, fair matchmaking, leaderboards, belts, and Game Day recaps for your crew. Live at [dinkday.site](https://dinkday.site).
+
+Built with Next.js (App Router), React, TypeScript, Tailwind CSS, Clerk (auth), and Supabase (Postgres).
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+cp .env.local.example .env.local   # fill in Supabase + Clerk keys
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+pnpm dev              # dev server
+pnpm build            # production build
+pnpm lint             # eslint
+pnpm format           # prettier
+pnpm test             # vitest unit tests
+pnpm test:coverage    # coverage report
+pnpm backup:baseline  # DB backup script
+```
 
-## Learn More
+## Documentation
 
-To learn more about Next.js, take a look at the following resources:
+- `../AGENTS.md` — full project context: architecture, auth model, data model, scoring rules
+- `../CLAUDE.md` — contributor/AI workflow rules
+- `../docs/PICKLEPAL-V2-LAUNCH-PLAN.md` — V2 launch plan
+- `../docs/DINKDAY-BRAND-KIT.md` — brand kit
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deployment
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Deployed on [Vercel](https://vercel.com). Database migrations live in `supabase/migrations/` and are applied manually to the Supabase project.
