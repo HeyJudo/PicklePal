@@ -116,7 +116,7 @@ export function MatchQueue({
         {/* Teams */}
         <div className="flex flex-col gap-2 px-3 pb-3 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:gap-3 sm:items-start">
           {/* Team A */}
-          <div className="rounded-xl border border-court-green/25 bg-court-green/5 p-4 space-y-2">
+          <div className="min-w-0 rounded-xl border border-court-green/25 bg-court-green/5 p-4 space-y-2">
             <p className="text-xs font-semibold text-court-green text-center">Team A</p>
             {currentMatchup.teamA.map((id) => (
               <PlayerSlot
@@ -132,7 +132,7 @@ export function MatchQueue({
           <div className="font-display text-xl text-text-muted text-center sm:pt-9">vs</div>
 
           {/* Team B */}
-          <div className="rounded-xl border border-sky-blue/25 bg-sky-blue/5 p-4 space-y-2">
+          <div className="min-w-0 rounded-xl border border-sky-blue/25 bg-sky-blue/5 p-4 space-y-2">
             <p className="text-xs font-semibold text-sky-blue text-center">Team B</p>
             {currentMatchup.teamB.map((id) => (
               <PlayerSlot
@@ -239,7 +239,7 @@ function OnDeckCard({ matchup, label, getPlayerName, getPlayerColor, getGamesPla
       </p>
       <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
         {/* Team A */}
-        <div className="space-y-1">
+        <div className="min-w-0 space-y-1">
           {matchup.teamA.map((id) => (
             <div key={id} className="flex items-center gap-1.5">
               <div
@@ -257,7 +257,7 @@ function OnDeckCard({ matchup, label, getPlayerName, getPlayerColor, getGamesPla
         <span className="text-xs text-text-muted">vs</span>
 
         {/* Team B */}
-        <div className="space-y-1">
+        <div className="min-w-0 space-y-1">
           {matchup.teamB.map((id) => (
             <div key={id} className="flex items-center gap-1.5">
               <div

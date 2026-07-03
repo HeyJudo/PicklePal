@@ -18,7 +18,7 @@ import { OverlayRenderer, RecapShareButton, SessionRecapShareButton, MvpShareBut
 import { BeltMedallion } from "@/components/belts/BeltMedallion";
 import { getBeltMeta } from "@/components/belts/BeltBadge";
 import { endSession, getSessionRecap, getSessionMatches } from "./actions";
-import { createActiveMatch, completeActiveMatch } from "./active-match-actions";
+import { createActiveMatch, completeActiveMatch, getActiveMatchRallyWinners } from "./active-match-actions";
 import type { MatchStartConfig } from "./PositionConfirmation";
 import type { CompletedMatchData } from "./MatchResult";
 import {
@@ -34,6 +34,7 @@ import {
   clearRecoverableMatch,
   getRecoverableMatch,
   rebuildHistoryFromRecovery,
+  rebuildHistoryFromWinners,
   saveRecoverableMatch,
 } from "@/lib/offline";
 import type { RecoverableMatch } from "@/lib/offline";
@@ -136,9 +137,14 @@ export function LivePageClient({
   const [matchConfig, setMatchConfig] = useState<MatchStartConfig | null>(null);
   const [matchLocalId, setMatchLocalId] = useState<string | null>(null);
   const [recoveredHistory, setRecoveredHistory] = useState<MatchHistory | null>(null);
-  const [recoverableMatch, setRecoverableMatch] = useState<RecoverableMatch | null>(() =>
-    initialSession ? getRecoverableMatch(initialSession.id) : null,
-  );
+  const [recoverableMatch, setRecoverableMatch] = useState<RecoverableMatch | null>(() => {
+    if (!initialSession) return null;
+    const rec = getRecoverableMatch(initialSession.id);
+    // The auto-resume flow owns the active DB match — suppress the legacy
+    // recovery banner so its Discard can't wipe the active match's rally queue.
+    if (rec && rec.matchLocalId === initialActiveMatch?.id) return null;
+    return rec;
+  });
   const [completedMatch, setCompletedMatch] = useState<CompletedMatchData | null>(null);
   const [activeMatchId, setActiveMatchId] = useState<string | null>(initialActiveMatch?.id ?? null);
   const [dbActiveMatch, setDbActiveMatch] = useState<ActiveMatchInfo | null>(initialActiveMatch);
@@ -153,23 +159,11 @@ export function LivePageClient({
   } | null>(null);
   const [step, setStep] = useState<LiveStep>(() => {
     if (!initialSession) return "idle";
-    // Auto-resume detection on mount
-    if (initialActiveMatch && clerkUserId) {
-      const iAmScorer = initialActiveMatch.scorerClerkUserId === clerkUserId;
-      const heartbeatFresh = isHeartbeatFresh(initialActiveMatch.scorerHeartbeatAt);
-
-      if (iAmScorer && heartbeatFresh) {
-        // Auto-resume: I'm the scorer and heartbeat is fresh
-        return "scoring";
-      }
-      if (iAmScorer && !heartbeatFresh) {
-        // Ambiguous: I'm the scorer but heartbeat is stale — show prompt
-        return "active";
-      }
-      if (!iAmScorer) {
-        // Someone else is scoring — show banner in active step
-        return "active";
-      }
+    // I'm the scorer of the active match — auto-resume, no prompt.
+    // Heartbeat staleness is irrelevant here: takeover safety is handled by
+    // scorer identity, which is fetched fresh from the DB on every navigation.
+    if (initialActiveMatch && clerkUserId && initialActiveMatch.scorerClerkUserId === clerkUserId) {
+      return "scoring";
     }
     return "active";
   });
@@ -219,49 +213,68 @@ export function LivePageClient({
 
   // ── Auto-resume from DB active match ────────────────────────────────────────
 
-  // Set up matchConfig and history for auto-resume when step is "scoring" on mount
-  useEffect(() => {
-    if (!initialActiveMatch || !clerkUserId) return;
-    const iAmScorer = initialActiveMatch.scorerClerkUserId === clerkUserId;
-    const heartbeatFresh = isHeartbeatFresh(initialActiveMatch.scorerHeartbeatAt);
-
-    if (iAmScorer && heartbeatFresh && !matchConfig) {
-      // Auto-resume: rebuild config from DB match
+  // Resume the active DB match as its scorer, restoring exact score state.
+  // Source priority: local rally queue (exact, includes unflushed rallies) →
+  // DB rally_events replay → resume prompt (only when reconstruction fails).
+  // options.force proceeds without reconstructable history (explicit user confirm).
+  const resumeActiveMatch = useCallback(
+    async (match: ActiveMatchInfo, options: { force: boolean }) => {
       const config: MatchStartConfig = {
-        teamA: initialActiveMatch.teamAPlayerIds,
-        teamB: initialActiveMatch.teamBPlayerIds,
-        startingServerPlayerId: initialActiveMatch.startingServerPlayerId ?? initialActiveMatch.teamAPlayerIds[0],
-        matchType: initialActiveMatch.matchType as "singles" | "doubles",
+        teamA: match.teamAPlayerIds,
+        teamB: match.teamBPlayerIds,
+        startingServerPlayerId: match.startingServerPlayerId ?? match.teamAPlayerIds[0],
+        matchType: match.matchType as "singles" | "doubles",
       };
-      setMatchConfig(config);
-      setMatchLocalId(initialActiveMatch.id);
-      setActiveMatchId(initialActiveMatch.id);
-      setActiveMatchStartedAt(initialActiveMatch.startedAt ?? null);
+      setMatchLocalId(match.id);
+      setActiveMatchId(match.id);
+      setActiveMatchStartedAt(match.startedAt ?? null);
 
-      // Rebuild history from snapshot rally count
-      const snapshot = initialActiveMatch.currentSnapshot;
-      if (snapshot && snapshot.rallyCount > 0) {
-        // We have a snapshot — rebuild history using local rally queue if available
-        const localMatch = initialSession ? getRecoverableMatch(initialSession.id) : null;
-        if (localMatch && localMatch.matchLocalId === initialActiveMatch.id) {
-          // Use local recovery data for exact state
-          const history = rebuildHistoryFromRecovery(localMatch);
-          setRecoveredHistory(history);
-        } else {
-          // No local recovery found — rebuild from DB snapshot by replaying rally events
-          // We can't reconstruct exact rally-by-rally state, but we can fetch rally_events from DB
-          // For now, show the resume prompt so the scorer can confirm
-          setStep("active");
-          setShowResumePrompt(true);
-          return;
+      const expectedRallies = match.currentSnapshot?.rallyCount ?? 0;
+      let history: MatchHistory | null = null;
+
+      if (expectedRallies > 0) {
+        const localMatch = activeSession ? getRecoverableMatch(activeSession.id) : null;
+        if (localMatch && localMatch.matchLocalId === match.id) {
+          const local = rebuildHistoryFromRecovery(localMatch);
+          // Only trust local replay when it reproduces at least the DB snapshot's
+          // rally count — a wiped/partial queue would silently restore a stale score.
+          if (local.rallyWinners.length >= expectedRallies) {
+            history = local;
+          }
+        }
+        if (!history) {
+          const result = await getActiveMatchRallyWinners(match.id);
+          if (result.success && result.data && result.data.length > 0) {
+            history = rebuildHistoryFromWinners(
+              { config, targetScore: match.targetScore, winBy: match.winBy },
+              result.data,
+            );
+          } else if (!options.force) {
+            // Can't reconstruct the score — ask instead of silently resetting to 0-0.
+            setStep("active");
+            setShowResumePrompt(true);
+            return;
+          }
         }
       }
-    }
 
-    if (iAmScorer && !heartbeatFresh) {
-      // Show resume prompt for stale heartbeat
-      setShowResumePrompt(true);
-    }
+      setRecoveredHistory(history);
+      setMatchConfig(config);
+      setShowResumePrompt(false);
+      setStep("scoring");
+    },
+    [activeSession],
+  );
+
+  // Auto-resume on mount: if I'm the scorer of the active match, go straight
+  // back to scoring. A takeover changes scorer_clerk_user_id (fetched fresh on
+  // every navigation), so a returning ex-scorer lands on the viewer path instead.
+  useEffect(() => {
+    if (!initialActiveMatch || !clerkUserId) return;
+    if (initialActiveMatch.scorerClerkUserId !== clerkUserId) return;
+    // One-shot mount-time state restoration — intentional setState from effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void resumeActiveMatch(initialActiveMatch, { force: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -485,39 +498,9 @@ export function LivePageClient({
   // ── Phase 6b/6c: Resume & View-Only Handlers ───────────────────────────────
 
   const handleResumeFromDb = () => {
-    if (!dbActiveMatch || !activeSession) return;
-    const config: MatchStartConfig = {
-      teamA: dbActiveMatch.teamAPlayerIds,
-      teamB: dbActiveMatch.teamBPlayerIds,
-      startingServerPlayerId: dbActiveMatch.startingServerPlayerId ?? dbActiveMatch.teamAPlayerIds[0],
-      matchType: dbActiveMatch.matchType as "singles" | "doubles",
-    };
-    setMatchConfig(config);
-    setMatchLocalId(dbActiveMatch.id);
-    setActiveMatchId(dbActiveMatch.id);
-    setActiveMatchStartedAt(dbActiveMatch.startedAt ?? null);
-    setShowResumePrompt(false);
-
-    // Try local rally queue for exact state
-    const localMatch = getRecoverableMatch(activeSession.id);
-    if (localMatch && localMatch.matchLocalId === dbActiveMatch.id) {
-      const history = rebuildHistoryFromRecovery(localMatch);
-      setRecoveredHistory(history);
-    } else {
-      // No local recovery — save recoverable match metadata for future navigations
-      saveRecoverableMatch({
-        sessionId: activeSession.id,
-        matchLocalId: dbActiveMatch.id,
-        config,
-        targetScore: dbActiveMatch.targetScore,
-        winBy: dbActiveMatch.winBy,
-        createdAt: new Date().toISOString(),
-      });
-      // recoveredHistory stays null — LiveScoring will start fresh from 0-0
-      // but activeMatchId ensures snapshot sync continues from where it was
-    }
-
-    setStep("scoring");
+    if (!dbActiveMatch) return;
+    // Explicit user confirmation — resume even if the score can't be reconstructed.
+    void resumeActiveMatch(dbActiveMatch, { force: true });
   };
 
   const handleDismissResumePrompt = () => {
@@ -675,6 +658,11 @@ export function LivePageClient({
           />
         </>
       )}
+      {step === "scoring" && !matchConfig && (
+        <div className="rounded-xl border border-border bg-surface-muted p-8 text-center">
+          <p className="text-sm text-text-muted animate-pulse">Resuming match…</p>
+        </div>
+      )}
       {step === "result" && completedMatch && (
         <MatchResult
           matchData={completedMatch} sessionId={activeSession.id}
@@ -706,7 +694,7 @@ export function LivePageClient({
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-2">
               <p className="text-sm font-semibold text-amber-800">Resume your match?</p>
               <p className="text-xs text-amber-700">
-                You have an active match in progress. Your scoring session may have been interrupted.
+                You have an active match, but its score history could not be restored. Resuming may restart the score from 0-0.
               </p>
               <div className="flex items-center gap-2 pt-1">
                 <button
@@ -944,6 +932,11 @@ export function LivePageClient({
             />
           </>
         )}
+        {step === "scoring" && !matchConfig && (
+          <div className="rounded-xl border border-border bg-surface-muted p-8 text-center">
+            <p className="text-sm text-text-muted animate-pulse">Resuming match…</p>
+          </div>
+        )}
 
         {/* Match result */}
         {step === "result" && completedMatch && (
@@ -976,7 +969,7 @@ export function LivePageClient({
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-2">
             <p className="text-sm font-semibold text-amber-800">Resume your match?</p>
             <p className="text-xs text-amber-700">
-              You have an active match in progress. Your scoring session may have been interrupted.
+              You have an active match, but its score history could not be restored. Resuming may restart the score from 0-0.
             </p>
             <div className="flex items-center gap-2 pt-1">
               <button
