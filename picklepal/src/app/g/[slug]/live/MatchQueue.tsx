@@ -43,7 +43,6 @@ export function MatchQueue({
   const playerMap = new Map(players.map((p) => [p.id, p]));
 
   const currentMatchup = queue[0] ?? null;
-  const onDeckCards = queue.slice(1, 3);
 
   const minPlayers = matchType === "doubles" ? 4 : 2;
   const hasEnoughPlayers = players.filter((p) => matchmakingState.players.includes(p.id)).length >= minPlayers;
@@ -180,21 +179,7 @@ export function MatchQueue({
         </div>
       </div>
 
-      {/* On-deck cards */}
-      {onDeckCards.length > 0 && (
-        <div className="space-y-2">
-          {onDeckCards.map((matchup, idx) => (
-            <OnDeckCard
-              key={idx}
-              matchup={matchup}
-              label={idx === 0 ? "Up Next" : "On Deck"}
-              getPlayerName={getPlayerName}
-              getPlayerColor={getPlayerColor}
-              getGamesPlayed={getGamesPlayed}
-            />
-          ))}
-        </div>
-      )}
+
 
       {/* Round info */}
       <p className="text-xs text-text-muted text-center">
@@ -221,66 +206,7 @@ function GameCountChip({ gamesPlayed }: { gamesPlayed: number }) {
   );
 }
 
-// ─── On-Deck Card ─────────────────────────────────────────────────────────────
 
-interface OnDeckCardProps {
-  readonly matchup: Matchup;
-  readonly label: string;
-  readonly getPlayerName: (id: string) => string;
-  readonly getPlayerColor: (id: string) => string;
-  readonly getGamesPlayed: (id: string) => number;
-}
-
-function OnDeckCard({ matchup, label, getPlayerName, getPlayerColor, getGamesPlayed }: OnDeckCardProps) {
-  return (
-    <div className="rounded-xl border border-dashed border-border/50 bg-surface opacity-60 p-3">
-      <p className="text-[10px] font-label font-semibold uppercase tracking-widest text-text-muted mb-2">
-        {label}
-      </p>
-      <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
-        {/* Team A */}
-        <div className="min-w-0 space-y-1">
-          {matchup.teamA.map((id) => (
-            <div key={id} className="flex items-center gap-1.5">
-              <div
-                className="h-4 w-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white shrink-0"
-                style={{ backgroundColor: getPlayerColor(id) }}
-              >
-                {getPlayerName(id).charAt(0)}
-              </div>
-              <span className="text-xs text-text-secondary truncate">{getPlayerName(id)}</span>
-              <GameCountChip gamesPlayed={getGamesPlayed(id)} />
-            </div>
-          ))}
-        </div>
-
-        <span className="text-xs text-text-muted">vs</span>
-
-        {/* Team B */}
-        <div className="min-w-0 space-y-1">
-          {matchup.teamB.map((id) => (
-            <div key={id} className="flex items-center gap-1.5">
-              <div
-                className="h-4 w-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white shrink-0"
-                style={{ backgroundColor: getPlayerColor(id) }}
-              >
-                {getPlayerName(id).charAt(0)}
-              </div>
-              <span className="text-xs text-text-secondary truncate">{getPlayerName(id)}</span>
-              <GameCountChip gamesPlayed={getGamesPlayed(id)} />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {matchup.sittingOut.length > 0 && (
-        <p className="text-[10px] text-text-muted mt-1.5">
-          Sitting: {matchup.sittingOut.map(getPlayerName).join(", ")}
-        </p>
-      )}
-    </div>
-  );
-}
 
 // ─── Player Slot ─────────────────────────────────────────────────────────────────
 

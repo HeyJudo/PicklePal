@@ -70,3 +70,13 @@ export class MatchmakingError extends Error {
     this.deficit = deficit;
   }
 }
+
+/**
+ * Prior session statistics for a player, used to seed createMatchmakingState
+ * with real history so the fairness algorithm starts with accurate counts.
+ */
+export interface PriorPlayerStats {
+  readonly gamesPlayed: number;
+  readonly teammates: Map<string, number>;   // partnerId → count
+  readonly opponents: Map<string, number>;   // opponentId → count
+}
