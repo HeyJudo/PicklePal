@@ -14,6 +14,8 @@ export { MvpOverlayCard } from "./MvpOverlayCard";
 export type { MvpOverlayCardProps } from "./MvpOverlayCard";
 export { SessionRecapOverlayCard } from "./SessionRecapOverlayCard";
 export type { SessionRecapOverlayCardProps } from "./SessionRecapOverlayCard";
+export { PlayerOverlayCard } from "./PlayerOverlayCard";
+export type { PlayerOverlayCardProps, PlayerCardData } from "./PlayerOverlayCard";
 
 // Generic rasterise-and-share orchestrator
 export { OverlayShareButton } from "./OverlayShareButton";
@@ -24,3 +26,5 @@ export { MvpShareButton } from "./MvpShareButton";
 export type { MvpShareButtonProps } from "./MvpShareButton";
 export { SessionRecapShareButton } from "./SessionRecapShareButton";
 export type { SessionRecapShareButtonProps } from "./SessionRecapShareButton";
+export { PlayerShareButton } from "./PlayerShareButton";
+export type { PlayerShareButtonProps } from "./PlayerShareButton";

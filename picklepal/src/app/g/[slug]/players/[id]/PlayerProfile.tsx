@@ -12,6 +12,7 @@ import { formatMatchDuration } from "@/lib/format/duration";
 import { BeltMedallion } from "@/components/belts/BeltMedallion";
 import { getBeltMeta } from "@/components/belts/BeltBadge";
 import { formatReignDuration } from "@/lib/belts/formatReignDuration";
+import { PlayerShareButton, type PlayerCardData } from "@/components/share";
 import type { PlayerReignView } from "../actions";
 
 interface PlayerProfileProps {
@@ -19,9 +20,12 @@ interface PlayerProfileProps {
   readonly duos: readonly DuoStats[];
   readonly rivalries: readonly RivalryStats[];
   readonly groupSlug: string;
+  readonly groupName: string;
   readonly player: Player;
   readonly isAdmin?: boolean;
   readonly playerReigns: readonly PlayerReignView[];
+  readonly leaderboardRank: number | null;
+  readonly currentStreak: number;
 }
 
 function formatWinRate(rate: number): string {
@@ -132,9 +136,7 @@ function RecentMatchRow({
       )}
 
       {/* Date */}
-      <span className="text-xs text-text-muted font-label shrink-0">
-        {completedDate}
-      </span>
+      <span className="text-xs text-text-muted font-label shrink-0">{completedDate}</span>
     </div>
   );
 }
@@ -148,19 +150,13 @@ function DuoRow({
   readonly duo: DuoStats;
   readonly playerId: string;
 }) {
-  const partnerName =
-    duo.playerAId === playerId ? duo.playerBName : duo.playerAName;
+  const partnerName = duo.playerAId === playerId ? duo.playerBName : duo.playerAName;
   const winRatePct = (duo.winRate * 100).toFixed(0);
   const winRateNum = Number(winRatePct);
 
   return (
     <div className="flex items-center gap-3 py-3 border-b border-border-muted last:border-0">
-      <PlayerAvatar
-        displayName={partnerName}
-        color={null}
-        avatarUrl={null}
-        size="xs"
-      />
+      <PlayerAvatar displayName={partnerName} color={null} avatarUrl={null} size="xs" />
       <p className="text-sm font-semibold text-text-primary truncate flex-1">
         {partnerName}
       </p>
@@ -196,8 +192,7 @@ function BestChemistryCard({
   readonly totalCount: number;
 }) {
   const reduce = useReducedMotion();
-  const partnerName =
-    duo.playerAId === playerId ? duo.playerBName : duo.playerAName;
+  const partnerName = duo.playerAId === playerId ? duo.playerBName : duo.playerAName;
   const winRatePct = (duo.winRate * 100).toFixed(0);
   const winRateNum = Number(winRatePct);
   const diff = duo.pointDifferential;
@@ -225,12 +220,7 @@ function BestChemistryCard({
   return (
     <div {...interactiveProps}>
       <div className="relative shrink-0">
-        <PlayerAvatar
-          displayName={partnerName}
-          color={null}
-          avatarUrl={null}
-          size="md"
-        />
+        <PlayerAvatar displayName={partnerName} color={null} avatarUrl={null} size="md" />
         <span className="absolute -bottom-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-sky-blue ring-2 ring-white">
           <Handshake className="h-3 w-3 text-white" strokeWidth={2.5} />
         </span>
@@ -266,9 +256,7 @@ function BestChemistryCard({
           <motion.span
             animate={{ rotate: expanded ? 180 : 0 }}
             transition={
-              reduce
-                ? { duration: 0 }
-                : { duration: 0.25, ease: [0.16, 1, 0.3, 1] }
+              reduce ? { duration: 0 } : { duration: 0.25, ease: [0.16, 1, 0.3, 1] }
             }
             style={{ display: "inline-flex" }}
             aria-hidden="true"
@@ -283,11 +271,7 @@ function BestChemistryCard({
 
 // ─── Rivalry row (compact) ────────────────────────────────────────────────────
 
-function RivalryRow({
-  rivalry,
-}: {
-  readonly rivalry: RivalryStats;
-}) {
+function RivalryRow({ rivalry }: { readonly rivalry: RivalryStats }) {
   const winRatePct = (rivalry.winRate * 100).toFixed(0);
   const winRateNum = Number(winRatePct);
   const diff = rivalry.pointDifferential;
@@ -388,11 +372,7 @@ function BiggestRivalCard({
         />
         <span
           className={`absolute -bottom-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full ring-2 ring-white ${
-            isWinning
-              ? "bg-court-green"
-              : isLosing
-                ? "bg-hype-red"
-                : "bg-text-muted"
+            isWinning ? "bg-court-green" : isLosing ? "bg-hype-red" : "bg-text-muted"
           }`}
         >
           <Swords className="h-3 w-3 text-white" strokeWidth={2.5} />
@@ -412,7 +392,11 @@ function BiggestRivalCard({
           <span className="text-text-muted/40 text-xs">·</span>
           <span
             className={`text-xs font-label tabular-nums ${
-              diff > 0 ? "text-court-green" : diff < 0 ? "text-hype-red" : "text-text-muted"
+              diff > 0
+                ? "text-court-green"
+                : diff < 0
+                  ? "text-hype-red"
+                  : "text-text-muted"
             }`}
           >
             {diff > 0 ? `+${diff}` : diff} pts
@@ -428,7 +412,11 @@ function BiggestRivalCard({
         <div className="flex items-baseline gap-1 justify-end">
           <span
             className={`font-score text-2xl font-bold tabular-nums leading-none ${
-              isWinning ? "text-court-green" : isLosing ? "text-hype-red" : "text-text-primary"
+              isWinning
+                ? "text-court-green"
+                : isLosing
+                  ? "text-hype-red"
+                  : "text-text-primary"
             }`}
           >
             {rivalry.wins}
@@ -436,7 +424,11 @@ function BiggestRivalCard({
           <span className="text-text-muted text-lg font-light">-</span>
           <span
             className={`font-score text-2xl font-bold tabular-nums leading-none ${
-              isLosing ? "text-hype-red" : isWinning ? "text-text-muted" : "text-text-primary"
+              isLosing
+                ? "text-hype-red"
+                : isWinning
+                  ? "text-text-muted"
+                  : "text-text-primary"
             }`}
           >
             {rivalry.losses}
@@ -451,9 +443,7 @@ function BiggestRivalCard({
           <motion.span
             animate={{ rotate: expanded ? 180 : 0 }}
             transition={
-              reduce
-                ? { duration: 0 }
-                : { duration: 0.25, ease: [0.16, 1, 0.3, 1] }
+              reduce ? { duration: 0 } : { duration: 0.25, ease: [0.16, 1, 0.3, 1] }
             }
             style={{ display: "inline-flex" }}
             aria-hidden="true"
@@ -512,9 +502,12 @@ export function PlayerProfile({
   duos,
   rivalries,
   groupSlug,
+  groupName,
   player,
   isAdmin = false,
   playerReigns,
+  leaderboardRank,
+  currentStreak,
 }: PlayerProfileProps) {
   const playerColor = player.color ?? "#2D8B4E";
 
@@ -529,6 +522,22 @@ export function PlayerProfile({
   // Accordion state — featured card is the toggle, default collapsed
   const [duosExpanded, setDuosExpanded] = useState(false);
   const [rivalsExpanded, setRivalsExpanded] = useState(false);
+
+  const shareCardData: PlayerCardData = {
+    displayName: stats.displayName,
+    color: stats.color,
+    winRate: stats.winRate * 100,
+    wins: stats.wins,
+    losses: stats.losses,
+    gamesPlayed: stats.gamesPlayed,
+    rank: leaderboardRank,
+    streak: currentStreak,
+    beltNames: playerReigns
+      .filter((r) => r.isCurrent)
+      .map((r) => getBeltMeta(r.beltType).label),
+    groupName,
+    groupSlug,
+  };
 
   return (
     <div className="space-y-5">
@@ -568,10 +577,7 @@ export function PlayerProfile({
           aria-hidden="true"
         />
         {/* Subtle court-line texture */}
-        <div
-          className="absolute inset-0 opacity-10 court-lines"
-          aria-hidden="true"
-        />
+        <div className="absolute inset-0 opacity-10 court-lines" aria-hidden="true" />
 
         <div className="relative p-5 flex items-center gap-4">
           <PlayerAvatar
@@ -594,27 +600,25 @@ export function PlayerProfile({
         </div>
       </div>
 
+      {/* ── Share card ── */}
+      <section className="rounded-xl border border-border bg-surface p-4">
+        <h2 className="text-xs font-label font-semibold text-text-muted uppercase tracking-widest mb-3">
+          Share
+        </h2>
+        <PlayerShareButton data={shareCardData} />
+      </section>
+
       {/* ── Stats tiles ── */}
       <div className="rounded-xl border border-border bg-surface grid grid-cols-4 divide-x divide-border-muted">
         <StatTile label="Wins" value={stats.wins} colorClass="text-court-green" />
-        <StatTile
-          label="Losses"
-          value={stats.losses}
-          colorClass="text-hype-red"
-        />
+        <StatTile label="Losses" value={stats.losses} colorClass="text-hype-red" />
         <StatTile
           label="Win%"
-          value={
-            stats.gamesPlayed > 0 ? formatWinRate(stats.winRate) : "-"
-          }
+          value={stats.gamesPlayed > 0 ? formatWinRate(stats.winRate) : "-"}
         />
         <StatTile
           label="+/-"
-          value={
-            stats.gamesPlayed > 0
-              ? formatPointDiff(stats.pointDifferential)
-              : "-"
-          }
+          value={stats.gamesPlayed > 0 ? formatPointDiff(stats.pointDifferential) : "-"}
           colorClass={
             stats.pointDifferential > 0
               ? "text-court-green"
@@ -704,9 +708,7 @@ export function PlayerProfile({
         </h2>
         {rivalries.length === 0 ? (
           <div className="rounded-xl border border-border bg-surface-muted p-6 text-center">
-            <p className="text-text-muted text-sm">
-              Play more games to build rivalries.
-            </p>
+            <p className="text-text-muted text-sm">Play more games to build rivalries.</p>
             <p className="text-text-muted/60 text-xs mt-1">
               Face the same opponent at least twice to appear here.
             </p>
@@ -728,10 +730,7 @@ export function PlayerProfile({
               <div className="rounded-xl border border-border bg-surface px-4">
                 <CollapsibleList expanded={rivalsExpanded}>
                   {otherRivals.map((rivalry) => (
-                    <RivalryRow
-                      key={rivalry.opponentId}
-                      rivalry={rivalry}
-                    />
+                    <RivalryRow key={rivalry.opponentId} rivalry={rivalry} />
                   ))}
                 </CollapsibleList>
               </div>
@@ -755,7 +754,11 @@ export function PlayerProfile({
                     key={reign.id}
                     className="flex items-center gap-3 py-3 border-b border-border-muted last:border-0"
                   >
-                    <BeltMedallion beltType={reign.beltType} size="md" className="shrink-0" />
+                    <BeltMedallion
+                      beltType={reign.beltType}
+                      size="md"
+                      className="shrink-0"
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-text-primary leading-tight">
                         {meta.label}

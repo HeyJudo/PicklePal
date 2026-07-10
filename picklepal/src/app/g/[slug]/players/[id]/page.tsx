@@ -9,10 +9,20 @@ interface PlayerDetailPageProps {
 
 export default async function PlayerDetailPage({ params }: PlayerDetailPageProps) {
   const { slug, id } = await params;
-  const [{ player, stats, duos, rivalries, playerReigns, error }, viewerAccess] = await Promise.all([
-    getPlayerDetail(slug, id),
-    getViewerAccess(slug),
-  ]);
+  const [
+    {
+      player,
+      stats,
+      duos,
+      rivalries,
+      playerReigns,
+      leaderboardRank,
+      currentStreak,
+      groupName,
+      error,
+    },
+    viewerAccess,
+  ] = await Promise.all([getPlayerDetail(slug, id), getViewerAccess(slug)]);
 
   if (error === "Player not found" || !stats || !player) {
     notFound();
@@ -20,7 +30,18 @@ export default async function PlayerDetailPage({ params }: PlayerDetailPageProps
 
   return (
     <div className="space-y-6">
-      <PlayerProfile stats={stats} duos={duos} rivalries={rivalries ?? []} groupSlug={slug} player={player} isAdmin={viewerAccess.isAdmin} playerReigns={playerReigns ?? []} />
+      <PlayerProfile
+        stats={stats}
+        duos={duos}
+        rivalries={rivalries ?? []}
+        groupSlug={slug}
+        groupName={groupName ?? ""}
+        player={player}
+        isAdmin={viewerAccess.isAdmin}
+        playerReigns={playerReigns ?? []}
+        leaderboardRank={leaderboardRank}
+        currentStreak={currentStreak}
+      />
     </div>
   );
 }
