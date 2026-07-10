@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { endSession } from "./actions";
 import { MatchQueue } from "./MatchQueue";
+import { GamesPlayedPanel } from "./GamesPlayedPanel";
 import { SessionPlayerList } from "./SessionPlayerList";
 import { SessionMatchHistory } from "./SessionMatchHistory";
 import type { Matchup, MatchmakingState, MatchType } from "@/lib/matchmaking";
@@ -167,6 +168,12 @@ export function ActiveSession({
         canShuffle={canShuffle}
         onShuffle={onShuffle}
         onMatchSelected={onMatchConfirmed}
+      />
+
+      {/* Games Played Panel */}
+      <GamesPlayedPanel
+        players={activePlayersForMatchmaking}
+        matchmakingState={matchmakingState}
       />
 
       {/* Session Player List */}
