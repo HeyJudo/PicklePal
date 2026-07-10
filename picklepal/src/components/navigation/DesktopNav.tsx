@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useUser, UserButton } from "@clerk/nextjs";
 import { motion } from "motion/react";
 import { ChevronLeft, Crown } from "lucide-react";
 import {
@@ -34,6 +35,24 @@ function getNavItems(groupSlug: string): readonly NavItem[] {
 function isActive(pathname: string, href: string): boolean {
   if (href.match(/\/g\/[^/]+$/)) return pathname === href;
   return pathname.startsWith(href);
+}
+
+function UserRow() {
+  const { isSignedIn, user } = useUser();
+  if (!isSignedIn) return null;
+
+  const displayName = user.firstName ?? user.emailAddresses?.[0]?.emailAddress ?? "Organizer";
+
+  return (
+    <div className="flex items-center gap-2 min-w-0">
+      <span className="text-sm font-medium text-text-primary truncate min-w-0">
+        {displayName}
+      </span>
+      <div className="shrink-0 ml-auto">
+        <UserButton />
+      </div>
+    </div>
+  );
 }
 
 export function DesktopNav({ groupSlug }: { readonly groupSlug: string }) {
@@ -142,9 +161,9 @@ export function DesktopNav({ groupSlug }: { readonly groupSlug: string }) {
         </ul>
       </nav>
 
-      {/* Footer */}
-      <div className="px-5 py-4 border-t border-border">
-        <p className="text-[10px] text-text-muted font-medium">dinkday.app</p>
+      {/* Footer — user info + sign-out on desktop */}
+      <div className="px-4 py-3 border-t border-border">
+        <UserRow />
       </div>
     </aside>
   );
