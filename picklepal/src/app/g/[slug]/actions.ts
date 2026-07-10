@@ -99,21 +99,34 @@ async function _getDashboardData(groupSlug: string): Promise<DashboardResult> {
   const allPlayers: Player[] = players ?? [];
   const allSessions: Session[] = sessions ?? [];
 
-  // 4. Fetch matches after sessions resolve (depends on session IDs)
+  // 4. Fetch all matches (for stats) and recent matches (for display) in parallel
   const sessionIds = allSessions.map((s) => s.id);
   let allMatches: Match[] = [];
+  let recentMatchesRaw: Match[] = [];
 
   if (sessionIds.length > 0) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: matches } = await (supabase as any)
-      .from("matches")
-      .select(
-        "id, session_id, status, match_type, team_a_player_ids, team_b_player_ids, team_a_score, team_b_score, winning_team, completed_at, duration_seconds",
-      )
-      .in("session_id", sessionIds)
-      .order("completed_at", { ascending: false });
+    const [matchesRes, recentMatchesRes] = await Promise.all([
+      (supabase as any)
+        .from("matches")
+        .select(
+          "id, session_id, status, match_type, team_a_player_ids, team_b_player_ids, team_a_score, team_b_score, winning_team, completed_at, duration_seconds",
+        )
+        .in("session_id", sessionIds)
+        .order("completed_at", { ascending: false }),
+      (supabase as any)
+        .from("matches")
+        .select(
+          "id, match_type, team_a_player_ids, team_b_player_ids, team_a_score, team_b_score, winning_team, completed_at",
+        )
+        .in("session_id", sessionIds)
+        .eq("status", "completed")
+        .order("completed_at", { ascending: false })
+        .limit(5),
+    ]);
 
-    allMatches = (matches ?? []) as Match[];
+    allMatches = (matchesRes.data ?? []) as Match[];
+    recentMatchesRaw = (recentMatchesRes.data ?? []) as Match[];
   }
 
   const completedMatches = allMatches.filter((m) => m.status === "completed");
@@ -133,8 +146,8 @@ async function _getDashboardData(groupSlug: string): Promise<DashboardResult> {
   // 8. Compute latest MVP (from most recent completed session)
   const latestMvp = buildLatestMvp(allSessions, allMatches, allPlayers);
 
-  // 9. Build recent matches (last 5 completed)
-  const recentMatches = buildRecentMatches(completedMatches.slice(0, 5), allPlayers);
+  // 9. Build recent matches (last 5 completed from explicit DB query)
+  const recentMatches = buildRecentMatches(recentMatchesRaw, allPlayers);
 
   // 10. Summary stats
   const totalGamesPlayed = completedMatches.length;

@@ -80,7 +80,7 @@ async function _getMatchHistory(
   const [{ data: sessions, error: sessionsError }, { data: players }] = await Promise.all([
     (supabase as any)
       .from("sessions")
-      .select("*")
+      .select("id, group_id, title, status, default_match_type, target_score, win_by, track_scorers, started_at, ended_at, bucket_date, source")
       .eq("group_id", group.id)
       .order("started_at", { ascending: false })
       .range(offset, offset + HISTORY_PAGE_SIZE), // range is inclusive, so this fetches PAGE_SIZE+1
@@ -109,7 +109,7 @@ async function _getMatchHistory(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: matches, error: matchesError } = await (supabase as any)
     .from("matches")
-    .select("*")
+    .select("id, session_id, status, source, match_type, team_a_player_ids, team_b_player_ids, team_a_score, team_b_score, winning_team, losing_team, target_score, win_by, started_at, completed_at, played_at, duration_seconds")
     .in("session_id", sessionIds)
     .in("status", statusFilter)
     .order("played_at", { ascending: false });
@@ -133,8 +133,10 @@ async function _getMatchHistory(
   const matchesBySession = new Map<string, MatchWithPlayers[]>();
   for (const match of (matches ?? []) as Match[]) {
     const sessionMatches = matchesBySession.get(match.session_id) ?? [];
-    sessionMatches.push({ ...match, playerNames: playerNameMap, playerInfo: playerInfoMap });
-    matchesBySession.set(match.session_id, sessionMatches);
+    matchesBySession.set(match.session_id, [
+      ...sessionMatches,
+      { ...match, playerNames: playerNameMap, playerInfo: playerInfoMap },
+    ]);
   }
 
   // Build session groups (only include sessions that have visible matches)
