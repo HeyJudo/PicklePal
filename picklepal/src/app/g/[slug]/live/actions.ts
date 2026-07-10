@@ -3,6 +3,7 @@
 import { createServerClient } from "@/lib/supabase";
 import { authorizeGroupWrite, resolveGroupIdFromSession } from "@/lib/auth";
 import { recomputeBelts } from "@/lib/belts/recomputeBelts";
+import { revalidateGroupCache, revalidateGroupCacheBySlug } from "@/lib/cache";
 import type { MatchType } from "@/lib/supabase";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -151,6 +152,7 @@ export async function startSession(
     console.error("Failed to create session_players:", spError);
   }
 
+  revalidateGroupCacheBySlug(input.groupSlug);
   return { success: true, data: session };
 }
 
@@ -183,6 +185,7 @@ export async function endSession(
   // Recompute belts now that the game day is over (best-effort, never throws).
   await recomputeBelts(groupId);
 
+  await revalidateGroupCache(groupId);
   return { success: true };
 }
 
@@ -307,6 +310,7 @@ export async function saveCompletedMatch(
   // Recompute belts now that a match has completed (best-effort, never throws).
   await recomputeBelts(groupId);
 
+  await revalidateGroupCache(groupId);
   return { success: true, data: { matchId: match.id } };
 }
 

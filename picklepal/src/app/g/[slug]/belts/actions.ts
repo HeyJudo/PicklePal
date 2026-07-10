@@ -1,5 +1,6 @@
 "use server";
 
+import { unstable_cache } from "next/cache";
 import { createServerClient } from "@/lib/supabase";
 import { getBeltReigns } from "@/lib/belts/recomputeBelts";
 import type { BeltReign, BeltType } from "@/lib/belts/recomputeBelts";
@@ -52,8 +53,17 @@ function emptyHistory(): BeltHistory {
  * Hall of Fame data: every belt reign (current + historical) for a group,
  * grouped by belt type and enriched with player names + durations.
  * Resilient: returns an empty (3-section) structure on any error, never throws.
+ * Results are cached per group slug and invalidated on any match write.
  */
 export async function getBeltHistory(slug: string): Promise<BeltHistory> {
+  return unstable_cache(
+    () => _getBeltHistory(slug),
+    ["belt-history", slug],
+    { tags: [`group-${slug}`], revalidate: 300 },
+  )();
+}
+
+async function _getBeltHistory(slug: string): Promise<BeltHistory> {
   try {
     const supabase = createServerClient();
 
@@ -67,13 +77,15 @@ export async function getBeltHistory(slug: string): Promise<BeltHistory> {
 
     if (groupError || !group) return emptyHistory();
 
-    // Fetch ALL players (NOT just is_active) so historical reigns held by
-    // deactivated players still resolve to a name.
+    // Fetch players and belt reigns in parallel — both depend only on group.id
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: players } = await (supabase as any)
-      .from("players")
-      .select("id, display_name, color, avatar_url")
-      .eq("group_id", group.id);
+    const [{ data: players }, reigns] = await Promise.all([
+      (supabase as any)
+        .from("players")
+        .select("id, display_name, color, avatar_url")
+        .eq("group_id", group.id),
+      getBeltReigns(group.id),
+    ]);
 
     interface PlayerRow {
       id: string;
@@ -92,7 +104,6 @@ export async function getBeltHistory(slug: string): Promise<BeltHistory> {
     const avatarOf = (id: string | null): string | null =>
       (id && playerById.get(id)?.avatar_url) ?? null;
 
-    const reigns = await getBeltReigns(group.id);
     const now = new Date().getTime();
 
     const toView = (r: BeltReign): ReignView => {

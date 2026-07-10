@@ -1,5 +1,6 @@
 "use server";
 
+import { unstable_cache } from "next/cache";
 import { createServerClient } from "@/lib/supabase";
 import type { Match, Session, Player } from "@/lib/supabase";
 import { HISTORY_PAGE_SIZE } from "./constants";
@@ -34,8 +35,27 @@ export interface SessionOption {
  *
  * Pagination: pass `offset` to skip the first N sessions. Returns `hasMore`
  * indicating whether additional sessions exist beyond this page.
+ *
+ * The first page (offset=0) is cached per group slug and invalidated on any
+ * match write. Paginated pages (offset>0) are not cached.
  */
 export async function getMatchHistory(
+  groupSlug: string,
+  options: { includeCancelled?: boolean; offset?: number } = {},
+): Promise<HistoryResult> {
+  const offset = options.offset ?? 0;
+  // Only cache the first page — subsequent pages are user-triggered
+  if (offset === 0) {
+    return unstable_cache(
+      () => _getMatchHistory(groupSlug, options),
+      ["history", groupSlug, String(options.includeCancelled ?? false)],
+      { tags: [`group-${groupSlug}`], revalidate: 300 },
+    )();
+  }
+  return _getMatchHistory(groupSlug, options);
+}
+
+async function _getMatchHistory(
   groupSlug: string,
   options: { includeCancelled?: boolean; offset?: number } = {},
 ): Promise<HistoryResult> {
@@ -54,14 +74,22 @@ export async function getMatchHistory(
     return { sessionGroups: [], players: [], hasMore: false, error: "Group not found" };
   }
 
-  // Fetch one extra session beyond the page size to detect if more exist
+  // Fetch one extra session beyond the page size to detect if more exist.
+  // Players are fetched in parallel with sessions — both depend only on group.id.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: sessions, error: sessionsError } = await (supabase as any)
-    .from("sessions")
-    .select("*")
-    .eq("group_id", group.id)
-    .order("started_at", { ascending: false })
-    .range(offset, offset + HISTORY_PAGE_SIZE); // range is inclusive, so this fetches PAGE_SIZE+1
+  const [{ data: sessions, error: sessionsError }, { data: players }] = await Promise.all([
+    (supabase as any)
+      .from("sessions")
+      .select("id, group_id, title, status, default_match_type, target_score, win_by, track_scorers, started_at, ended_at, bucket_date, source")
+      .eq("group_id", group.id)
+      .order("started_at", { ascending: false })
+      .range(offset, offset + HISTORY_PAGE_SIZE), // range is inclusive, so this fetches PAGE_SIZE+1
+    (supabase as any)
+      .from("players")
+      .select("id, display_name, color, avatar_url, is_active")
+      .eq("group_id", group.id)
+      .order("display_name", { ascending: true }),
+  ]);
 
   if (sessionsError || !sessions || sessions.length === 0) {
     return { sessionGroups: [], players: [], hasMore: false };
@@ -71,7 +99,7 @@ export async function getMatchHistory(
   const hasMore = sessions.length > HISTORY_PAGE_SIZE;
   const pageSessions = hasMore ? sessions.slice(0, HISTORY_PAGE_SIZE) : sessions;
 
-  // Fetch matches for these sessions
+  // Fetch matches for these sessions (depends on session IDs resolved above)
   const sessionIds = pageSessions.map((s: Session) => s.id);
 
   const statusFilter = options.includeCancelled
@@ -81,7 +109,7 @@ export async function getMatchHistory(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: matches, error: matchesError } = await (supabase as any)
     .from("matches")
-    .select("*")
+    .select("id, session_id, status, source, match_type, team_a_player_ids, team_b_player_ids, team_a_score, team_b_score, winning_team, losing_team, target_score, win_by, started_at, completed_at, played_at, duration_seconds")
     .in("session_id", sessionIds)
     .in("status", statusFilter)
     .order("played_at", { ascending: false });
@@ -89,15 +117,6 @@ export async function getMatchHistory(
   if (matchesError) {
     return { sessionGroups: [], players: [], hasMore: false, error: "Failed to load matches" };
   }
-
-  // Fetch all players: name lookup needs inactive players too (old matches),
-  // while the form only gets active ones
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: players } = await (supabase as any)
-    .from("players")
-    .select("*")
-    .eq("group_id", group.id)
-    .order("display_name", { ascending: true });
 
   const playerNameMap: Record<string, string> = {};
   const playerInfoMap: MatchWithPlayers["playerInfo"] = {};
@@ -114,8 +133,10 @@ export async function getMatchHistory(
   const matchesBySession = new Map<string, MatchWithPlayers[]>();
   for (const match of (matches ?? []) as Match[]) {
     const sessionMatches = matchesBySession.get(match.session_id) ?? [];
-    sessionMatches.push({ ...match, playerNames: playerNameMap, playerInfo: playerInfoMap });
-    matchesBySession.set(match.session_id, sessionMatches);
+    matchesBySession.set(match.session_id, [
+      ...sessionMatches,
+      { ...match, playerNames: playerNameMap, playerInfo: playerInfoMap },
+    ]);
   }
 
   // Build session groups (only include sessions that have visible matches)
