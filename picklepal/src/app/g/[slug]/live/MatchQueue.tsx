@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Chip } from "@/components/ui/Chip";
+import { PlayerPickerSheet } from "./PlayerPickerSheet";
 import type { MatchmakingState, Matchup, MatchType } from "@/lib/matchmaking";
 
 interface Player {
@@ -34,6 +35,29 @@ export function MatchQueue({
 }: MatchQueueProps) {
   const [shuffleMsg, setShuffleMsg] = useState<string | null>(null);
 
+  const currentMatchupFromQueue = queue[0] ?? null;
+
+  type LocalMatchup = {
+    teamA: (string | null)[];
+    teamB: (string | null)[];
+    sittingOut: string[];
+  };
+
+  const [localMatchup, setLocalMatchup] = useState<LocalMatchup | null>(null);
+  const [pickerState, setPickerState] = useState<{ isOpen: boolean; team: "A" | "B"; index: number } | null>(null);
+
+  useEffect(() => {
+    if (currentMatchupFromQueue) {
+      setLocalMatchup({
+        teamA: [...currentMatchupFromQueue.teamA],
+        teamB: [...currentMatchupFromQueue.teamB],
+        sittingOut: [...currentMatchupFromQueue.sittingOut],
+      });
+    } else {
+      setLocalMatchup(null);
+    }
+  }, [currentMatchupFromQueue]);
+
   useEffect(() => {
     if (!shuffleMsg) return;
     const t = setTimeout(() => setShuffleMsg(null), 2000);
@@ -41,8 +65,6 @@ export function MatchQueue({
   }, [shuffleMsg]);
 
   const playerMap = new Map(players.map((p) => [p.id, p]));
-
-  const currentMatchup = queue[0] ?? null;
 
   const minPlayers = matchType === "doubles" ? 4 : 2;
   const hasEnoughPlayers = players.filter((p) => matchmakingState.players.includes(p.id)).length >= minPlayers;
@@ -57,9 +79,56 @@ export function MatchQueue({
   };
 
   const handleConfirm = () => {
-    if (currentMatchup) {
-      onMatchSelected(currentMatchup);
+    if (localMatchup && localMatchup.teamA.every(Boolean) && localMatchup.teamB.every(Boolean)) {
+      onMatchSelected({
+        teamA: localMatchup.teamA as string[],
+        teamB: localMatchup.teamB as string[],
+        sittingOut: localMatchup.sittingOut,
+      });
     }
+  };
+
+  const handleSlotClick = (team: "A" | "B", index: number) => {
+    if (!isHost) return;
+    setPickerState({ isOpen: true, team, index });
+  };
+
+  const handlePickerSelect = (selectedPlayerId: string | null) => {
+    if (!pickerState || !localMatchup) return;
+    const { team, index } = pickerState;
+
+    const newLocal = {
+      teamA: [...localMatchup.teamA],
+      teamB: [...localMatchup.teamB],
+      sittingOut: [...localMatchup.sittingOut],
+    };
+
+    const currentSlotPlayerId = team === "A" ? newLocal.teamA[index] : newLocal.teamB[index];
+
+    // If removing the player
+    if (!selectedPlayerId) {
+      if (currentSlotPlayerId) {
+        newLocal.sittingOut.push(currentSlotPlayerId);
+        if (team === "A") newLocal.teamA[index] = null;
+        else newLocal.teamB[index] = null;
+      }
+    } 
+    // If selecting a new player
+    else {
+      // Remove the selected player from sittingOut
+      newLocal.sittingOut = newLocal.sittingOut.filter(id => id !== selectedPlayerId);
+      
+      // If there was a player in the slot, put them back to sittingOut
+      if (currentSlotPlayerId) {
+        newLocal.sittingOut.push(currentSlotPlayerId);
+      }
+
+      // Assign the new player to the slot
+      if (team === "A") newLocal.teamA[index] = selectedPlayerId;
+      else newLocal.teamB[index] = selectedPlayerId;
+    }
+
+    setLocalMatchup(newLocal);
   };
 
   if (!hasEnoughPlayers) {
@@ -73,7 +142,7 @@ export function MatchQueue({
     );
   }
 
-  if (!currentMatchup) {
+  if (!localMatchup) {
     return (
       <div className="rounded-xl border border-border bg-surface-muted px-4 py-6 text-center">
         <p className="text-sm text-text-muted">Generating matchups…</p>
@@ -117,13 +186,18 @@ export function MatchQueue({
           {/* Team A */}
           <div className="min-w-0 rounded-xl border border-court-green/25 bg-court-green/5 p-4 space-y-2">
             <p className="text-xs font-semibold text-court-green text-center">Team A</p>
-            {currentMatchup.teamA.map((id) => (
-              <PlayerSlot
-                key={id}
-                name={getPlayerName(id)}
-                color={getPlayerColor(id)}
-                gamesPlayed={getGamesPlayed(id)}
-              />
+            {localMatchup.teamA.map((id, index) => (
+              id ? (
+                <PlayerSlot
+                  key={id}
+                  name={getPlayerName(id)}
+                  color={getPlayerColor(id)}
+                  gamesPlayed={getGamesPlayed(id)}
+                  onClick={isHost ? () => handleSlotClick("A", index) : undefined}
+                />
+              ) : (
+                <EmptySlot key={`empty-A-${index}`} onClick={isHost ? () => handleSlotClick("A", index) : undefined} />
+              )
             ))}
           </div>
 
@@ -133,23 +207,28 @@ export function MatchQueue({
           {/* Team B */}
           <div className="min-w-0 rounded-xl border border-sky-blue/25 bg-sky-blue/5 p-4 space-y-2">
             <p className="text-xs font-semibold text-sky-blue text-center">Team B</p>
-            {currentMatchup.teamB.map((id) => (
-              <PlayerSlot
-                key={id}
-                name={getPlayerName(id)}
-                color={getPlayerColor(id)}
-                gamesPlayed={getGamesPlayed(id)}
-              />
+            {localMatchup.teamB.map((id, index) => (
+              id ? (
+                <PlayerSlot
+                  key={id}
+                  name={getPlayerName(id)}
+                  color={getPlayerColor(id)}
+                  gamesPlayed={getGamesPlayed(id)}
+                  onClick={isHost ? () => handleSlotClick("B", index) : undefined}
+                />
+              ) : (
+                <EmptySlot key={`empty-B-${index}`} onClick={isHost ? () => handleSlotClick("B", index) : undefined} />
+              )
             ))}
           </div>
         </div>
 
         {/* Sitting out */}
-        {currentMatchup.sittingOut.length > 0 && (
+        {localMatchup.sittingOut.length > 0 && (
           <div className="mx-3 mb-3 rounded-xl border border-border-muted bg-surface-muted px-3 py-2.5">
             <p className="text-xs font-medium text-text-muted mb-2">Sitting out this round</p>
             <div className="flex flex-wrap gap-2">
-              {currentMatchup.sittingOut.map((id) => (
+              {localMatchup.sittingOut.map((id) => (
                 <div
                   key={id}
                   className="flex items-center gap-1.5 rounded-full bg-surface border border-border px-2.5 py-1"
@@ -172,7 +251,8 @@ export function MatchQueue({
         <div className="flex gap-3 px-3 pb-3">
           <button
             onClick={handleConfirm}
-            className="flex-1 rounded-xl bg-court-green px-4 py-3.5 text-sm font-bold text-white hover:bg-court-green-dark transition-all active:scale-[0.98] cursor-pointer shadow-lg shadow-court-green/20"
+            disabled={!localMatchup.teamA.every(Boolean) || !localMatchup.teamB.every(Boolean)}
+            className="flex-1 rounded-xl bg-court-green px-4 py-3.5 text-sm font-bold text-white hover:bg-court-green-dark transition-all active:scale-[0.98] cursor-pointer shadow-lg shadow-court-green/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
           >
             Start Match
           </button>
@@ -185,6 +265,18 @@ export function MatchQueue({
       <p className="text-xs text-text-muted text-center">
         Round {matchmakingState.round + 1} · {matchmakingState.players.length} players
       </p>
+
+      {/* Player Picker Sheet */}
+      <PlayerPickerSheet
+        isOpen={pickerState?.isOpen ?? false}
+        onClose={() => setPickerState(prev => prev ? { ...prev, isOpen: false } : null)}
+        title={pickerState?.team === "A" ? "Team A Player" : "Team B Player"}
+        players={players}
+        sittingOutIds={localMatchup?.sittingOut ?? []}
+        currentSlotPlayerId={pickerState && localMatchup ? (pickerState.team === "A" ? localMatchup.teamA[pickerState.index] : localMatchup.teamB[pickerState.index]) : null}
+        onSelectPlayer={handlePickerSelect}
+        getGamesPlayed={getGamesPlayed}
+      />
     </div>
   );
 }
@@ -214,21 +306,49 @@ interface PlayerSlotProps {
   readonly name: string;
   readonly color: string;
   readonly gamesPlayed: number;
+  readonly onClick?: () => void;
 }
 
-function PlayerSlot({ name, color, gamesPlayed }: PlayerSlotProps) {
+function PlayerSlot({ name, color, gamesPlayed, onClick }: PlayerSlotProps) {
   return (
-    <div className="flex items-center gap-2">
+    <div 
+      className={`flex items-center gap-2 ${onClick ? "cursor-pointer group" : ""}`}
+      onClick={onClick}
+    >
       <div
         className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
         style={{ backgroundColor: color }}
       >
         {name.charAt(0)}
       </div>
-      <span className="text-sm font-medium text-text-primary truncate flex-1">
+      <span className={`text-sm font-medium text-text-primary truncate flex-1 ${onClick ? "group-hover:text-court-green transition-colors" : ""}`}>
         {name}
       </span>
       <GameCountChip gamesPlayed={gamesPlayed} />
+      {onClick && (
+        <svg className="w-4 h-4 text-text-muted group-hover:text-court-green shrink-0 opacity-50 group-hover:opacity-100 transition-all" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+        </svg>
+      )}
+    </div>
+  );
+}
+
+function EmptySlot({ onClick }: { onClick?: () => void }) {
+  return (
+    <div 
+      className={`flex items-center gap-2 py-0.5 ${onClick ? "cursor-pointer group" : ""}`}
+      onClick={onClick}
+    >
+      <div className="h-6 w-6 rounded-full border border-dashed border-border flex items-center justify-center shrink-0 group-hover:border-court-green/50 transition-colors">
+        <svg className="w-3 h-3 text-text-muted group-hover:text-court-green/70 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      </div>
+      <span className="text-sm font-medium text-text-muted italic flex-1 group-hover:text-court-green/70 transition-colors">
+        Tap to add
+      </span>
     </div>
   );
 }
