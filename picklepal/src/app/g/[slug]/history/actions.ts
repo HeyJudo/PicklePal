@@ -39,7 +39,7 @@ export interface SessionOption {
  * The first page (offset=0) is cached per group slug and invalidated on any
  * match write. Paginated pages (offset>0) are not cached.
  */
-export function getMatchHistory(
+export async function getMatchHistory(
   groupSlug: string,
   options: { includeCancelled?: boolean; offset?: number } = {},
 ): Promise<HistoryResult> {

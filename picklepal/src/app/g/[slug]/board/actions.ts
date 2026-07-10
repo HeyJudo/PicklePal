@@ -17,7 +17,7 @@ interface LeaderboardResult {
  * Queries all players and completed matches, then computes rankings.
  * Results are cached per group slug and invalidated on any match write.
  */
-export function getLeaderboard(groupSlug: string): Promise<LeaderboardResult> {
+export async function getLeaderboard(groupSlug: string): Promise<LeaderboardResult> {
   return unstable_cache(
     () => _getLeaderboard(groupSlug),
     ["leaderboard", groupSlug],
@@ -87,7 +87,7 @@ async function _getLeaderboard(groupSlug: string): Promise<LeaderboardResult> {
  * Resolves group ID from slug internally.
  * Results are cached per group slug and invalidated on any match write.
  */
-export function getBoardBelts(
+export async function getBoardBelts(
   groupSlug: string,
 ): Promise<readonly CurrentBelt[]> {
   return unstable_cache(

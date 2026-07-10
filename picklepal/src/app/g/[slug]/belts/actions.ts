@@ -55,7 +55,7 @@ function emptyHistory(): BeltHistory {
  * Resilient: returns an empty (3-section) structure on any error, never throws.
  * Results are cached per group slug and invalidated on any match write.
  */
-export function getBeltHistory(slug: string): Promise<BeltHistory> {
+export async function getBeltHistory(slug: string): Promise<BeltHistory> {
   return unstable_cache(
     () => _getBeltHistory(slug),
     ["belt-history", slug],

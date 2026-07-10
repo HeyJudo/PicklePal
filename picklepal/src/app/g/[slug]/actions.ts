@@ -57,7 +57,7 @@ interface DashboardResult {
  * Returns leaderboard preview, active session, highlights, and recent matches.
  * Results are cached per group slug and invalidated on any match write.
  */
-export function getDashboardData(groupSlug: string): Promise<DashboardResult> {
+export async function getDashboardData(groupSlug: string): Promise<DashboardResult> {
   return unstable_cache(
     () => _getDashboardData(groupSlug),
     ["dashboard", groupSlug],
