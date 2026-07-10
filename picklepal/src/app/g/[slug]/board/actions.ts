@@ -30,25 +30,24 @@ export async function getLeaderboard(groupSlug: string): Promise<LeaderboardResu
     return { entries: [], error: "Group not found" };
   }
 
-  // Fetch all active players for this group
+  // Fetch players and sessions in parallel — both depend only on group.id
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: players, error: playersError } = await (supabase as any)
-    .from("players")
-    .select("*")
-    .eq("group_id", group.id)
-    .eq("is_active", true)
-    .order("display_name");
+  const [{ data: players, error: playersError }, { data: sessions }] = await Promise.all([
+    (supabase as any)
+      .from("players")
+      .select("id, display_name, color, avatar_url")
+      .eq("group_id", group.id)
+      .eq("is_active", true)
+      .order("display_name"),
+    (supabase as any)
+      .from("sessions")
+      .select("id")
+      .eq("group_id", group.id),
+  ]);
 
   if (playersError || !players) {
     return { entries: [], error: "Failed to load players" };
   }
-
-  // Fetch all completed matches for sessions in this group
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: sessions } = await (supabase as any)
-    .from("sessions")
-    .select("id")
-    .eq("group_id", group.id);
 
   if (!sessions || sessions.length === 0) {
     return { entries: computeLeaderboard(players, []) };
@@ -59,7 +58,9 @@ export async function getLeaderboard(groupSlug: string): Promise<LeaderboardResu
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: matches, error: matchesError } = await (supabase as any)
     .from("matches")
-    .select("*")
+    .select(
+      "id, session_id, status, match_type, team_a_player_ids, team_b_player_ids, team_a_score, team_b_score, winning_team",
+    )
     .in("session_id", sessionIds)
     .eq("status", "completed");
 

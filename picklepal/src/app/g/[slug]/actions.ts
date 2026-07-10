@@ -62,7 +62,7 @@ export async function getDashboardData(groupSlug: string): Promise<DashboardResu
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: group, error: groupError } = await (supabase as any)
     .from("groups")
-    .select("*")
+    .select("id, name")
     .eq("slug", groupSlug)
     .single();
 
@@ -70,28 +70,26 @@ export async function getDashboardData(groupSlug: string): Promise<DashboardResu
     return { data: null, error: "Group not found" };
   }
 
-  // 2. Get all active players
+  // 2 + 3. Fetch players and sessions in parallel — both depend only on group.id
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: players } = await (supabase as any)
-    .from("players")
-    .select("*")
-    .eq("group_id", group.id)
-    .eq("is_active", true)
-    .order("display_name");
+  const [{ data: players }, { data: sessions }] = await Promise.all([
+    (supabase as any)
+      .from("players")
+      .select("id, display_name, color, avatar_url")
+      .eq("group_id", group.id)
+      .eq("is_active", true)
+      .order("display_name"),
+    (supabase as any)
+      .from("sessions")
+      .select("id, title, status, started_at, ended_at")
+      .eq("group_id", group.id)
+      .order("started_at", { ascending: false }),
+  ]);
 
   const allPlayers: Player[] = players ?? [];
-
-  // 3. Get all sessions
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: sessions } = await (supabase as any)
-    .from("sessions")
-    .select("*")
-    .eq("group_id", group.id)
-    .order("started_at", { ascending: false });
-
   const allSessions: Session[] = sessions ?? [];
 
-  // 4. Get all matches across sessions
+  // 4. Fetch matches after sessions resolve (depends on session IDs)
   const sessionIds = allSessions.map((s) => s.id);
   let allMatches: Match[] = [];
 
@@ -99,11 +97,13 @@ export async function getDashboardData(groupSlug: string): Promise<DashboardResu
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: matches } = await (supabase as any)
       .from("matches")
-      .select("*")
+      .select(
+        "id, session_id, status, match_type, team_a_player_ids, team_b_player_ids, team_a_score, team_b_score, winning_team, completed_at, duration_seconds",
+      )
       .in("session_id", sessionIds)
       .order("completed_at", { ascending: false });
 
-    allMatches = matches ?? [];
+    allMatches = (matches ?? []) as Match[];
   }
 
   const completedMatches = allMatches.filter((m) => m.status === "completed");
