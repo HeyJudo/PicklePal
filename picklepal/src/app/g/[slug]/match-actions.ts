@@ -10,7 +10,7 @@ import {
   playedDateToTimestamp,
 } from "@/lib/matches/validation";
 import type { Database, MatchType } from "@/lib/supabase";
-import { revalidateGroupCache } from "@/lib/cache";
+import { invalidateGroupMutation, revalidateGroupCache } from "@/lib/cache";
 
 interface ActionResult {
   readonly success: boolean;
@@ -21,11 +21,11 @@ type MatchUpdate = Database["public"]["Tables"]["matches"]["Update"];
 
 async function getMatchStatus(
   matchId: string,
-): Promise<{ id: string; status: string } | null> {
+): Promise<{ id: string; status: string; session_id: string } | null> {
   const supabase = createServerClient();
   const { data } = await supabase
     .from("matches")
-    .select("id, status")
+    .select("id, status, session_id")
     .eq("id", matchId)
     .single();
   return data;
@@ -90,6 +90,7 @@ export async function correctMatchScores(
     return { success: false, error: "Failed to update match" };
   }
 
+  await invalidateGroupMutation(groupId, "match-result", match.session_id);
   await revalidateGroupCache(groupId);
   return { success: true };
 }
@@ -123,6 +124,7 @@ export async function cancelMatch(matchId: string): Promise<ActionResult> {
     return { success: false, error: "Failed to cancel match" };
   }
 
+  await invalidateGroupMutation(groupId, "match-result", match.session_id);
   await revalidateGroupCache(groupId);
   return { success: true };
 }
@@ -156,7 +158,11 @@ export async function updateManualMatch(
   }
 
   // Validate teams
-  const teamError = validateTeams(input.matchType, input.teamAPlayerIds, input.teamBPlayerIds);
+  const teamError = validateTeams(
+    input.matchType,
+    input.teamAPlayerIds,
+    input.teamBPlayerIds,
+  );
   if (teamError) {
     return { success: false, error: teamError };
   }
@@ -213,7 +219,11 @@ export async function updateManualMatch(
   if (currentSession?.source === "manual_bucket") {
     // Date changed — move to new bucket
     if (currentSession.bucket_date !== input.playedDate) {
-      const bucketResult = await findOrCreateManualBucket(supabase, groupId, input.playedDate);
+      const bucketResult = await findOrCreateManualBucket(
+        supabase,
+        groupId,
+        input.playedDate,
+      );
       if ("error" in bucketResult) {
         return { success: false, error: bucketResult.error };
       }
@@ -242,6 +252,10 @@ export async function updateManualMatch(
     return { success: false, error: "Failed to update match" };
   }
 
+  await invalidateGroupMutation(groupId, "match-result", match.session_id);
+  if (newSessionId !== match.session_id) {
+    await invalidateGroupMutation(groupId, "match-result", newSessionId);
+  }
   await revalidateGroupCache(groupId);
   return { success: true };
 }
@@ -274,6 +288,7 @@ export async function restoreMatch(matchId: string): Promise<ActionResult> {
     return { success: false, error: "Failed to restore match" };
   }
 
+  await invalidateGroupMutation(groupId, "match-result", match.session_id);
   await revalidateGroupCache(groupId);
   return { success: true };
 }

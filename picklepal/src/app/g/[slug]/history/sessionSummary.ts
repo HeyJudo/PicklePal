@@ -1,4 +1,4 @@
-import type { MatchWithPlayers } from "./actions";
+import type { MatchSummary, PlayerInfoMap } from "./actions";
 
 export interface SessionSummary {
   readonly topWinner: { name: string; wins: number } | null;
@@ -10,7 +10,10 @@ export interface SessionSummary {
  * Derive quick session stats (top winner, closest game, biggest blowout)
  * from a session's matches. Only `status === "completed"` matches count.
  */
-export function sessionSummary(matches: readonly MatchWithPlayers[]): SessionSummary {
+export function sessionSummary(
+  matches: readonly MatchSummary[],
+  playerInfo: PlayerInfoMap,
+): SessionSummary {
   const completed = matches.filter((m) => m.status === "completed");
   if (completed.length === 0) {
     return { topWinner: null, closest: null, biggest: null };
@@ -36,13 +39,11 @@ export function sessionSummary(matches: readonly MatchWithPlayers[]): SessionSum
     const count = wins.get(id)!;
     if (!topWinner || count > topWinner.wins) {
       topId = id;
-      topWinner = { name: completed[0].playerInfo[id]?.name ?? "Unknown", wins: count };
+      topWinner = { name: playerInfo[id]?.name ?? "Unknown", wins: count };
     }
   }
   if (topId) {
-    // Resolve name from whichever match actually has this player's info.
-    const infoMatch = completed.find((m) => m.playerInfo[topId!]);
-    topWinner = { name: infoMatch?.playerInfo[topId]?.name ?? "Unknown", wins: wins.get(topId)! };
+    topWinner = { name: playerInfo[topId]?.name ?? "Unknown", wins: wins.get(topId)! };
   }
 
   let closest = completed[0];

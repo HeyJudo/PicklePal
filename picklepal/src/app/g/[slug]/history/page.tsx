@@ -9,7 +9,10 @@ interface HistoryPageProps {
 
 export default async function HistoryPage({ params }: HistoryPageProps) {
   const { slug } = await params;
-  const [{ sessionGroups, players, hasMore, error }, viewerAccess] = await Promise.all([
+  const [
+    { sessionGroups, players, playerInfo, hasMore, nextCursor, error },
+    viewerAccess,
+  ] = await Promise.all([
     getMatchHistory(slug, { includeCancelled: true }),
     getViewerAccess(slug),
   ]);
@@ -27,7 +30,10 @@ export default async function HistoryPage({ params }: HistoryPageProps) {
       {/* Branded header */}
       <header className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-sky-blue-dark to-sky-blue px-5 py-5 sm:px-6">
         {/* Clock watermark */}
-        <div className="absolute -right-4 -top-4 opacity-10 pointer-events-none" aria-hidden="true">
+        <div
+          className="absolute -right-4 -top-4 opacity-10 pointer-events-none"
+          aria-hidden="true"
+        >
           <svg className="w-36 h-36 text-white" viewBox="0 0 24 24" fill="currentColor">
             <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z" />
           </svg>
@@ -68,8 +74,10 @@ export default async function HistoryPage({ params }: HistoryPageProps) {
           groupSlug={slug}
           isAdmin={isAdmin}
           players={players as Player[]}
+          playerInfo={playerInfo}
           sessionOptions={sessionOptions}
           initialHasMore={hasMore}
+          initialNextCursor={nextCursor}
         />
       )}
     </div>

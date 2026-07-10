@@ -1,7 +1,8 @@
-import { currentUser } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import { UserButton } from "@clerk/nextjs";
 import { BottomNav, DesktopNav } from "@/components/navigation";
 import { canViewGroup } from "@/lib/privacy";
+import { getGroupPrivacyBySlug } from "@/lib/privacy";
 import { PrivateGroupGate } from "./PrivateGroupGate";
 
 interface GroupLayoutProps {
@@ -9,17 +10,22 @@ interface GroupLayoutProps {
   readonly params: Promise<{ slug: string }>;
 }
 
-export default async function GroupLayout({
-  children,
-  params,
-}: GroupLayoutProps) {
+export default async function GroupLayout({ children, params }: GroupLayoutProps) {
   const { slug } = await params;
 
-  const user = await currentUser();
-  const access = await canViewGroup(slug, user?.id ?? null);
+  const privacy = await getGroupPrivacyBySlug(slug);
 
-  if (!access.canView) {
-    return <PrivateGroupGate reason={access.reason} />;
+  if (!privacy) {
+    return <PrivateGroupGate reason="Group not found" />;
+  }
+
+  if (privacy.privacyMode === "private") {
+    const { userId } = await auth();
+    const access = await canViewGroup(slug, userId);
+
+    if (!access.canView) {
+      return <PrivateGroupGate reason={access.reason} />;
+    }
   }
 
   return (
@@ -33,11 +39,9 @@ export default async function GroupLayout({
           <span className="text-[17px] font-bold tracking-tight leading-none text-text-primary">
             Dink<span className="text-court-green">Day</span>
           </span>
-          {user && (
-            <div className="shrink-0">
-              <UserButton />
-            </div>
-          )}
+          <div className="shrink-0">
+            <UserButton />
+          </div>
         </header>
 
         <div className="px-4 py-5 lg:px-8">{children}</div>

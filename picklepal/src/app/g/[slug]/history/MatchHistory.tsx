@@ -2,24 +2,35 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { deleteSession } from "./session-actions";
-import { cancelMatch, restoreMatch, correctMatchScores } from "@/app/g/[slug]/match-actions";
-import { PastMatchForm } from "./PastMatchForm";
+import {
+  cancelMatch,
+  restoreMatch,
+  correctMatchScores,
+} from "@/app/g/[slug]/match-actions";
 import { loadMoreHistory } from "./actions";
 import { HISTORY_PAGE_SIZE } from "./constants";
 import { sessionSummary } from "./sessionSummary";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
-import type { SessionGroup, MatchWithPlayers, SessionOption } from "./actions";
+import type { SessionGroup, MatchSummary, PlayerInfoMap, SessionOption } from "./actions";
+import type { HistoryCursor } from "./pagination";
 import type { Player } from "@/lib/supabase";
+
+const PastMatchForm = dynamic(() =>
+  import("./PastMatchForm").then((module) => module.PastMatchForm),
+);
 
 interface MatchHistoryProps {
   readonly sessionGroups: readonly SessionGroup[];
   readonly groupSlug: string;
   readonly isAdmin?: boolean;
   readonly players: readonly Player[];
+  readonly playerInfo: PlayerInfoMap;
   readonly sessionOptions: readonly SessionOption[];
   readonly initialHasMore?: boolean;
+  readonly initialNextCursor: HistoryCursor | null;
 }
 
 function formatDate(dateStr: string): string {
@@ -38,7 +49,7 @@ function MatchActionSheet({
   onEdit,
   onRefresh,
 }: {
-  readonly match: MatchWithPlayers;
+  readonly match: MatchSummary;
   readonly onClose: () => void;
   readonly onEdit: () => void;
   readonly onRefresh: () => void;
@@ -115,8 +126,18 @@ function MatchActionSheet({
             className="rounded-lg p-2 text-text-muted hover:bg-surface-muted hover:text-text-secondary transition-colors cursor-pointer"
             aria-label="Close"
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -198,7 +219,9 @@ function MatchActionSheet({
                 </button>
               ) : (
                 <div className="rounded-lg border border-hype-red/30 bg-hype-red/5 p-3 space-y-2 mx-1">
-                  <p className="text-xs text-hype-red font-medium">Remove this match from stats?</p>
+                  <p className="text-xs text-hype-red font-medium">
+                    Remove this match from stats?
+                  </p>
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -231,10 +254,12 @@ function MatchActionSheet({
 
 function TeamBlock({
   match,
+  playerInfo,
   playerIds,
   won,
 }: {
-  readonly match: MatchWithPlayers;
+  readonly match: MatchSummary;
+  readonly playerInfo: PlayerInfoMap;
   readonly playerIds: readonly string[];
   readonly won: boolean;
 }) {
@@ -248,7 +273,7 @@ function TeamBlock({
     >
       <div className="flex shrink-0 -space-x-2 sm:-space-x-3">
         {playerIds.map((id) => {
-          const info = match.playerInfo[id];
+          const info = playerInfo[id];
           return (
             <PlayerAvatar
               key={id}
@@ -266,10 +291,12 @@ function TeamBlock({
           <p
             key={id}
             className={`text-xs sm:text-sm truncate leading-tight ${
-              won && !isCancelled ? "font-bold text-text-primary" : "font-medium text-text-secondary"
+              won && !isCancelled
+                ? "font-bold text-text-primary"
+                : "font-medium text-text-secondary"
             }`}
           >
-            {match.playerInfo[id]?.name ?? "Unknown"}
+            {playerInfo[id]?.name ?? "Unknown"}
           </p>
         ))}
       </div>
@@ -281,13 +308,15 @@ function TeamBlock({
 
 function MatchCard({
   match,
+  playerInfo,
   isAdmin,
   groupSlug,
   players,
   sessionOptions,
   onRefresh,
 }: {
-  readonly match: MatchWithPlayers;
+  readonly match: MatchSummary;
+  readonly playerInfo: PlayerInfoMap;
   readonly isAdmin?: boolean;
   readonly groupSlug: string;
   readonly players: readonly Player[];
@@ -330,7 +359,12 @@ function MatchCard({
         )}
 
         <div className="flex items-start gap-2 pr-6 min-w-0">
-          <TeamBlock match={match} playerIds={match.team_a_player_ids} won={teamAWon} />
+          <TeamBlock
+            match={match}
+            playerInfo={playerInfo}
+            playerIds={match.team_a_player_ids}
+            won={teamAWon}
+          />
 
           <div className="flex flex-col items-center gap-1 shrink-0 px-1 pt-1">
             <div className="flex items-baseline gap-1">
@@ -363,7 +397,12 @@ function MatchCard({
             )}
           </div>
 
-          <TeamBlock match={match} playerIds={match.team_b_player_ids} won={!teamAWon} />
+          <TeamBlock
+            match={match}
+            playerInfo={playerInfo}
+            playerIds={match.team_b_player_ids}
+            won={!teamAWon}
+          />
         </div>
 
         <div className="flex items-center justify-end mt-2.5">
@@ -427,6 +466,7 @@ function SessionSection({
   groupSlug,
   isAdmin,
   players,
+  playerInfo,
   sessionOptions,
   defaultExpanded = false,
 }: {
@@ -434,6 +474,7 @@ function SessionSection({
   readonly groupSlug: string;
   readonly isAdmin?: boolean;
   readonly players: readonly Player[];
+  readonly playerInfo: PlayerInfoMap;
   readonly sessionOptions: readonly SessionOption[];
   readonly defaultExpanded?: boolean;
 }) {
@@ -448,7 +489,7 @@ function SessionSection({
   const sessionTitle = isBucket ? "Logged matches" : (session.title ?? "Game Day");
 
   const completedMatchCount = matches.filter((m) => m.status === "completed").length;
-  const summary = sessionSummary(matches);
+  const summary = sessionSummary(matches, playerInfo);
 
   const handleDeleteClick = () => setShowConfirm(true);
 
@@ -467,9 +508,12 @@ function SessionSection({
   const handleRefresh = () => router.refresh();
 
   const statParts: string[] = [];
-  if (summary.topWinner) statParts.push(`🏆 ${summary.topWinner.name} ${summary.topWinner.wins}W`);
-  if (summary.closest) statParts.push(`closest ${summary.closest.a}-${summary.closest.b}`);
-  if (summary.biggest) statParts.push(`biggest ${summary.biggest.a}-${summary.biggest.b}`);
+  if (summary.topWinner)
+    statParts.push(`🏆 ${summary.topWinner.name} ${summary.topWinner.wins}W`);
+  if (summary.closest)
+    statParts.push(`closest ${summary.closest.a}-${summary.closest.b}`);
+  if (summary.biggest)
+    statParts.push(`biggest ${summary.biggest.a}-${summary.biggest.b}`);
 
   return (
     <section className="rounded-2xl border border-border bg-surface-muted p-3 sm:p-4 space-y-2">
@@ -499,7 +543,13 @@ function SessionSection({
               className="text-text-muted hover:text-hype-red transition-colors cursor-pointer rounded-full bg-surface p-2 border border-border"
               aria-label={`Delete session ${sessionTitle}`}
             >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={1.5}
+              >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -572,6 +622,7 @@ function SessionSection({
             <MatchCard
               key={match.id}
               match={match}
+              playerInfo={playerInfo}
               isAdmin={isAdmin}
               groupSlug={groupSlug}
               players={players}
@@ -600,25 +651,34 @@ export function MatchHistory({
   groupSlug,
   isAdmin = false,
   players,
+  playerInfo: initialPlayerInfo,
   sessionOptions,
   initialHasMore = false,
+  initialNextCursor,
 }: MatchHistoryProps) {
-  const [sessionGroups, setSessionGroups] = useState<readonly SessionGroup[]>(initialSessionGroups);
+  const [sessionGroups, setSessionGroups] =
+    useState<readonly SessionGroup[]>(initialSessionGroups);
+  const [playerInfo, setPlayerInfo] = useState<PlayerInfoMap>(initialPlayerInfo);
   const [hasMore, setHasMore] = useState(initialHasMore);
+  const [nextCursor, setNextCursor] = useState<HistoryCursor | null>(initialNextCursor);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const router = useRouter();
 
   const handleLoadMore = async () => {
+    if (!nextCursor) return;
+
     setIsLoadingMore(true);
     const result = await loadMoreHistory(groupSlug, {
       includeCancelled: isAdmin,
-      offset: sessionGroups.length,
+      cursor: nextCursor,
     });
     setIsLoadingMore(false);
     if (!result.error) {
       setSessionGroups((prev) => [...prev, ...result.sessionGroups]);
+      setPlayerInfo((previous) => ({ ...previous, ...result.playerInfo }));
       setHasMore(result.hasMore);
+      setNextCursor(result.nextCursor);
     }
   };
 
@@ -642,7 +702,13 @@ export function MatchHistory({
             onClick={() => setShowAddForm(true)}
             className="inline-flex items-center gap-2 rounded-xl bg-court-green px-4 py-2.5 text-sm font-medium text-white hover:bg-court-green-dark transition-colors cursor-pointer shadow-sm"
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
             Add Match
@@ -664,6 +730,7 @@ export function MatchHistory({
             groupSlug={groupSlug}
             isAdmin={isAdmin}
             players={players}
+            playerInfo={playerInfo}
             sessionOptions={sessionOptions}
             defaultExpanded={index === 0}
           />
@@ -682,8 +749,19 @@ export function MatchHistory({
             {isLoadingMore ? (
               <>
                 <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
                 </svg>
                 Loading…
               </>

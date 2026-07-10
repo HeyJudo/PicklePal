@@ -4,7 +4,12 @@ import { createServerClient } from "@/lib/supabase";
 import { authorizeGroupWrite, resolveGroupIdFromSession } from "@/lib/auth";
 import { findOrCreateManualBucket } from "@/lib/sessions/manualBucket";
 import { recomputeBelts } from "@/lib/belts/recomputeBelts";
-import { revalidateGroupCache, revalidateGroupCacheBySlug } from "@/lib/cache";
+import {
+  invalidateGroupMutation,
+  invalidateGroupMutationBySlug,
+  revalidateGroupCache,
+  revalidateGroupCacheBySlug,
+} from "@/lib/cache";
 import {
   validateManualMatchScores,
   validateTeams,
@@ -51,7 +56,11 @@ export async function recordManualMatch(
   input: RecordManualMatchInput,
 ): Promise<ActionResult<{ matchId: string }>> {
   // Validate teams
-  const teamError = validateTeams(input.matchType, input.teamAPlayerIds, input.teamBPlayerIds);
+  const teamError = validateTeams(
+    input.matchType,
+    input.teamAPlayerIds,
+    input.teamBPlayerIds,
+  );
   if (teamError) {
     return { success: false, error: teamError };
   }
@@ -111,6 +120,7 @@ export async function recordManualMatch(
   // Recompute belt holders after successful manual match record.
   // Failure is swallowed inside recomputeBelts — never reverts this match.
   void recomputeBelts(groupId);
+  await invalidateGroupMutation(groupId, "match-result", input.sessionId);
   await revalidateGroupCache(groupId);
 
   return { success: true, data: { matchId: match.id } };
@@ -128,7 +138,11 @@ export async function recordPastMatch(
   }
 
   // Validate teams
-  const teamError = validateTeams(input.matchType, input.teamAPlayerIds, input.teamBPlayerIds);
+  const teamError = validateTeams(
+    input.matchType,
+    input.teamAPlayerIds,
+    input.teamBPlayerIds,
+  );
   if (teamError) {
     return { success: false, error: teamError };
   }
@@ -179,7 +193,11 @@ export async function recordPastMatch(
     sessionId = input.sessionId;
   } else {
     // Find or create a manual bucket for this date
-    const bucketResult = await findOrCreateManualBucket(supabase, group.id, input.playedDate);
+    const bucketResult = await findOrCreateManualBucket(
+      supabase,
+      group.id,
+      input.playedDate,
+    );
     if ("error" in bucketResult) {
       return { success: false, error: bucketResult.error };
     }
@@ -223,6 +241,7 @@ export async function recordPastMatch(
   // Recompute belt holders after successful past match record.
   // Failure is swallowed inside recomputeBelts — never reverts this match.
   void recomputeBelts(group.id);
+  invalidateGroupMutationBySlug(input.groupSlug, "match-result", sessionId);
   revalidateGroupCacheBySlug(input.groupSlug);
 
   return { success: true, data: { matchId: match.id } };
