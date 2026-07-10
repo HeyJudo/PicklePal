@@ -317,15 +317,16 @@ function selectSitOuts(
     // 2. joinedRound ASC (joined earlier = protect them = sort them later)
     if (sA.joinedRound !== sB.joinedRound) return sA.joinedRound - sB.joinedRound;
 
-    // 3. (nextRound - lastSatRound) DESC (longest since last sat = sits next)
-    const gapA = nextRound - sA.lastSatRound;
-    const gapB = nextRound - sB.lastSatRound;
-    if (gapB !== gapA) return gapB - gapA;
+    // 3 & 4. lastSatRound tiebreakers — ONLY apply when spread > threshold
+    //   (When spread ≤ threshold / open pool, jump to hash to prevent locked alternation)
+    if (spread > SIT_OUT_SPREAD_THRESHOLD) {
+      const gapA = nextRound - sA.lastSatRound;
+      const gapB = nextRound - sB.lastSatRound;
+      if (gapB !== gapA) return gapB - gapA;
+      if (sA.lastSatRound !== sB.lastSatRound) return sA.lastSatRound - sB.lastSatRound;
+    }
 
-    // 4. lastSatRound ASC (tiebreak)
-    if (sA.lastSatRound !== sB.lastSatRound) return sA.lastSatRound - sB.lastSatRound;
-
-    // 5. deterministic hash (final tiebreak)
+    // 5. deterministic hash (final tiebreak — always produces variety when spread ≤ threshold)
     return (
       deterministicHash(state.sessionId, nextRound, a) -
       deterministicHash(state.sessionId, nextRound, b)
