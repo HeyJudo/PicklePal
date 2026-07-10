@@ -17,7 +17,7 @@ import { createServerClient } from "@/lib/supabase";
  * Use this in write actions that already know the slug.
  */
 export function revalidateGroupCacheBySlug(slug: string): void {
-  revalidateTag(`group-${slug}`);
+  revalidateTag(`group-${slug}`, {});
 }
 
 /**
@@ -36,7 +36,7 @@ export async function revalidateGroupCache(groupId: string): Promise<void> {
       .maybeSingle();
 
     if (data?.slug) {
-      revalidateTag(`group-${data.slug}`);
+      revalidateTag(`group-${data.slug}`, {});
     }
   } catch {
     // Never let cache invalidation failures surface to the caller.
