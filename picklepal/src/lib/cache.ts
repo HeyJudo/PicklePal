@@ -9,8 +9,18 @@
  * The slug is resolved from the group ID via a single DB lookup.
  */
 
-import { revalidateTag } from "next/cache";
+import { revalidateTag, updateTag } from "next/cache";
 import { createServerClient } from "@/lib/supabase";
+import { tagsForMutation, type CacheMutation } from "@/lib/cache/policy";
+
+export {
+  CACHE_DOMAINS,
+  cacheTag,
+  domainsForMutation,
+  tagsForMutation,
+  type CacheDomain,
+  type CacheMutation,
+} from "@/lib/cache/policy";
 
 /**
  * Invalidate all cached group-section pages for the given group slug.
@@ -41,5 +51,69 @@ export async function revalidateGroupCache(groupId: string): Promise<void> {
   } catch {
     // Never let cache invalidation failures surface to the caller.
     // The 5-minute TTL will catch up on its own.
+  }
+}
+
+/**
+ * Expire only the read domains affected by a mutation. This uses updateTag so
+ * the Server Action that performed the write gets read-your-own-writes
+ * behavior on its next render. The broad legacy helpers above remain during
+ * the expand/contract migration and are removed only after every caller moves
+ * to this contract.
+ */
+export function invalidateGroupMutationBySlug(
+  slug: string,
+  mutation: CacheMutation,
+  recapResourceKey?: string,
+): boolean {
+  const tags = tagsForMutation(mutation, slug, recapResourceKey);
+
+  try {
+    for (const tag of tags) {
+      updateTag(tag);
+    }
+    return true;
+  } catch (error) {
+    console.error("[cache] targeted invalidation failed", {
+      mutation,
+      tags,
+      error,
+    });
+    return false;
+  }
+}
+
+/** Resolve a group slug and apply the targeted invalidation contract. */
+export async function invalidateGroupMutation(
+  groupId: string,
+  mutation: CacheMutation,
+  recapResourceKey?: string,
+): Promise<boolean> {
+  try {
+    const supabase = createServerClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from("groups")
+      .select("slug")
+      .eq("id", groupId)
+      .maybeSingle();
+
+    if (error || !data?.slug) {
+      console.error("[cache] could not resolve group for targeted invalidation", {
+        groupId,
+        mutation,
+        error,
+      });
+      return false;
+    }
+
+    return invalidateGroupMutationBySlug(data.slug, mutation, recapResourceKey);
+  } catch (error) {
+    console.error("[cache] targeted invalidation failed before tag update", {
+      groupId,
+      mutation,
+      error,
+    });
+    return false;
   }
 }

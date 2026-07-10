@@ -3,22 +3,53 @@
 import { unstable_cache } from "next/cache";
 import { createServerClient } from "@/lib/supabase";
 import type { Match, Session, Player } from "@/lib/supabase";
+import { traceServerOperation } from "@/lib/performance/server";
+import { cacheTag } from "@/lib/cache";
 import { HISTORY_PAGE_SIZE } from "./constants";
+import {
+  historyCursorFilter,
+  nextHistoryCursor,
+  parseHistoryCursor,
+  type HistoryCursor,
+} from "./pagination";
 
-export interface MatchWithPlayers extends Match {
-  readonly playerNames: Record<string, string>;
-  readonly playerInfo: Record<string, { name: string; color: string | null; avatarUrl: string | null }>;
-}
+export type MatchSummary = Pick<
+  Match,
+  | "id"
+  | "session_id"
+  | "status"
+  | "source"
+  | "match_type"
+  | "team_a_player_ids"
+  | "team_b_player_ids"
+  | "team_a_score"
+  | "team_b_score"
+  | "winning_team"
+  | "losing_team"
+  | "target_score"
+  | "win_by"
+  | "started_at"
+  | "completed_at"
+  | "played_at"
+  | "duration_seconds"
+  | "created_at"
+>;
+
+export type PlayerInfoMap = Readonly<
+  Record<string, { name: string; color: string | null; avatarUrl: string | null }>
+>;
 
 export interface SessionGroup {
   readonly session: Session;
-  readonly matches: readonly MatchWithPlayers[];
+  readonly matches: readonly MatchSummary[];
 }
 
 interface HistoryResult {
   readonly sessionGroups: readonly SessionGroup[];
   readonly players: readonly Player[];
+  readonly playerInfo: PlayerInfoMap;
   readonly hasMore: boolean;
+  readonly nextCursor: HistoryCursor | null;
   readonly error?: string;
 }
 
@@ -41,15 +72,29 @@ export interface SessionOption {
  */
 export async function getMatchHistory(
   groupSlug: string,
-  options: { includeCancelled?: boolean; offset?: number } = {},
+  options: { includeCancelled?: boolean; cursor?: HistoryCursor | null } = {},
 ): Promise<HistoryResult> {
-  const offset = options.offset ?? 0;
   // Only cache the first page — subsequent pages are user-triggered
-  if (offset === 0) {
+  if (!options.cursor) {
     return unstable_cache(
-      () => _getMatchHistory(groupSlug, options),
+      () =>
+        traceServerOperation(
+          {
+            name: "history.cache-miss",
+            op: "cache.get",
+            attributes: {
+              route: "history",
+              "cache.domain": "history",
+              "cache.hit": false,
+            },
+          },
+          () => _getMatchHistory(groupSlug, options),
+        ),
       ["history", groupSlug, String(options.includeCancelled ?? false)],
-      { tags: [`group-${groupSlug}`], revalidate: 300 },
+      {
+        tags: [`group-${groupSlug}`, cacheTag("history", groupSlug)],
+        revalidate: 30,
+      },
     )();
   }
   return _getMatchHistory(groupSlug, options);
@@ -57,42 +102,78 @@ export async function getMatchHistory(
 
 async function _getMatchHistory(
   groupSlug: string,
-  options: { includeCancelled?: boolean; offset?: number } = {},
+  options: { includeCancelled?: boolean; cursor?: HistoryCursor | null } = {},
 ): Promise<HistoryResult> {
   const supabase = createServerClient();
-  const offset = options.offset ?? 0;
+  // Supabase's generated query types exceed TypeScript's instantiation depth
+  // for these projected joins; keep the escape hatch at this single boundary.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any;
+  const cursor = options.cursor ? parseHistoryCursor(options.cursor) : null;
+
+  if (options.cursor && !cursor) {
+    return emptyHistoryResult("Invalid history cursor");
+  }
 
   // Get group ID from slug
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: group, error: groupError } = await (supabase as any)
-    .from("groups")
-    .select("id")
-    .eq("slug", groupSlug)
-    .single();
+  const { data: group, error: groupError } = await traceServerOperation(
+    {
+      name: "history.group",
+      op: "db.query",
+      attributes: { route: "history", stage: "group", "db.table": "groups" },
+    },
+    async () =>
+      db.from("groups").select("id").eq("slug", groupSlug).single(),
+  );
 
   if (groupError || !group) {
-    return { sessionGroups: [], players: [], hasMore: false, error: "Group not found" };
+    return emptyHistoryResult("Group not found");
   }
 
   // Fetch one extra session beyond the page size to detect if more exist.
   // Players are fetched in parallel with sessions — both depend only on group.id.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [{ data: sessions, error: sessionsError }, { data: players }] = await Promise.all([
-    (supabase as any)
-      .from("sessions")
-      .select("id, group_id, title, status, default_match_type, target_score, win_by, track_scorers, started_at, ended_at, bucket_date, source")
-      .eq("group_id", group.id)
-      .order("started_at", { ascending: false })
-      .range(offset, offset + HISTORY_PAGE_SIZE), // range is inclusive, so this fetches PAGE_SIZE+1
-    (supabase as any)
-      .from("players")
-      .select("id, display_name, color, avatar_url, is_active")
-      .eq("group_id", group.id)
-      .order("display_name", { ascending: true }),
-  ]);
+  let sessionsQuery = db
+    .from("sessions")
+    .select(
+      "id, group_id, title, status, default_match_type, target_score, win_by, track_scorers, started_at, ended_at, bucket_date, source",
+    )
+    .eq("group_id", group.id)
+    .order("started_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(HISTORY_PAGE_SIZE + 1);
+
+  if (cursor) {
+    sessionsQuery = sessionsQuery.or(historyCursorFilter(cursor));
+  }
+
+  const [{ data: sessions, error: sessionsError }, { data: players }] = await Promise.all(
+    [
+      traceServerOperation(
+        {
+          name: "history.sessions",
+          op: "db.query",
+          attributes: { route: "history", stage: "sessions", "db.table": "sessions" },
+        },
+        async () => sessionsQuery,
+      ),
+      traceServerOperation(
+        {
+          name: "history.players",
+          op: "db.query",
+          attributes: { route: "history", stage: "players", "db.table": "players" },
+        },
+        async () =>
+          db
+            .from("players")
+            .select("id, display_name, color, avatar_url, is_active")
+            .eq("group_id", group.id)
+            .order("display_name", { ascending: true }),
+      ),
+    ],
+  );
 
   if (sessionsError || !sessions || sessions.length === 0) {
-    return { sessionGroups: [], players: [], hasMore: false };
+    return emptyHistoryResult();
   }
 
   // If we got PAGE_SIZE+1 results there are more pages; only display PAGE_SIZE
@@ -106,37 +187,45 @@ async function _getMatchHistory(
     ? ["completed", "cancelled"]
     : ["completed"];
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: matches, error: matchesError } = await (supabase as any)
-    .from("matches")
-    .select("id, session_id, status, source, match_type, team_a_player_ids, team_b_player_ids, team_a_score, team_b_score, winning_team, losing_team, target_score, win_by, started_at, completed_at, played_at, duration_seconds")
-    .in("session_id", sessionIds)
-    .in("status", statusFilter)
-    .order("played_at", { ascending: false });
+  const { data: matches, error: matchesError } = await traceServerOperation(
+    {
+      name: "history.matches",
+      op: "db.query",
+      attributes: { route: "history", stage: "matches", "db.table": "matches" },
+    },
+    async () =>
+      db
+        .from("matches")
+        .select(
+          "id, session_id, status, source, match_type, team_a_player_ids, team_b_player_ids, team_a_score, team_b_score, winning_team, losing_team, target_score, win_by, started_at, completed_at, played_at, duration_seconds, created_at",
+        )
+        .in("session_id", sessionIds)
+        .in("status", statusFilter)
+        .order("played_at", { ascending: false }),
+  );
 
   if (matchesError) {
-    return { sessionGroups: [], players: [], hasMore: false, error: "Failed to load matches" };
+    return emptyHistoryResult("Failed to load matches");
   }
 
-  const playerNameMap: Record<string, string> = {};
-  const playerInfoMap: MatchWithPlayers["playerInfo"] = {};
+  const playerInfoMap: Record<string, PlayerInfoMap[string]> = {};
   if (players) {
     for (const p of players as Player[]) {
-      playerNameMap[p.id] = p.display_name;
-      playerInfoMap[p.id] = { name: p.display_name, color: p.color, avatarUrl: p.avatar_url };
+      playerInfoMap[p.id] = {
+        name: p.display_name,
+        color: p.color,
+        avatarUrl: p.avatar_url,
+      };
     }
   }
 
   const activePlayers = ((players ?? []) as Player[]).filter((p) => p.is_active);
 
   // Group matches by session
-  const matchesBySession = new Map<string, MatchWithPlayers[]>();
-  for (const match of (matches ?? []) as Match[]) {
+  const matchesBySession = new Map<string, MatchSummary[]>();
+  for (const match of (matches ?? []) as MatchSummary[]) {
     const sessionMatches = matchesBySession.get(match.session_id) ?? [];
-    matchesBySession.set(match.session_id, [
-      ...sessionMatches,
-      { ...match, playerNames: playerNameMap, playerInfo: playerInfoMap },
-    ]);
+    matchesBySession.set(match.session_id, [...sessionMatches, match]);
   }
 
   // Build session groups (only include sessions that have visible matches)
@@ -148,7 +237,13 @@ async function _getMatchHistory(
     }
   }
 
-  return { sessionGroups, players: activePlayers, hasMore };
+  return {
+    sessionGroups,
+    players: activePlayers,
+    playerInfo: playerInfoMap,
+    hasMore,
+    nextCursor: hasMore ? nextHistoryCursor(pageSessions) : null,
+  };
 }
 
 /**
@@ -158,13 +253,32 @@ async function _getMatchHistory(
  */
 export async function loadMoreHistory(
   groupSlug: string,
-  options: { includeCancelled?: boolean; offset: number },
-): Promise<{ sessionGroups: readonly SessionGroup[]; hasMore: boolean; error?: string }> {
+  options: { includeCancelled?: boolean; cursor: HistoryCursor },
+): Promise<{
+  sessionGroups: readonly SessionGroup[];
+  playerInfo: PlayerInfoMap;
+  hasMore: boolean;
+  nextCursor: HistoryCursor | null;
+  error?: string;
+}> {
   const result = await getMatchHistory(groupSlug, options);
   return {
     sessionGroups: result.sessionGroups,
+    playerInfo: result.playerInfo,
     hasMore: result.hasMore,
+    nextCursor: result.nextCursor,
     error: result.error,
+  };
+}
+
+function emptyHistoryResult(error?: string): HistoryResult {
+  return {
+    sessionGroups: [],
+    players: [],
+    playerInfo: {},
+    hasMore: false,
+    nextCursor: null,
+    error,
   };
 }
 
@@ -172,7 +286,9 @@ export async function loadMoreHistory(
  * Fetch recent live sessions for the session picker in PastMatchForm.
  * Returns up to 15 sessions with source='live', newest first.
  */
-export async function getRecentSessionOptions(groupSlug: string): Promise<readonly SessionOption[]> {
+export async function getRecentSessionOptions(
+  groupSlug: string,
+): Promise<readonly SessionOption[]> {
   const supabase = createServerClient();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
