@@ -10,6 +10,7 @@ import {
   playedDateToTimestamp,
 } from "@/lib/matches/validation";
 import type { Database, MatchType } from "@/lib/supabase";
+import { revalidateGroupCache } from "@/lib/cache";
 
 interface ActionResult {
   readonly success: boolean;
@@ -89,6 +90,7 @@ export async function correctMatchScores(
     return { success: false, error: "Failed to update match" };
   }
 
+  await revalidateGroupCache(groupId);
   return { success: true };
 }
 
@@ -121,6 +123,7 @@ export async function cancelMatch(matchId: string): Promise<ActionResult> {
     return { success: false, error: "Failed to cancel match" };
   }
 
+  await revalidateGroupCache(groupId);
   return { success: true };
 }
 
@@ -239,6 +242,7 @@ export async function updateManualMatch(
     return { success: false, error: "Failed to update match" };
   }
 
+  await revalidateGroupCache(groupId);
   return { success: true };
 }
 
@@ -270,5 +274,6 @@ export async function restoreMatch(matchId: string): Promise<ActionResult> {
     return { success: false, error: "Failed to restore match" };
   }
 
+  await revalidateGroupCache(groupId);
   return { success: true };
 }

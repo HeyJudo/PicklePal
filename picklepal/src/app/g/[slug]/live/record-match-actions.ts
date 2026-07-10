@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase";
 import { authorizeGroupWrite, resolveGroupIdFromSession } from "@/lib/auth";
 import { findOrCreateManualBucket } from "@/lib/sessions/manualBucket";
 import { recomputeBelts } from "@/lib/belts/recomputeBelts";
+import { revalidateGroupCache, revalidateGroupCacheBySlug } from "@/lib/cache";
 import {
   validateManualMatchScores,
   validateTeams,
@@ -110,6 +111,7 @@ export async function recordManualMatch(
   // Recompute belt holders after successful manual match record.
   // Failure is swallowed inside recomputeBelts — never reverts this match.
   void recomputeBelts(groupId);
+  await revalidateGroupCache(groupId);
 
   return { success: true, data: { matchId: match.id } };
 }
@@ -221,6 +223,7 @@ export async function recordPastMatch(
   // Recompute belt holders after successful past match record.
   // Failure is swallowed inside recomputeBelts — never reverts this match.
   void recomputeBelts(group.id);
+  revalidateGroupCacheBySlug(input.groupSlug);
 
   return { success: true, data: { matchId: match.id } };
 }

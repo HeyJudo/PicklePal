@@ -2,6 +2,7 @@
 
 import { createServerClient } from "@/lib/supabase";
 import { authorizeGroupWrite } from "@/lib/auth";
+import { revalidateGroupCache } from "@/lib/cache";
 
 interface ActionResult {
   readonly success: boolean;
@@ -27,7 +28,8 @@ export async function deleteSession(sessionId: string): Promise<ActionResult> {
     return { success: false, error: "Session not found" };
   }
 
-  const auth = await authorizeGroupWrite(sessionData.group_id);
+  const groupId = sessionData.group_id;
+  const auth = await authorizeGroupWrite(groupId);
   if (!auth.authorized) {
     return { success: false, error: auth.error ?? "Unauthorized" };
   }
@@ -66,5 +68,6 @@ export async function deleteSession(sessionId: string): Promise<ActionResult> {
     return { success: false, error: "Failed to delete session: " + sessionError.message };
   }
 
+  await revalidateGroupCache(groupId);
   return { success: true };
 }
