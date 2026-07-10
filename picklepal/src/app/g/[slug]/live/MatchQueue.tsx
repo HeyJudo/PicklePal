@@ -131,6 +131,50 @@ export function MatchQueue({
     setLocalMatchup(newLocal);
   };
 
+  const handleAutoFill = () => {
+    if (!localMatchup) return;
+
+    // We want the players with FEWEST games played, then highest lastSatRound (sat most recently)
+    const sortedAvailable = [...localMatchup.sittingOut].sort((a, b) => {
+      const sessionA = matchmakingState.playerSessions.get(a);
+      const sessionB = matchmakingState.playerSessions.get(b);
+      const gpA = sessionA?.gamesPlayed ?? 0;
+      const gpB = sessionB?.gamesPlayed ?? 0;
+      
+      if (gpA !== gpB) return gpA - gpB; // lowest GP first
+      
+      const satA = sessionA?.lastSatRound ?? -1;
+      const satB = sessionB?.lastSatRound ?? -1;
+      if (satA !== satB) return satB - satA; // highest sat round first (sat most recently)
+
+      return a.localeCompare(b);
+    });
+
+    const newLocal = {
+      teamA: [...localMatchup.teamA],
+      teamB: [...localMatchup.teamB],
+      sittingOut: [...localMatchup.sittingOut],
+    };
+
+    let availableIndex = 0;
+
+    const fillTeam = (team: (string | null)[]) => {
+      for (let i = 0; i < team.length; i++) {
+        if (!team[i] && availableIndex < sortedAvailable.length) {
+          const playerId = sortedAvailable[availableIndex];
+          team[i] = playerId;
+          newLocal.sittingOut = newLocal.sittingOut.filter(id => id !== playerId);
+          availableIndex++;
+        }
+      }
+    };
+
+    fillTeam(newLocal.teamA);
+    fillTeam(newLocal.teamB);
+
+    setLocalMatchup(newLocal);
+  };
+
   if (!hasEnoughPlayers) {
     return (
       <div className="rounded-xl border border-border bg-surface-muted px-4 py-6 text-center">
@@ -150,6 +194,8 @@ export function MatchQueue({
     );
   }
 
+  const hasEmptySlots = !localMatchup.teamA.every(Boolean) || !localMatchup.teamB.every(Boolean);
+
   return (
     <div className="space-y-4">
       {/* Current matchup card */}
@@ -159,7 +205,18 @@ export function MatchQueue({
           <span className="text-[10px] font-label font-semibold uppercase tracking-widest text-court-green">
             Now Playing
           </span>
-          {isHost && canShuffle && (
+          {isHost && hasEmptySlots ? (
+            <button
+              onClick={handleAutoFill}
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold text-ball-yellow bg-ball-yellow/10 hover:bg-ball-yellow/20 transition-colors cursor-pointer"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M19 11V9a2 2 0 0 0-2-2H9m4-4L9 7l4 4" />
+                <path d="M5 13v2a2 2 0 0 0 2 2h8m-4 4 4-4-4-4" />
+              </svg>
+              Auto-Fill
+            </button>
+          ) : isHost && canShuffle && (
             <button
               onClick={handleShuffle}
               className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold text-text-muted hover:text-court-green hover:bg-court-green/5 transition-colors cursor-pointer"
