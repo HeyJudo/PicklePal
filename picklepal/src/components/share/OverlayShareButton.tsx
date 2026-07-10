@@ -26,8 +26,8 @@ import html2canvas from "html2canvas";
 
 // ─── Dimension constants ──────────────────────────────────────────────────────
 
-const BASE_W = 540;
-const BASE_H = 960;
+const DEFAULT_W = 540;
+const DEFAULT_H = 960;
 const EXPORT_SCALE = 3; // → 1620 × 2880 crisp story quality
 
 // ─── Font loading helpers ─────────────────────────────────────────────────────
@@ -48,6 +48,13 @@ async function preloadFonts(): Promise<void> {
     document.fonts.load("700 20px Anton"),
     document.fonts.load("700 28px 'Archivo Narrow'"),
     document.fonts.load("700 26px 'Archivo Narrow'"),
+    // Player card hero stat + name — bigger Anton sizes
+    document.fonts.load("400 140px Anton"),
+    document.fonts.load("400 120px Anton"),
+    document.fonts.load("400 70px Anton"),
+    document.fonts.load("400 58px Anton"),
+    document.fonts.load("400 46px Anton"),
+    document.fonts.load("700 22px 'Archivo Narrow'"),
   ];
 
   await Promise.allSettled(fontLoads);
@@ -68,6 +75,10 @@ export interface OverlayShareButtonProps {
   readonly label?: string;
   /** Preview width in px for the on-screen thumbnail (default 160) */
   readonly previewWidth?: number;
+  /** Capture node width in px (default 540) */
+  readonly width?: number;
+  /** Capture node height in px (default 960) */
+  readonly height?: number;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -79,6 +90,8 @@ export function OverlayShareButton({
   shareText,
   label = "Share",
   previewWidth = 160,
+  width = DEFAULT_W,
+  height = DEFAULT_H,
 }: OverlayShareButtonProps) {
   // captureRef → off-screen full-size node (the one html2canvas reads)
   const captureRef = useRef<HTMLDivElement>(null);
@@ -87,8 +100,8 @@ export function OverlayShareButton({
   const [downloaded, setDownloaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const previewHeight = Math.round(previewWidth * (BASE_H / BASE_W));
-  const previewScale = previewWidth / BASE_W;
+  const previewHeight = Math.round(previewWidth * (height / width));
+  const previewScale = previewWidth / width;
 
   /** Preload fonts, then rasterise the off-screen full-size card, return a Blob. */
   const rasterise = useCallback(async (): Promise<Blob> => {
@@ -100,13 +113,13 @@ export function OverlayShareButton({
     // Capture the off-screen node — it is 540×960 with NO transform applied
     const canvas = await html2canvas(captureRef.current, {
       backgroundColor: null, // transparent PNG
-      scale: EXPORT_SCALE,   // → 1620×2880
+      scale: EXPORT_SCALE, // → 3x base size
       useCORS: true,
       logging: false,
       scrollX: 0,
       scrollY: 0,
-      windowWidth: BASE_W,
-      windowHeight: BASE_H,
+      windowWidth: width,
+      windowHeight: height,
     });
 
     return new Promise<Blob>((resolve, reject) => {
@@ -115,7 +128,7 @@ export function OverlayShareButton({
         else reject(new Error("Canvas toBlob returned null"));
       }, "image/png");
     });
-  }, []);
+  }, [width, height]);
 
   /** Try Web Share API (files), fall back to anchor download. */
   const handleShare = useCallback(async () => {
@@ -184,8 +197,8 @@ export function OverlayShareButton({
           position: "fixed",
           left: -10000,
           top: 0,
-          width: BASE_W,
-          height: BASE_H,
+          width,
+          height,
           // NO transform — this is what html2canvas captures at true size
           pointerEvents: "none",
           zIndex: -1,
@@ -205,8 +218,7 @@ export function OverlayShareButton({
         <div
           className="absolute inset-0"
           style={{
-            backgroundImage:
-              "repeating-conic-gradient(#1e293b 0% 25%, #0f172a 0% 50%)",
+            backgroundImage: "repeating-conic-gradient(#1e293b 0% 25%, #0f172a 0% 50%)",
             backgroundSize: "12px 12px",
           }}
         />
@@ -216,8 +228,8 @@ export function OverlayShareButton({
             position: "absolute",
             top: 0,
             left: 0,
-            width: BASE_W,
-            height: BASE_H,
+            width,
+            height,
             transformOrigin: "top left",
             transform: `scale(${previewScale})`,
             pointerEvents: "none",
@@ -267,9 +279,7 @@ export function OverlayShareButton({
       )}
 
       {/* Error */}
-      {error && (
-        <p className="text-xs text-red-400">{error}</p>
-      )}
+      {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
   );
 }
@@ -291,16 +301,38 @@ function triggerDownload(blob: Blob, filename: string): void {
 
 function ShareIcon({ className }: { readonly className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={2}
+      stroke="currentColor"
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z"
+      />
     </svg>
   );
 }
 
 function DownloadIcon({ className }: { readonly className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={2}
+      stroke="currentColor"
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"
+      />
     </svg>
   );
 }
@@ -308,8 +340,19 @@ function DownloadIcon({ className }: { readonly className?: string }) {
 function SpinnerIcon({ className }: { readonly className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" aria-hidden="true">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+      />
     </svg>
   );
 }
