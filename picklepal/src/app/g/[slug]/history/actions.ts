@@ -1,5 +1,6 @@
 "use server";
 
+import { unstable_cache } from "next/cache";
 import { createServerClient } from "@/lib/supabase";
 import type { Match, Session, Player } from "@/lib/supabase";
 import { HISTORY_PAGE_SIZE } from "./constants";
@@ -34,8 +35,27 @@ export interface SessionOption {
  *
  * Pagination: pass `offset` to skip the first N sessions. Returns `hasMore`
  * indicating whether additional sessions exist beyond this page.
+ *
+ * The first page (offset=0) is cached per group slug and invalidated on any
+ * match write. Paginated pages (offset>0) are not cached.
  */
-export async function getMatchHistory(
+export function getMatchHistory(
+  groupSlug: string,
+  options: { includeCancelled?: boolean; offset?: number } = {},
+): Promise<HistoryResult> {
+  const offset = options.offset ?? 0;
+  // Only cache the first page — subsequent pages are user-triggered
+  if (offset === 0) {
+    return unstable_cache(
+      () => _getMatchHistory(groupSlug, options),
+      ["history", groupSlug, String(options.includeCancelled ?? false)],
+      { tags: [`group-${groupSlug}`], revalidate: 300 },
+    )();
+  }
+  return _getMatchHistory(groupSlug, options);
+}
+
+async function _getMatchHistory(
   groupSlug: string,
   options: { includeCancelled?: boolean; offset?: number } = {},
 ): Promise<HistoryResult> {

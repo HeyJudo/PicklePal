@@ -1,5 +1,6 @@
 "use server";
 
+import { unstable_cache } from "next/cache";
 import { createServerClient } from "@/lib/supabase";
 import type { Match, Player, Session } from "@/lib/supabase";
 import { computeLeaderboard } from "@/lib/stats";
@@ -54,8 +55,17 @@ interface DashboardResult {
 /**
  * Fetch all dashboard data for a group in a single server action.
  * Returns leaderboard preview, active session, highlights, and recent matches.
+ * Results are cached per group slug and invalidated on any match write.
  */
-export async function getDashboardData(groupSlug: string): Promise<DashboardResult> {
+export function getDashboardData(groupSlug: string): Promise<DashboardResult> {
+  return unstable_cache(
+    () => _getDashboardData(groupSlug),
+    ["dashboard", groupSlug],
+    { tags: [`group-${groupSlug}`], revalidate: 300 },
+  )();
+}
+
+async function _getDashboardData(groupSlug: string): Promise<DashboardResult> {
   const supabase = createServerClient();
 
   // 1. Get group

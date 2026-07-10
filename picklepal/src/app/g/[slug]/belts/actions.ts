@@ -1,5 +1,6 @@
 "use server";
 
+import { unstable_cache } from "next/cache";
 import { createServerClient } from "@/lib/supabase";
 import { getBeltReigns } from "@/lib/belts/recomputeBelts";
 import type { BeltReign, BeltType } from "@/lib/belts/recomputeBelts";
@@ -52,8 +53,17 @@ function emptyHistory(): BeltHistory {
  * Hall of Fame data: every belt reign (current + historical) for a group,
  * grouped by belt type and enriched with player names + durations.
  * Resilient: returns an empty (3-section) structure on any error, never throws.
+ * Results are cached per group slug and invalidated on any match write.
  */
-export async function getBeltHistory(slug: string): Promise<BeltHistory> {
+export function getBeltHistory(slug: string): Promise<BeltHistory> {
+  return unstable_cache(
+    () => _getBeltHistory(slug),
+    ["belt-history", slug],
+    { tags: [`group-${slug}`], revalidate: 300 },
+  )();
+}
+
+async function _getBeltHistory(slug: string): Promise<BeltHistory> {
   try {
     const supabase = createServerClient();
 
