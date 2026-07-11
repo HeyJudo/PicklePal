@@ -6,6 +6,12 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "4mb",
     },
   },
+  serverExternalPackages: [
+    "@opentelemetry/api",
+    "@opentelemetry/core",
+    "@opentelemetry/instrumentation",
+    "@opentelemetry/sdk-trace-base",
+  ],
 };
 
 // Wrap with Sentry only when a DSN is configured.  When no DSN is set the

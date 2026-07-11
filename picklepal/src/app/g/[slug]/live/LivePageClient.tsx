@@ -26,6 +26,7 @@ import {
   generateNextMatchup,
   generateQueue,
   shuffleMatchup,
+  buildPriorStats,
 } from "@/lib/matchmaking";
 import type { Matchup, MatchmakingState } from "@/lib/matchmaking";
 import type { SessionMatchData } from "./actions";
@@ -185,13 +186,17 @@ export function LivePageClient({
   useEffect(() => {
     if (!activeSession || activePlayersForMatchmaking.length === 0) return;
     const playerIds = activePlayersForMatchmaking.map((p) => p.id);
+    
+    const priorStats = buildPriorStats(sessionMatches, playerIds);
+    
     const newState = createMatchmakingState(playerIds, matchType, {
       sessionId: activeSession.id,
+      priorStats,
     });
-    const queue = generateQueue(newState, 3);
+    const queue = generateQueue(newState, 2);
     setMatchmakingEngineState(newState);
     setMatchQueue(queue);
-    // Advance through the 3 queued matchups to get the projected state for future appends
+    // Advance through the 2 queued matchups to get the projected state for future appends
     let projected = newState;
     for (let i = 0; i < queue.length; i++) {
       try {
@@ -202,7 +207,7 @@ export function LivePageClient({
     setProjectedEngineState(projected);
   // ponytail: stringify so effect only fires on actual player set changes, not reference churn
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSession?.id, activePlayersForMatchmaking.map((p) => p.id).join(","), matchType]);
+  }, [activeSession?.id, activePlayersForMatchmaking.map((p) => p.id).join(","), matchType, sessionMatches]);
 
   // Belt-on-the-line: King holder is in the current match roster
   const beltOnTheLine = useMemo(() => {

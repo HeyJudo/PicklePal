@@ -396,3 +396,124 @@ broad group cache invalidation.
 - [ ] Offline recovery and scorer-lock regression checks remain part of the release gate
 - [ ] Production alerts use the one-second p75/two-second p95 core tier and two-second p75/three-second p95 secondary tier
 - [ ] Release documentation explains how to investigate and waive a failed budget with evidence and explicit approval
+
+---
+
+# Tickets: Live Session Matchup Improvements
+
+Implements smarter matchup generation, accurate games-played tracking, and manual matchup editing for the DinkDay live session screen. Source spec: `spec-live-matchup-improvements.md` (Antigravity brain folder, conversation `3759233c`).
+
+Work the **frontier**: T1, T2, and T4 can all start immediately in parallel.
+
+---
+
+## T1 — Engine: `priorStats` seeding option + `buildPriorStats` helper
+
+**What to build:** `createMatchmakingState` gains an optional `priorStats` parameter that accepts a map of `playerId → { gamesPlayed, teammates, opponents }`, allowing the engine to be initialised with real session history rather than always starting at zero. A pure helper function `buildPriorStats(sessionMatches, playerIds)` derives these values from completed match records. The engine's fairness logic (sit-out selection, team scoring) immediately benefits from accurate counts. Tests are added for the seeded path and the helper.
+
+**Blocked by:** None — can start immediately.
+
+- [ ] `createMatchmakingState` accepts an optional `priorStats` map and uses it to seed each player's `gamesPlayed`, `teammates`, and `opponents` on initialisation
+- [ ] A player not present in `priorStats` is initialised at zero (backward-compatible default)
+- [ ] `buildPriorStats` correctly counts a player's game appearances from a `sessionMatches` array
+- [ ] `buildPriorStats` correctly counts teammate pairs and opponent pairs from match team data
+- [ ] Both `manual_bucket` and live-scored matches are counted equally
+- [ ] Unit tests cover: seeded-state initialisation, zero-default fallback, `buildPriorStats` with a known fixture
+- [ ] `pnpm test` passes
+
+---
+
+## T2 — Engine: sit-out spread threshold (matchup variety)
+
+**What to build:** The sit-out selection logic gains a named `SIT_OUT_SPREAD_THRESHOLD` constant (initial value: `1`). When the spread between the most and fewest games played among active players is at or below this threshold, every active player is eligible to sit out — not just those above the minimum. This breaks the locked alternating-group pattern that emerges with even-numbered player pools (e.g. 8 players in doubles). The existing tie-breaking sort (most games → longest since last sat → deterministic hash) still governs who actually sits. A player sitting out two consecutive rounds is acceptable. Affected tests are updated; an 8-player variety test is added.
+
+**Blocked by:** None — can start immediately.
+
+- [ ] `SIT_OUT_SPREAD_THRESHOLD` is a named constant in the engine
+- [ ] When `maxGP - minGP <= SIT_OUT_SPREAD_THRESHOLD`, the eligible sit-out pool is the full active pool
+- [ ] When `maxGP - minGP > SIT_OUT_SPREAD_THRESHOLD`, the existing behaviour (only players above minimum are eligible) is preserved
+- [ ] Existing test `"most-played players sit first, minimum-played are protected"` is updated to reflect that players are *preferred* to play after sitting but not guaranteed to when spread ≤ threshold
+- [ ] New test: with 8 players in doubles and all `gamesPlayed` within 1, running 10+ rounds produces at least 3 distinct groups-of-4 across the playing slots (not just two locked groups alternating)
+- [ ] `pnpm test` passes
+
+---
+
+## T3 — LivePageClient: wire seeding + reduce queue to 2
+
+**What to build:** The matchmaking initialisation effect in the live page client is updated to call `buildPriorStats` against the current `sessionMatches` before constructing engine state. This means every call to `createMatchmakingState` — including those triggered by bench/activate roster changes — is seeded with accurate historical counts. Internal queue generation is reduced from 3 slots to 2. The bench→active re-evaluation is automatic: the existing effect dependency on the active player list fires when a player's status changes, and the regenerated queue now uses seeded data so a newly activated player with fewer games played is naturally favoured.
+
+**Blocked by:** T1
+
+- [ ] `buildPriorStats` is called with `sessionMatches` and the current active player IDs before each `createMatchmakingState` call
+- [ ] After a match completes and `sessionMatches` is refreshed, the next engine initialisation reflects the updated counts
+- [ ] After a player is moved from bench to active, the queue regenerates with that player's actual games-played count (not zero)
+- [ ] Queue generation produces 2 internal slots (down from 3)
+- [ ] Games-played chips shown on the "Now Playing" card show counts consistent with completed session matches
+- [ ] Manual smoke test: start a session, play 2 matches, bench and re-activate a player — their chip shows the correct game count
+
+---
+
+## T4 — MatchQueue: single preview card (remove on-deck)
+
+**What to build:** The match queue UI is simplified to render only the first item in the queue — the "Now Playing" card. The "Up Next" and "On Deck" on-deck cards are removed entirely. Two slots are still generated internally so queue advancement remains smooth; they are simply not displayed.
+
+**Blocked by:** None — can start immediately.
+
+- [ ] Only one matchup card is visible on the live session screen at any time
+- [ ] The "Up Next" and "On Deck" sections no longer render
+- [ ] After a match completes and the queue advances, the next matchup card appears immediately without a flash or empty state
+- [ ] Layout is clean and uncluttered at 375 px viewport width
+- [ ] Round info line ("Round X · N players") remains visible
+
+---
+
+## T5 — GamesPlayedPanel: collapsible games-played table
+
+**What to build:** A new collapsible panel placed below the match queue card on the live session screen. When expanded it shows all active session players ranked fewest-to-most games played: rank number, player avatar, display name, and game count. The panel is collapsed by default and reads counts from the seeded engine state.
+
+**Blocked by:** T3
+
+- [ ] A "Games Played" collapsible section appears below the "Now Playing" card
+- [ ] Panel is collapsed by default
+- [ ] When expanded: players are listed fewest→most games played with rank, avatar, name, and count
+- [ ] Players with 0 games show a "NEW" chip consistent with existing chip styles
+- [ ] Layout is single-column and readable at 375 px with no horizontal scroll
+- [ ] Counts stay in sync as matches complete within the session
+- [ ] Benched players are excluded from the table (active players only)
+
+---
+
+## T6 — MatchQueue: manual slot editing + PlayerPickerSheet
+
+**What to build:** The "Now Playing" card gains interactive slot editing before the match is confirmed. Each filled player slot displays a swap affordance. Empty slots render as a dashed "Tap to add" zone. Tapping either opens a `PlayerPickerSheet` — a bottom sheet listing eligible active players not already in the matchup, each row showing avatar, display name, and games-played chip. Tapping a name fills or replaces the targeted slot and closes the sheet. The sheet closes on backdrop tap.
+
+**Blocked by:** T4
+
+- [ ] Each filled player slot in the "Now Playing" card has a visible swap/edit affordance
+- [ ] Tapping a filled slot's swap affordance opens the `PlayerPickerSheet` targeting that slot
+- [ ] Empty slots render as a dashed "Tap to add" zone
+- [ ] Tapping an empty slot opens the `PlayerPickerSheet` targeting that slot
+- [ ] `PlayerPickerSheet` slides up from the bottom of the screen
+- [ ] `PlayerPickerSheet` lists active players not currently in the matchup, with avatar, name, and games-played chip
+- [ ] Players already in the matchup are greyed out and cannot be selected
+- [ ] Tapping a player fills/replaces the targeted slot and closes the sheet
+- [ ] Tapping the backdrop closes the sheet without making a change
+- [ ] Sheet is scrollable when the player list is long
+- [ ] Layout is usable at 375 px viewport width
+- [ ] "Start Match" button is disabled while any slot is empty
+
+---
+
+## T7 — MatchQueue: Auto-Fill button
+
+**What to build:** An Auto-Fill button appears on the "Now Playing" card whenever one or more player slots are empty. Tapping it fills each empty slot with the active player who has the fewest games played in the session and is not already assigned to the matchup. Already-filled slots are never touched. The button disappears once all slots are filled.
+
+**Blocked by:** T3, T6
+
+- [ ] Auto-Fill button is visible when at least one slot in the current matchup is empty
+- [ ] Auto-Fill button is hidden when all slots are filled
+- [ ] Tapping Auto-Fill fills all empty slots without touching already-filled slots
+- [ ] Candidates are drawn from active session players not already in the matchup
+- [ ] Candidates are selected in order of fewest games played (ascending); ties broken deterministically
+- [ ] After Auto-Fill, the "Start Match" button becomes enabled
+- [ ] Resulting games-played chips on newly filled player slots are accurate
