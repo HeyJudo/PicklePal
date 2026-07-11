@@ -90,7 +90,7 @@ export function PlayerPickerSheet({
           </button>
         </div>
 
-        <div className="p-4 overflow-y-auto space-y-4">
+        <div className="p-4 overflow-y-auto space-y-4 pb-[max(1rem,env(safe-area-inset-bottom,0px)+5rem)]">
           {slotPlayer && (
             <div className="space-y-2">
               <p className="text-xs font-semibold text-text-muted uppercase tracking-wider">Current</p>
