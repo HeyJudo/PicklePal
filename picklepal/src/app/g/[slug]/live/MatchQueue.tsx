@@ -323,6 +323,29 @@ export function MatchQueue({
         Round {matchmakingState.round + 1} · {matchmakingState.players.length} players
       </p>
 
+      {/* Up Next preview — compact, read-only peek at the 2nd queued matchup */}
+      {queue.length >= 2 && (() => {
+        const next = queue[1];
+        const nextA = next.teamA.map(id => getPlayerName(id));
+        const nextB = next.teamB.map(id => getPlayerName(id));
+        return (
+          <div className="rounded-xl border border-border bg-surface-muted/60 px-3 py-2.5">
+            <p className="text-[10px] font-label font-semibold uppercase tracking-widest text-text-muted mb-2">Up Next</p>
+            <div className="flex items-center gap-2 text-xs text-text-secondary">
+              <span className="font-medium text-text-primary">{nextA.join(" & ")}</span>
+              <span className="text-text-muted">vs</span>
+              <span className="font-medium text-text-primary">{nextB.join(" & ")}</span>
+              {next.sittingOut.length > 0 && (
+                <span className="ml-auto text-text-muted italic truncate">
+                  {next.sittingOut.map(id => getPlayerName(id)).join(", ")} sits
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+
       {/* Player Picker Sheet */}
       <PlayerPickerSheet
         isOpen={pickerState?.isOpen ?? false}
