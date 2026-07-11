@@ -84,6 +84,7 @@ export function MatchQueue({
         teamA: localMatchup.teamA as string[],
         teamB: localMatchup.teamB as string[],
         sittingOut: localMatchup.sittingOut,
+        reasoning: currentMatchupFromQueue?.reasoning ?? [],
       });
     }
   };
