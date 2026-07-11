@@ -15,8 +15,18 @@ import type {
   MatchType,
   MatchupReason,
   PlayerSession,
+  PriorPlayerStats,
 } from "./types";
 import { MatchmakingError } from "./types";
+
+// ─── Sit-Out Spread Threshold ────────────────────────────────────────────────
+
+/**
+ * When the spread between the most and fewest games played among active players
+ * is at or below this threshold, every active player is eligible to sit out.
+ * This prevents locked alternating-group patterns in even-numbered pools (e.g. 8 players).
+ */
+const SIT_OUT_SPREAD_THRESHOLD = 1;
 
 // ─── Deterministic hash (replaces Math.random) ───────────────────────────────
 
@@ -27,7 +37,15 @@ function deterministicHash(
 ): number {
   let h = 0;
   const s = `${sessionId}:${round}:${playerId}`;
-  for (let i = 0; i < s.length; i++) h = Math.imul(31, h) + s.charCodeAt(i) | 0;
+  for (let i = 0; i < s.length; i++) {
+    h = Math.imul(31, h) + s.charCodeAt(i) | 0;
+  }
+  // bit scramble (MurmurHash3 finalizer style)
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
   return h >>> 0;
 }
 
@@ -43,22 +61,24 @@ export function createMatchmakingState(
     sessionId?: string;
     balancedMode?: boolean;
     winRates?: Record<string, number>;
+    priorStats?: Map<string, PriorPlayerStats>;
   },
 ): MatchmakingState {
   const playerSessions = new Map<string, PlayerSession>();
 
   for (const id of playerIds) {
+    const prior = opts?.priorStats?.get(id);
     playerSessions.set(id, {
       playerId: id,
-      gamesPlayed: 0,
+      gamesPlayed: prior?.gamesPlayed ?? 0,
       gamesSatOut: 0,
       lastSatRound: 0,
       sitOutCountdown: 0,
       lockState: false,
       joinedRound: 0,
       winRate: opts?.winRates?.[id] ?? 0.5,
-      teammates: new Map(),
-      opponents: new Map(),
+      teammates: prior ? new Map(prior.teammates) : new Map(),
+      opponents: prior ? new Map(prior.opponents) : new Map(),
     });
   }
 
@@ -284,10 +304,13 @@ function selectSitOuts(
 
   const minGP = Math.min(...activePool.map((p) => sessions(p).gamesPlayed));
   const maxGP = Math.max(...activePool.map((p) => sessions(p).gamesPlayed));
+  const spread = maxGP - minGP;
 
-  // Protect minimum-played: only those above min are eligible to sit
+  // When spread is tight (≤ threshold), open the pool to everyone to break
+  // locked alternating-group patterns (e.g. 8 players in doubles).
+  // When spread is large, protect minimum-played players from sitting.
   const eligible =
-    maxGP > minGP
+    spread > SIT_OUT_SPREAD_THRESHOLD
       ? activePool.filter((p) => sessions(p).gamesPlayed > minGP)
       : [...activePool];
 
@@ -302,15 +325,16 @@ function selectSitOuts(
     // 2. joinedRound ASC (joined earlier = protect them = sort them later)
     if (sA.joinedRound !== sB.joinedRound) return sA.joinedRound - sB.joinedRound;
 
-    // 3. (nextRound - lastSatRound) DESC (longest since last sat = sits next)
-    const gapA = nextRound - sA.lastSatRound;
-    const gapB = nextRound - sB.lastSatRound;
-    if (gapB !== gapA) return gapB - gapA;
+    // 3 & 4. lastSatRound tiebreakers — ONLY apply when spread > threshold
+    //   (When spread ≤ threshold / open pool, jump to hash to prevent locked alternation)
+    if (spread > SIT_OUT_SPREAD_THRESHOLD) {
+      const gapA = nextRound - sA.lastSatRound;
+      const gapB = nextRound - sB.lastSatRound;
+      if (gapB !== gapA) return gapB - gapA;
+      if (sA.lastSatRound !== sB.lastSatRound) return sA.lastSatRound - sB.lastSatRound;
+    }
 
-    // 4. lastSatRound ASC (tiebreak)
-    if (sA.lastSatRound !== sB.lastSatRound) return sA.lastSatRound - sB.lastSatRound;
-
-    // 5. deterministic hash (final tiebreak)
+    // 5. deterministic hash (final tiebreak — always produces variety when spread ≤ threshold)
     return (
       deterministicHash(state.sessionId, nextRound, a) -
       deterministicHash(state.sessionId, nextRound, b)
@@ -553,4 +577,83 @@ function applyMatchupToState(
     round: nextRound,
     playerSessions: newPlayerSessions,
   };
+}
+
+// ─── Prior Stats Helper ──────────────────────────────────────────────────────
+
+/**
+ * Minimal shape of a completed match record accepted by buildPriorStats.
+ * Intentionally narrow so the function stays decoupled from Supabase types.
+ */
+export interface SessionMatchRecord {
+  readonly team_a_player_ids: string[];
+  readonly team_b_player_ids: string[];
+  readonly status: string;
+}
+
+/**
+ * Build a priorStats map from completed session match records.
+ *
+ * Pure function — no React, no Supabase.
+ * Only matches with status === "completed" are counted.
+ *
+ * @param sessionMatches - Array of match records (e.g. from getSessionMatches)
+ * @param playerIds      - The active roster to produce entries for
+ * @returns Map<playerId, PriorPlayerStats>
+ */
+export function buildPriorStats(
+  sessionMatches: readonly SessionMatchRecord[],
+  playerIds: readonly string[],
+): Map<string, PriorPlayerStats> {
+  // Initialise accumulators for every known player
+  const gamesPlayed = new Map<string, number>();
+  const teammates = new Map<string, Map<string, number>>();
+  const opponents = new Map<string, Map<string, number>>();
+
+  for (const id of playerIds) {
+    gamesPlayed.set(id, 0);
+    teammates.set(id, new Map());
+    opponents.set(id, new Map());
+  }
+
+  for (const match of sessionMatches) {
+    if (match.status !== "completed") continue;
+
+    const teamA = match.team_a_player_ids;
+    const teamB = match.team_b_player_ids;
+    const allInMatch = [...teamA, ...teamB];
+
+    for (const playerId of allInMatch) {
+      // Only track players that are in the provided roster
+      if (!gamesPlayed.has(playerId)) continue;
+
+      // Increment games played
+      gamesPlayed.set(playerId, (gamesPlayed.get(playerId) ?? 0) + 1);
+
+      const myTeam = teamA.includes(playerId) ? teamA : teamB;
+      const otherTeam = teamA.includes(playerId) ? teamB : teamA;
+
+      const tmMap = teammates.get(playerId)!;
+      for (const mate of myTeam) {
+        if (mate !== playerId) {
+          tmMap.set(mate, (tmMap.get(mate) ?? 0) + 1);
+        }
+      }
+
+      const oppMap = opponents.get(playerId)!;
+      for (const opp of otherTeam) {
+        oppMap.set(opp, (oppMap.get(opp) ?? 0) + 1);
+      }
+    }
+  }
+
+  const result = new Map<string, PriorPlayerStats>();
+  for (const id of playerIds) {
+    result.set(id, {
+      gamesPlayed: gamesPlayed.get(id) ?? 0,
+      teammates: teammates.get(id) ?? new Map(),
+      opponents: opponents.get(id) ?? new Map(),
+    });
+  }
+  return result;
 }

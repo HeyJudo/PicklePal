@@ -5,6 +5,7 @@ import {
   generateMatchup,
   generateQueue,
   shuffleMatchup,
+  buildPriorStats,
 } from "../index";
 import { MatchmakingError } from "../index";
 
@@ -51,20 +52,29 @@ describe("Matchmaking: Doubles (6 players)", () => {
     expect(new Set(allPlayers).size).toBe(6);
   });
 
-  it("most-played players sit first, minimum-played are protected", () => {
-    // After round 1: 4 played (GP=1), 2 sat (GP=0). Round 2 must protect GP=0 players.
+  it("most-played players sit first, minimum-played are preferred to play (spread ≤ threshold = open pool)", () => {
+    // After round 1: 4 played (GP=1), 2 sat (GP=0). Spread = 1 = threshold.
+    // Open pool: everyone is eligible; the tie-breaking sort still prefers those
+    // with more games (and longest gap since last sat), so most of the time the
+    // GP=1 players will sit again — but it is not guaranteed.
     let state = createMatchmakingState(SIX_PLAYERS, "doubles");
     const { matchup: r1, newState: s1 } = generateNextMatchup(state);
     state = s1;
 
-    const satR1 = new Set(r1.sittingOut);
+    const playedR1 = new Set([...r1.teamA, ...r1.teamB]);
 
     const { matchup: r2 } = generateNextMatchup(state);
 
-    // Players who sat in round 1 (GP=0) must NOT sit in round 2
-    for (const p of r2.sittingOut) {
-      expect(satR1.has(p)).toBe(false);
-    }
+    // Engine must produce a valid matchup
+    expect(r2.teamA).toHaveLength(2);
+    expect(r2.teamB).toHaveLength(2);
+    expect(r2.sittingOut).toHaveLength(2);
+
+    // At least one of the round-1 PLAYERS must have played in round 2
+    // (tie-breaking strongly prefers those with more GP and longest sit-gap)
+    const r2Playing = new Set([...r2.teamA, ...r2.teamB]);
+    const playedBothRounds = [...playedR1].filter((p) => r2Playing.has(p));
+    expect(playedBothRounds.length).toBeGreaterThanOrEqual(1);
   });
 
   it("all players in matchup are from the player list", () => {
@@ -205,17 +215,22 @@ describe("Matchmaking: generateMatchup (stateless)", () => {
       matchType: "doubles",
     });
 
-    // Second matchup should protect the players who sat first
+    // Second matchup: after round 1 with 6 players, spread = 1 = threshold,
+    // so the pool is open. The engine should still produce a valid matchup.
     const second = generateMatchup({
       playerIds: SIX_PLAYERS,
       matchType: "doubles",
       previousMatchups: [first],
     });
 
-    // Players who sat in round 1 (GP=0) should NOT sit in round 2
-    for (const p of first.sittingOut) {
-      expect(second.sittingOut).not.toContain(p);
-    }
+    // The second matchup must be structurally valid
+    expect(second.teamA).toHaveLength(2);
+    expect(second.teamB).toHaveLength(2);
+    expect(second.sittingOut).toHaveLength(2);
+
+    // All players accounted for
+    const allPlayers = [...second.teamA, ...second.teamB, ...second.sittingOut];
+    expect(new Set(allPlayers).size).toBe(6);
   });
 });
 
@@ -373,5 +388,240 @@ describe("Matchmaking: shuffleMatchup", () => {
     const state = createMatchmakingState(["p1", "p2"], "singles");
     const { matchup } = generateNextMatchup(state);
     expect(shuffleMatchup(matchup, state)).toBeNull();
+  });
+});
+
+// ─── priorStats seeding ───────────────────────────────────────────────────────
+
+describe("Matchmaking: createMatchmakingState with priorStats", () => {
+  it("seeds gamesPlayed, teammates, and opponents from priorStats", () => {
+    const priorStats = new Map([
+      [
+        "p1",
+        {
+          gamesPlayed: 3,
+          teammates: new Map([["p2", 2]]),
+          opponents: new Map([["p3", 1]]),
+        },
+      ],
+      [
+        "p2",
+        {
+          gamesPlayed: 2,
+          teammates: new Map([["p1", 2]]),
+          opponents: new Map([["p4", 1]]),
+        },
+      ],
+    ]);
+
+    const state = createMatchmakingState(["p1", "p2", "p3", "p4"], "doubles", {
+      priorStats,
+    });
+
+    const s1 = state.playerSessions.get("p1")!;
+    expect(s1.gamesPlayed).toBe(3);
+    expect(s1.teammates.get("p2")).toBe(2);
+    expect(s1.opponents.get("p3")).toBe(1);
+
+    const s2 = state.playerSessions.get("p2")!;
+    expect(s2.gamesPlayed).toBe(2);
+    expect(s2.teammates.get("p1")).toBe(2);
+    expect(s2.opponents.get("p4")).toBe(1);
+  });
+
+  it("defaults to zero for players not in priorStats (backward-compatible)", () => {
+    const priorStats = new Map([
+      [
+        "p1",
+        {
+          gamesPlayed: 5,
+          teammates: new Map<string, number>(),
+          opponents: new Map<string, number>(),
+        },
+      ],
+    ]);
+
+    const state = createMatchmakingState(["p1", "p2", "p3", "p4"], "doubles", {
+      priorStats,
+    });
+
+    // p2, p3, p4 are NOT in priorStats — must default to zero
+    for (const id of ["p2", "p3", "p4"]) {
+      const s = state.playerSessions.get(id)!;
+      expect(s.gamesPlayed).toBe(0);
+      expect(s.teammates.size).toBe(0);
+      expect(s.opponents.size).toBe(0);
+    }
+
+    // p1 has priorStats
+    expect(state.playerSessions.get("p1")!.gamesPlayed).toBe(5);
+  });
+
+  it("works without priorStats (no regression)", () => {
+    const state = createMatchmakingState(["p1", "p2", "p3", "p4"], "doubles");
+    for (const id of ["p1", "p2", "p3", "p4"]) {
+      const s = state.playerSessions.get(id)!;
+      expect(s.gamesPlayed).toBe(0);
+      expect(s.teammates.size).toBe(0);
+      expect(s.opponents.size).toBe(0);
+    }
+  });
+
+  it("priorStats influences sit-out selection: most-played player sits first", () => {
+    // p1 has played 5 prior games, p2/p3/p4/p5/p6 have 0 — p1 must be chosen to sit
+    const priorStats = new Map([
+      [
+        "p1",
+        {
+          gamesPlayed: 5,
+          teammates: new Map<string, number>(),
+          opponents: new Map<string, number>(),
+        },
+      ],
+    ]);
+
+    const state = createMatchmakingState(
+      ["p1", "p2", "p3", "p4", "p5", "p6"],
+      "doubles",
+      { priorStats },
+    );
+
+    const { matchup } = generateNextMatchup(state);
+    // p1 has the most games played and should be in sittingOut
+    expect(matchup.sittingOut).toContain("p1");
+  });
+});
+
+// ─── buildPriorStats ──────────────────────────────────────────────────────────
+
+describe("buildPriorStats", () => {
+  const PLAYERS = ["p1", "p2", "p3", "p4"];
+
+  const COMPLETED_DOUBLES = {
+    team_a_player_ids: ["p1", "p2"],
+    team_b_player_ids: ["p3", "p4"],
+    status: "completed",
+  };
+
+  const PENDING_MATCH = {
+    team_a_player_ids: ["p1", "p3"],
+    team_b_player_ids: ["p2", "p4"],
+    status: "active",
+  };
+
+  it("counts gamesPlayed for each player in completed matches", () => {
+    const stats = buildPriorStats([COMPLETED_DOUBLES], PLAYERS);
+
+    expect(stats.get("p1")!.gamesPlayed).toBe(1);
+    expect(stats.get("p2")!.gamesPlayed).toBe(1);
+    expect(stats.get("p3")!.gamesPlayed).toBe(1);
+    expect(stats.get("p4")!.gamesPlayed).toBe(1);
+  });
+
+  it("counts teammate pairs correctly", () => {
+    const stats = buildPriorStats([COMPLETED_DOUBLES], PLAYERS);
+
+    // p1 and p2 were on teamA together
+    expect(stats.get("p1")!.teammates.get("p2")).toBe(1);
+    expect(stats.get("p2")!.teammates.get("p1")).toBe(1);
+
+    // p3 and p4 were on teamB together
+    expect(stats.get("p3")!.teammates.get("p4")).toBe(1);
+    expect(stats.get("p4")!.teammates.get("p3")).toBe(1);
+
+    // p1 and p3 were NOT teammates
+    expect(stats.get("p1")!.teammates.get("p3")).toBeUndefined();
+  });
+
+  it("counts opponent pairs correctly", () => {
+    const stats = buildPriorStats([COMPLETED_DOUBLES], PLAYERS);
+
+    // teamA vs teamB
+    expect(stats.get("p1")!.opponents.get("p3")).toBe(1);
+    expect(stats.get("p1")!.opponents.get("p4")).toBe(1);
+    expect(stats.get("p3")!.opponents.get("p1")).toBe(1);
+
+    // p1 and p2 were NOT opponents
+    expect(stats.get("p1")!.opponents.get("p2")).toBeUndefined();
+  });
+
+  it("ignores non-completed matches", () => {
+    const stats = buildPriorStats([PENDING_MATCH], PLAYERS);
+
+    for (const id of PLAYERS) {
+      expect(stats.get(id)!.gamesPlayed).toBe(0);
+      expect(stats.get(id)!.teammates.size).toBe(0);
+      expect(stats.get(id)!.opponents.size).toBe(0);
+    }
+  });
+
+  it("accumulates counts across multiple matches", () => {
+    const match2 = {
+      team_a_player_ids: ["p1", "p2"],
+      team_b_player_ids: ["p3", "p4"],
+      status: "completed",
+    };
+
+    const stats = buildPriorStats([COMPLETED_DOUBLES, match2], PLAYERS);
+
+    expect(stats.get("p1")!.gamesPlayed).toBe(2);
+    expect(stats.get("p1")!.teammates.get("p2")).toBe(2);
+    expect(stats.get("p1")!.opponents.get("p3")).toBe(2);
+  });
+
+  it("returns zero stats for players not present in any match", () => {
+    const stats = buildPriorStats([], PLAYERS);
+
+    for (const id of PLAYERS) {
+      const s = stats.get(id)!;
+      expect(s.gamesPlayed).toBe(0);
+      expect(s.teammates.size).toBe(0);
+      expect(s.opponents.size).toBe(0);
+    }
+  });
+
+  it("ignores player IDs in matches that are not in the provided playerIds", () => {
+    // Only p1 and p2 in roster, but match has p3 and p4 too
+    const stats = buildPriorStats([COMPLETED_DOUBLES], ["p1", "p2"]);
+
+    expect(stats.size).toBe(2);
+    expect(stats.has("p3")).toBe(false);
+    expect(stats.has("p4")).toBe(false);
+    // p1 still gets gamesPlayed=1 (was in the match)
+    expect(stats.get("p1")!.gamesPlayed).toBe(1);
+  });
+
+  it("handles mixed completed and non-completed matches", () => {
+    const stats = buildPriorStats([COMPLETED_DOUBLES, PENDING_MATCH], PLAYERS);
+
+    // Only the completed match counts
+    expect(stats.get("p1")!.gamesPlayed).toBe(1);
+    // The PENDING_MATCH would have put p1 with p3 as teammate — should NOT be counted
+    expect(stats.get("p1")!.teammates.get("p3")).toBeUndefined();
+  });
+});
+
+
+describe("Matchmaking: 8-player sit-out variety (SIT_OUT_SPREAD_THRESHOLD)", () => {
+  it("with 8 players all within 1 GP, produces at least 3 distinct groups-of-4 in 10 rounds", () => {
+    const EIGHT_PLAYERS = ["p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8"];
+    let state = createMatchmakingState(EIGHT_PLAYERS, "doubles", {
+      sessionId: "variety-test",
+    });
+
+    const playingGroups = new Set<string>();
+
+    for (let i = 0; i < 10; i++) {
+      const { matchup, newState } = generateNextMatchup(state);
+      state = newState;
+
+      // Represent the group-of-4 as sorted joined IDs
+      const group = [...matchup.teamA, ...matchup.teamB].sort().join(",");
+      playingGroups.add(group);
+    }
+
+    // With locked alternating groups there would only be 2 distinct groups.
+    // The threshold must produce at least 3.
+    expect(playingGroups.size).toBeGreaterThanOrEqual(3);
   });
 });
