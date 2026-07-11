@@ -134,7 +134,7 @@ export function PlayerPickerSheet({
                       <span className="text-sm font-medium text-text-primary">{p.display_name}</span>
                     </div>
                     {getGamesPlayed(p.id) === 0 ? (
-                       <Chip size="sm" variant="accent">NEW</Chip>
+                       <Chip size="sm" variant="gold">NEW</Chip>
                     ) : (
                       <Chip size="sm" variant="neutral">{getGamesPlayed(p.id)}G</Chip>
                     )}
