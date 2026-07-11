@@ -391,6 +391,7 @@ export async function getSessionRecap(sessionId: string): Promise<RecapResult> {
 export interface SessionMatchData {
   readonly id: string;
   readonly match_type: string;
+  readonly status: string;
   readonly team_a_player_ids: string[];
   readonly team_b_player_ids: string[];
   readonly team_a_score: number;
@@ -408,7 +409,7 @@ export async function getSessionMatches(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("matches")
-    .select("id, match_type, team_a_player_ids, team_b_player_ids, team_a_score, team_b_score, winning_team, completed_at, source")
+    .select("id, match_type, status, team_a_player_ids, team_b_player_ids, team_a_score, team_b_score, winning_team, completed_at, source")
     .eq("session_id", sessionId)
     .eq("status", "completed")
     .order("completed_at", { ascending: false });
