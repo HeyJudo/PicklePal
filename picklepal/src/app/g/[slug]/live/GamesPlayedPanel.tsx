@@ -85,7 +85,7 @@ export function GamesPlayedPanel({
                 </div>
                 
                 {p.gamesPlayed === 0 ? (
-                  <Chip size="sm" variant="accent">NEW</Chip>
+                  <Chip size="sm" variant="gold">NEW</Chip>
                 ) : (
                   <div className="flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 border border-border">
                     <span className="text-xs font-semibold text-text-primary">{p.gamesPlayed}</span>
