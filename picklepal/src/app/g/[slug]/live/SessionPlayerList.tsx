@@ -2,12 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { PlayerAvatar } from "@/components/players";
+import { Chip } from "@/components/ui/Chip";
 import {
   benchPlayer,
   activatePlayer,
   removePlayerFromSession,
 } from "./session-player-actions";
 import type { SessionPlayerStatus } from "@/lib/supabase";
+import type { MatchmakingState, PlayerSession } from "@/lib/matchmaking";
 
 interface Player {
   readonly id: string;
@@ -30,6 +32,7 @@ interface SessionPlayerListProps {
     playerId: string,
     newStatus: SessionPlayerStatus,
   ) => void;
+  readonly matchmakingState?: MatchmakingState | null;
 }
 
 export function SessionPlayerList({
@@ -38,10 +41,12 @@ export function SessionPlayerList({
   sessionPlayers,
   isHost,
   onPlayerStatusChanged,
+  matchmakingState,
 }: SessionPlayerListProps) {
   const [isPending, startTransition] = useTransition();
   const [expanded, setExpanded] = useState(false);
   const [showAddPlayer, setShowAddPlayer] = useState(false);
+  const [addedPlayerName, setAddedPlayerName] = useState<string | null>(null);
 
   const playerMap = new Map(players.map((p) => [p.id, p]));
   const sessionPlayerMap = new Map(
@@ -85,37 +90,64 @@ export function SessionPlayerList({
 
   const handleAddLateArrival = (playerId: string) => {
     if (!isHost) return;
+    const playerName = playerMap.get(playerId)?.display_name ?? "Player";
     startTransition(async () => {
       const result = await activatePlayer(sessionId, playerId);
       if (result.success) {
         onPlayerStatusChanged(playerId, "active");
         setShowAddPlayer(false);
+        setAddedPlayerName(playerName);
+        setTimeout(() => setAddedPlayerName(null), 2500);
       }
     });
   };
 
   return (
-    <div className="rounded-xl border border-border bg-surface">
+    <div className="rounded-xl border border-border-muted">
       {/* Header — always visible */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between p-4 cursor-pointer"
+        className="flex w-full items-center justify-between px-4 py-3 cursor-pointer"
       >
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-text-primary">
-            Players
-          </h3>
-          <span className="rounded-full bg-court-green/10 px-2 py-0.5 text-xs font-medium text-court-green">
-            {activePlayers.length} active
-          </span>
-          {benchedPlayers.length > 0 && (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-              {benchedPlayers.length} benched
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-text-primary">Players</h3>
+            <span className="rounded-full bg-court-green/10 px-2 py-0.5 text-xs font-medium text-court-green">
+              {activePlayers.length} active
             </span>
+            {benchedPlayers.length > 0 && (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                {benchedPlayers.length} benched
+              </span>
+            )}
+          </div>
+          {/* Avatar stack — visible when collapsed, signals this is info not an action */}
+          {!expanded && activePlayers.length > 0 && (
+            <div className="flex items-center -space-x-1.5">
+              {activePlayers.slice(0, 6).map((sp) => {
+                const player = playerMap.get(sp.playerId);
+                if (!player) return null;
+                return (
+                  <div
+                    key={sp.playerId}
+                    className="h-5 w-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white ring-1 ring-background shrink-0"
+                    style={{ backgroundColor: player.color ?? "#6366f1" }}
+                    title={player.display_name}
+                  >
+                    {player.display_name.charAt(0)}
+                  </div>
+                );
+              })}
+              {activePlayers.length > 6 && (
+                <div className="h-5 w-5 rounded-full flex items-center justify-center text-[8px] font-semibold text-text-muted bg-surface-muted ring-1 ring-background shrink-0">
+                  +{activePlayers.length - 6}
+                </div>
+              )}
+            </div>
           )}
         </div>
         <svg
-          className={`h-4 w-4 text-text-muted transition-transform ${expanded ? "rotate-180" : ""}`}
+          className={`h-4 w-4 text-text-muted transition-transform shrink-0 ${expanded ? "rotate-180" : ""}`}
           fill="none"
           viewBox="0 0 24 24"
           strokeWidth={2}
@@ -145,6 +177,7 @@ export function SessionPlayerList({
                       status="active"
                       isHost={isHost}
                       isPending={isPending}
+                      playerSession={matchmakingState?.playerSessions.get(sp.playerId) ?? null}
                       onBench={() => handleBench(sp.playerId)}
                       onRemove={() => handleRemove(sp.playerId)}
                     />
@@ -171,6 +204,7 @@ export function SessionPlayerList({
                       status="benched"
                       isHost={isHost}
                       isPending={isPending}
+                      playerSession={matchmakingState?.playerSessions.get(sp.playerId) ?? null}
                       onActivate={() => handleActivate(sp.playerId)}
                       onRemove={() => handleRemove(sp.playerId)}
                     />
@@ -178,6 +212,13 @@ export function SessionPlayerList({
                 })}
               </div>
             </div>
+          )}
+
+          {/* Late arrival success feedback */}
+          {addedPlayerName && (
+            <p className="text-xs text-court-green font-medium px-1">
+              {addedPlayerName} added to session!
+            </p>
           )}
 
           {/* Add Late Arrival */}
@@ -204,7 +245,7 @@ export function SessionPlayerList({
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {availableToAdd.map((player) => (
+                    {[...availableToAdd].sort((a, b) => a.display_name.localeCompare(b.display_name)).map((player) => (
                       <button
                         key={player.id}
                         onClick={() => handleAddLateArrival(player.id)}
@@ -238,6 +279,7 @@ interface PlayerChipProps {
   readonly status: "active" | "benched";
   readonly isHost: boolean;
   readonly isPending: boolean;
+  readonly playerSession?: PlayerSession | null;
   readonly onBench?: () => void;
   readonly onActivate?: () => void;
   readonly onRemove?: () => void;
@@ -248,6 +290,7 @@ function PlayerChip({
   status,
   isHost,
   isPending,
+  playerSession,
   onBench,
   onActivate,
   onRemove,
@@ -274,6 +317,11 @@ function PlayerChip({
         <span className={status === "benched" ? "text-amber-700" : "text-text-primary"}>
           {player.display_name}
         </span>
+        {playerSession != null && (
+          playerSession.gamesPlayed === 0
+            ? <Chip variant="neutral" size="sm" dot>NEW</Chip>
+            : <Chip variant="green" size="sm">{playerSession.gamesPlayed}G · {playerSession.gamesSatOut}S</Chip>
+        )}
         {status === "benched" && (
           <span className="text-[10px] text-amber-500" aria-label="Benched">&#x23F8;</span>
         )}

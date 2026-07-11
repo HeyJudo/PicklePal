@@ -1,5 +1,6 @@
 "use server";
 
+import { unstable_cache } from "next/cache";
 import { createServerClient } from "@/lib/supabase";
 import type { Match, Player, Session } from "@/lib/supabase";
 import { computeLeaderboard } from "@/lib/stats";
@@ -54,15 +55,24 @@ interface DashboardResult {
 /**
  * Fetch all dashboard data for a group in a single server action.
  * Returns leaderboard preview, active session, highlights, and recent matches.
+ * Results are cached per group slug and invalidated on any match write.
  */
 export async function getDashboardData(groupSlug: string): Promise<DashboardResult> {
+  return unstable_cache(
+    () => _getDashboardData(groupSlug),
+    ["dashboard", groupSlug],
+    { tags: [`group-${groupSlug}`], revalidate: 300 },
+  )();
+}
+
+async function _getDashboardData(groupSlug: string): Promise<DashboardResult> {
   const supabase = createServerClient();
 
   // 1. Get group
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: group, error: groupError } = await (supabase as any)
     .from("groups")
-    .select("*")
+    .select("id, name")
     .eq("slug", groupSlug)
     .single();
 
@@ -70,40 +80,53 @@ export async function getDashboardData(groupSlug: string): Promise<DashboardResu
     return { data: null, error: "Group not found" };
   }
 
-  // 2. Get all active players
+  // 2 + 3. Fetch players and sessions in parallel — both depend only on group.id
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: players } = await (supabase as any)
-    .from("players")
-    .select("*")
-    .eq("group_id", group.id)
-    .eq("is_active", true)
-    .order("display_name");
+  const [{ data: players }, { data: sessions }] = await Promise.all([
+    (supabase as any)
+      .from("players")
+      .select("id, display_name, color, avatar_url")
+      .eq("group_id", group.id)
+      .eq("is_active", true)
+      .order("display_name"),
+    (supabase as any)
+      .from("sessions")
+      .select("id, title, status, started_at, ended_at")
+      .eq("group_id", group.id)
+      .order("started_at", { ascending: false }),
+  ]);
 
   const allPlayers: Player[] = players ?? [];
-
-  // 3. Get all sessions
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: sessions } = await (supabase as any)
-    .from("sessions")
-    .select("*")
-    .eq("group_id", group.id)
-    .order("started_at", { ascending: false });
-
   const allSessions: Session[] = sessions ?? [];
 
-  // 4. Get all matches across sessions
+  // 4. Fetch all matches (for stats) and recent matches (for display) in parallel
   const sessionIds = allSessions.map((s) => s.id);
   let allMatches: Match[] = [];
+  let recentMatchesRaw: Match[] = [];
 
   if (sessionIds.length > 0) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: matches } = await (supabase as any)
-      .from("matches")
-      .select("*")
-      .in("session_id", sessionIds)
-      .order("completed_at", { ascending: false });
+    const [matchesRes, recentMatchesRes] = await Promise.all([
+      (supabase as any)
+        .from("matches")
+        .select(
+          "id, session_id, status, match_type, team_a_player_ids, team_b_player_ids, team_a_score, team_b_score, winning_team, completed_at, duration_seconds",
+        )
+        .in("session_id", sessionIds)
+        .order("completed_at", { ascending: false }),
+      (supabase as any)
+        .from("matches")
+        .select(
+          "id, match_type, team_a_player_ids, team_b_player_ids, team_a_score, team_b_score, winning_team, completed_at",
+        )
+        .in("session_id", sessionIds)
+        .eq("status", "completed")
+        .order("completed_at", { ascending: false })
+        .limit(5),
+    ]);
 
-    allMatches = matches ?? [];
+    allMatches = (matchesRes.data ?? []) as Match[];
+    recentMatchesRaw = (recentMatchesRes.data ?? []) as Match[];
   }
 
   const completedMatches = allMatches.filter((m) => m.status === "completed");
@@ -123,8 +146,8 @@ export async function getDashboardData(groupSlug: string): Promise<DashboardResu
   // 8. Compute latest MVP (from most recent completed session)
   const latestMvp = buildLatestMvp(allSessions, allMatches, allPlayers);
 
-  // 9. Build recent matches (last 5 completed)
-  const recentMatches = buildRecentMatches(completedMatches.slice(0, 5), allPlayers);
+  // 9. Build recent matches (last 5 completed from explicit DB query)
+  const recentMatches = buildRecentMatches(recentMatchesRaw, allPlayers);
 
   // 10. Summary stats
   const totalGamesPlayed = completedMatches.length;

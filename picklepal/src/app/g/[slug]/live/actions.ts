@@ -1,6 +1,9 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase";
+import { authorizeGroupWrite, resolveGroupIdFromSession } from "@/lib/auth";
+import { recomputeBelts } from "@/lib/belts/recomputeBelts";
+import { revalidateGroupCache, revalidateGroupCacheBySlug } from "@/lib/cache";
 import type { MatchType } from "@/lib/supabase";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -71,6 +74,9 @@ export async function getActiveSession(
 export async function startSession(
   input: StartSessionInput,
 ): Promise<ActionResult<SessionData>> {
+  const auth = await authorizeGroupWrite(input.groupSlug);
+  if (!auth.authorized) return { success: false, error: auth.error };
+
   const supabase = createServerClient();
 
   // Get group ID
@@ -146,6 +152,7 @@ export async function startSession(
     console.error("Failed to create session_players:", spError);
   }
 
+  revalidateGroupCacheBySlug(input.groupSlug);
   return { success: true, data: session };
 }
 
@@ -154,6 +161,11 @@ export async function startSession(
 export async function endSession(
   sessionId: string,
 ): Promise<ActionResult> {
+  const groupId = await resolveGroupIdFromSession(sessionId);
+  if (!groupId) return { success: false, error: "Session not found" };
+  const auth = await authorizeGroupWrite(groupId);
+  if (!auth.authorized) return { success: false, error: auth.error };
+
   const supabase = createServerClient();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -170,6 +182,10 @@ export async function endSession(
     return { success: false, error: error.message };
   }
 
+  // Recompute belts now that the game day is over (best-effort, never throws).
+  await recomputeBelts(groupId);
+
+  await revalidateGroupCache(groupId);
   return { success: true };
 }
 
@@ -212,6 +228,7 @@ interface SaveMatchInput {
   readonly startingServerPlayerId: string;
   readonly targetScore: number;
   readonly winBy: number;
+  readonly durationSeconds?: number | null;
   readonly rallyEvents: readonly RallyEventInput[];
 }
 
@@ -228,6 +245,11 @@ interface RallyEventInput {
 export async function saveCompletedMatch(
   input: SaveMatchInput,
 ): Promise<ActionResult<{ matchId: string }>> {
+  const groupId = await resolveGroupIdFromSession(input.sessionId);
+  if (!groupId) return { success: false, error: "Session not found" };
+  const auth = await authorizeGroupWrite(groupId);
+  if (!auth.authorized) return { success: false, error: auth.error };
+
   const supabase = createServerClient();
 
   // Create match record
@@ -249,6 +271,7 @@ export async function saveCompletedMatch(
       win_by: input.winBy,
       started_at: new Date().toISOString(),
       completed_at: new Date().toISOString(),
+      duration_seconds: input.durationSeconds ?? null,
     })
     .select("id")
     .single();
@@ -284,6 +307,10 @@ export async function saveCompletedMatch(
     }
   }
 
+  // Recompute belts now that a match has completed (best-effort, never throws).
+  await recomputeBelts(groupId);
+
+  await revalidateGroupCache(groupId);
   return { success: true, data: { matchId: match.id } };
 }
 
@@ -364,6 +391,7 @@ export async function getSessionRecap(sessionId: string): Promise<RecapResult> {
 export interface SessionMatchData {
   readonly id: string;
   readonly match_type: string;
+  readonly status: string;
   readonly team_a_player_ids: string[];
   readonly team_b_player_ids: string[];
   readonly team_a_score: number;
@@ -381,7 +409,7 @@ export async function getSessionMatches(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("matches")
-    .select("id, match_type, team_a_player_ids, team_b_player_ids, team_a_score, team_b_score, winning_team, completed_at, source")
+    .select("id, match_type, status, team_a_player_ids, team_b_player_ids, team_a_score, team_b_score, winning_team, completed_at, source")
     .eq("session_id", sessionId)
     .eq("status", "completed")
     .order("completed_at", { ascending: false });

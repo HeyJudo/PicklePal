@@ -50,7 +50,7 @@ export function OverlayRenderer({ data, onDownload }: OverlayRendererProps) {
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = `picklepal-${title.toLowerCase().replace(/\s+/g, "-")}.png`;
+        link.download = `dinkday-${title.toLowerCase().replace(/\s+/g, "-")}.png`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -183,7 +183,7 @@ function OverlayContent({
         position: "relative",
       }}
     >
-      {/* TOP: PicklePal branding */}
+      {/* TOP: DinkDay branding */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
         <span
           style={{
@@ -194,7 +194,7 @@ function OverlayContent({
             letterSpacing: "0.5px",
           }}
         >
-          PicklePal
+          <span style={{ color: "#2D8B4E" }}>D</span>inkDay
         </span>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))" }}>
           <circle cx="12" cy="12" r="9" />
@@ -285,7 +285,7 @@ function OverlayContent({
 
         {/* Branding footer */}
         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", textAlign: "center", textShadow: "0 1px 4px rgba(0,0,0,0.4)", letterSpacing: "1px" }}>
-          picklepal.app
+          dinkday.site
         </div>
       </div>
     </div>

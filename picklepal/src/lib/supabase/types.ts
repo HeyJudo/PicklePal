@@ -14,6 +14,7 @@ export type SessionStatus = "active" | "completed" | "cancelled";
 export type MatchStatus = "queued" | "active" | "completed" | "cancelled";
 export type MatchType = "singles" | "doubles";
 export type MatchSource = "live" | "manual";
+export type SessionSource = "live" | "manual_bucket";
 export type QueueItemStatus = "pending" | "active" | "completed" | "skipped";
 export type SessionPlayerStatus = "active" | "benched" | "removed";
 
@@ -93,6 +94,8 @@ export interface Database {
           group_id: string;
           title: string | null;
           status: SessionStatus;
+          source: SessionSource;
+          bucket_date: string | null;
           default_match_type: string;
           target_score: number;
           win_by: number;
@@ -107,6 +110,8 @@ export interface Database {
           group_id: string;
           title?: string | null;
           status?: SessionStatus;
+          source?: SessionSource;
+          bucket_date?: string | null;
           default_match_type?: string;
           target_score?: number;
           win_by?: number;
@@ -121,6 +126,8 @@ export interface Database {
           group_id?: string;
           title?: string | null;
           status?: SessionStatus;
+          source?: SessionSource;
+          bucket_date?: string | null;
           default_match_type?: string;
           target_score?: number;
           win_by?: number;
@@ -145,11 +152,13 @@ export interface Database {
           target_score: number;
           win_by: number;
           source: MatchSource;
+          played_at: string;
           scorer_clerk_user_id: string | null;
           scorer_heartbeat_at: string | null;
           current_snapshot: MatchSnapshot | null;
           started_at: string | null;
           completed_at: string | null;
+          duration_seconds: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -168,11 +177,13 @@ export interface Database {
           target_score?: number;
           win_by?: number;
           source?: MatchSource;
+          played_at?: string;
           scorer_clerk_user_id?: string | null;
           scorer_heartbeat_at?: string | null;
           current_snapshot?: MatchSnapshot | null;
           started_at?: string | null;
           completed_at?: string | null;
+          duration_seconds?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -191,11 +202,13 @@ export interface Database {
           target_score?: number;
           win_by?: number;
           source?: MatchSource;
+          played_at?: string;
           scorer_clerk_user_id?: string | null;
           scorer_heartbeat_at?: string | null;
           current_snapshot?: MatchSnapshot | null;
           started_at?: string | null;
           completed_at?: string | null;
+          duration_seconds?: number | null;
           updated_at?: string;
         };
       };

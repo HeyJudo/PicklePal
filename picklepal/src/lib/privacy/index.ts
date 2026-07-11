@@ -1,4 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
+import { cache } from "react";
+import { decideViewAccess, type ViewAccessDecision } from "./access";
 
 export type PrivacyMode = "public_link" | "private";
 
@@ -18,7 +20,9 @@ function getSupabase() {
 /**
  * Get the privacy mode for a group by slug.
  */
-export async function getGroupPrivacyBySlug(slug: string): Promise<GroupPrivacy | null> {
+export const getGroupPrivacyBySlug = cache(async function getGroupPrivacyBySlug(
+  slug: string,
+): Promise<GroupPrivacy | null> {
   const supabase = getSupabase();
   const { data } = await supabase
     .from("groups")
@@ -32,7 +36,7 @@ export async function getGroupPrivacyBySlug(slug: string): Promise<GroupPrivacy 
     groupId: data.id,
     privacyMode: (data.privacy_mode as PrivacyMode) ?? "public_link",
   };
-}
+});
 
 /**
  * Check if a user can view a group's content.
@@ -41,36 +45,42 @@ export async function getGroupPrivacyBySlug(slug: string): Promise<GroupPrivacy 
  * - public_link: anyone can view (no auth needed)
  * - private: only signed-in owners/admins can view
  */
-export async function canViewGroup(
+export const canViewGroup = cache(async function canViewGroup(
   slug: string,
   clerkUserId: string | null,
-): Promise<{ canView: boolean; reason?: string }> {
+): Promise<ViewAccessDecision> {
   const privacy = await getGroupPrivacyBySlug(slug);
 
   if (!privacy) {
     return { canView: false, reason: "Group not found" };
   }
 
-  // Public groups are viewable by everyone
   if (privacy.privacyMode === "public_link") {
-    return { canView: true };
+    return decideViewAccess({
+      privacyMode: privacy.privacyMode,
+      clerkUserId,
+      isMember: false,
+    });
   }
 
-  // Private groups require authentication
   if (!clerkUserId) {
-    return { canView: false, reason: "This group is private. Sign in to view." };
+    return decideViewAccess({
+      privacyMode: privacy.privacyMode,
+      clerkUserId,
+      isMember: false,
+    });
   }
 
   // Check if user is a member (owner/admin)
   const { isGroupAdmin } = await import("@/lib/membership");
   const isMember = await isGroupAdmin(clerkUserId, privacy.groupId);
 
-  if (!isMember) {
-    return { canView: false, reason: "This group is private. Only members can view." };
-  }
-
-  return { canView: true };
-}
+  return decideViewAccess({
+    privacyMode: privacy.privacyMode,
+    clerkUserId,
+    isMember,
+  });
+});
 
 /**
  * Update the privacy mode for a group.

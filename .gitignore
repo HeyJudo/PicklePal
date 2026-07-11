@@ -1,1 +1,7 @@
 .worktrees/
+
+# Claude Code agent worktrees / artifacts
+.claude/worktrees/
+
+# Kiro specs
+.kiro/specs/

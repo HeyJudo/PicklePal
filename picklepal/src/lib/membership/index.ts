@@ -220,3 +220,60 @@ export async function isGroupOwner(
 
   return !!data;
 }
+
+export interface GroupMember {
+  profileId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  role: GroupRole;
+  createdAt: string;
+}
+
+/**
+ * List all members of a group with their profile info.
+ */
+export async function listGroupMembers(groupId: string): Promise<GroupMember[]> {
+  const supabase = getSupabase();
+
+  const { data } = await supabase
+    .from("group_memberships")
+    .select("profile_id, role, created_at, profiles!inner(display_name, avatar_url)")
+    .eq("group_id", groupId)
+    .order("created_at", { ascending: true });
+
+  if (!data) return [];
+
+  return data.map((row: Record<string, unknown>) => {
+    const profile = row.profiles as { display_name: string; avatar_url: string | null };
+    return {
+      profileId: row.profile_id as string,
+      displayName: profile.display_name,
+      avatarUrl: profile.avatar_url ?? null,
+      role: row.role as GroupRole,
+      createdAt: row.created_at as string,
+    };
+  });
+}
+
+/**
+ * Remove a member from a group (hard delete of membership row).
+ * Does NOT check authorization — callers must do that.
+ */
+export async function removeGroupMembership(
+  groupId: string,
+  profileId: string,
+): Promise<{ success: boolean; error: string | null }> {
+  const supabase = getSupabase();
+
+  const { error } = await supabase
+    .from("group_memberships")
+    .delete()
+    .eq("group_id", groupId)
+    .eq("profile_id", profileId);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, error: null };
+}

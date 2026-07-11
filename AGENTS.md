@@ -1,23 +1,23 @@
-# AGENTS.md — PicklePal Project Context
+# AGENTS.md — DinkDay (PicklePal) Project Context
 
-> This file gives any AI agent or chat session full context to work on this project effectively.
-> Read this first before making changes.
+> Full project context for any AI agent or chat session. Read this before making changes.
+> For workflow rules (git, planning, testing policy), see `CLAUDE.md`.
 
 ---
 
-## What Is PicklePal?
+## What Is This?
 
-**PicklePal** is a mobile/tablet-first pickleball web app for a friend group. It provides:
+**DinkDay** (internal codename: PicklePal) is a mobile/tablet-first pickleball web app, live at **dinkday.site**. Tagline: *"Game day, handled."*
 
-- **Live scoring** — official traditional pickleball side-out scoring, operated courtside
-- **Fair rotations** — balanced matchup generation with sit-out rotation
+- **Live scoring** — official traditional pickleball side-out scoring, operated courtside, with scorer lock/takeover and offline rally queue
+- **Fair matchmaking** — deterministic, balanced matchup generation with sit-out rotation
 - **Persistent rankings** — leaderboard derived from all completed matches
-- **Session awards** — MVP of the Day, Hottest Duo, Best Match
-- **Share cards** — Instagram-story-style Game Day recap images
+- **Belts** — title-holder reign system (King of the Kitchen, Poacher, Pickler)
+- **Session recaps & awards** — MVP of the Day, Hottest Duo, Best Match, animated Game Day recap
+- **Manual past matches** — admins can log matches played without live scoring
+- **Groups** — organizers own one or more groups; groups are public-link or private
 
-**Identity:** "PicklePal — The scoreboard for your pickleball crew."
-
-**Target users:** One friend group (V1), with a `Group` boundary in the data model for future multi-group support.
+**Users:** organizers/admins have Clerk accounts; players are account-less roster records.
 
 ---
 
@@ -25,16 +25,16 @@
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | Next.js 14+ (App Router) + React + TypeScript (strict) |
-| Styling | Tailwind CSS + shadcn-style component patterns |
-| Database | Supabase Postgres |
-| Backend | Next.js server actions / route handlers |
-| Deployment | Vercel |
-| Image generation | Browser-rendered HTML/Canvas → PNG export |
-| Auth model | Public read, host PIN for writes (no user accounts) |
-| Offline support | Active-game local event queue + sync retry |
+| Framework | Next.js 16 (App Router) + React 19 + TypeScript (strict) |
+| Styling | Tailwind CSS 4, motion (Framer Motion) for animation |
+| Auth | Clerk (`@clerk/nextjs`) — organizer/admin accounts only |
+| Database | Supabase Postgres (service-role client server-side; RLS for public reads) |
+| Backend | Next.js server actions (the write boundary) |
+| Deployment | Vercel (production: dinkday.site) |
+| Monitoring | Sentry (opt-in via env), Vercel Analytics + Speed Insights |
+| Share images | html2canvas → PNG export |
 | Package manager | pnpm |
-| Testing | Vitest (unit), Playwright (E2E) |
+| Testing | Vitest (unit). Playwright is a devDependency but has no config/specs yet |
 
 ---
 
@@ -42,311 +42,192 @@
 
 ```
 pickleball/
-├── AGENTS.md                    # ← You are here
+├── AGENTS.md                        # ← You are here
+├── CLAUDE.md                        # Workflow rules for Claude Code
 ├── docs/
-│   ├── DEVELOPMENT-PLAN.md      # Detailed 8-phase build plan with subphases
-│   └── superpowers/specs/
-│       └── 2026-05-29-picklepal-v1-design.md  # Full product design spec
-├── .kiro/
-│   └── steering/                # AI steering files (coding style, patterns, etc.)
-│       ├── coding-style.md
-│       ├── development-workflow.md
-│       ├── git-workflow.md
-│       ├── patterns.md
-│       ├── testing.md
-│       ├── security.md
-│       ├── lessons-learned.md
-│       ├── typescript-patterns.md
-│       └── ui-ux-pro-max/       # Design intelligence skill (styles, colors, typography)
-└── src/                         # (to be created in Phase 1a)
-    ├── app/g/[slug]/            # Next.js routes (group-scoped)
-    ├── components/              # Shared UI components
-    ├── lib/
-    │   ├── engine/              # Pure TS scoring engine (NO React, NO DB)
-    │   ├── matchmaking/         # Fair random matchup generator
-    │   ├── stats/               # Derived leaderboard, awards
-    │   ├── supabase/            # DB client (server + browser)
-    │   └── offline/             # Local event queue + sync
-    ├── hooks/                   # React hooks
-    └── styles/                  # Global CSS
+│   ├── PICKLEPAL-V2-LAUNCH-PLAN.md  # V2 launch plan (Phases 0–10)
+│   ├── DINKDAY-BRAND-KIT.md         # Brand: naming, palette, voice
+│   ├── audits/                      # Phase 0 baseline audits
+│   └── superpowers/specs/           # Original V1 product design spec
+├── .kiro/steering/                  # AI steering files (style, patterns, testing)
+└── picklepal/                       # The Next.js app
+    ├── supabase/migrations/         # 001–017 (numbered SQL migrations)
+    ├── scripts/backup-baseline.mjs  # DB backup script
+    └── src/
+        ├── middleware.ts            # clerkMiddleware — protects /app and /onboarding only
+        ├── app/                     # Routes (see Route Map below)
+        ├── components/              # Shared UI components
+        ├── hooks/                   # React hooks
+        └── lib/                     # Domain logic (see Modules below)
+```
+
+### `src/lib/` Modules
+
+| Module | Purpose |
+|--------|---------|
+| `engine/` | Pure scoring state machine (`createMatch`, `processRally`, `undo`) — no React, no DB |
+| `matchmaking/` | Pure, deterministic matchup + sit-out generator (hash-seeded, replayable) |
+| `stats/` | Derived leaderboard, player/duo/rivalry stats, streaks, awards |
+| `belts/` | Belt reign computation (`recomputeBelts.ts`) into `belt_reigns` table |
+| `auth/` | `authorizeGroupWrite` / `authorizeGroupRead` / `getViewerAccess` — the write gate |
+| `membership/` | Clerk profile ↔ `group_memberships` CRUD, owner/admin checks |
+| `invites/` | Admin invites (email + open link, hashed tokens, accept/revoke/expire) |
+| `privacy/` | Group `privacy_mode` (`public_link` \| `private`) + view checks |
+| `matches/` | Manual match score/date validation |
+| `sessions/` | Manual-bucket session creation for past matches (one per group per date) |
+| `offline/` | localStorage rally queue, sync status, crash recovery for live scoring |
+| `format/` | Shared duration/clock formatting |
+| `supabase/` | Client factories (server + browser) and generated `Database` types |
+
+---
+
+## Route Map
+
+```
+/                         Public landing page
+/sign-in, /sign-up        Clerk
+/onboarding               First-group creation flow (protected)
+/app                      "My Groups" dashboard (protected)
+/invite/[token]           Invite acceptance
+/g/[slug]/                Group home (public read, gated by privacy mode)
+  /dashboard              Hero, leaderboard preview, recent matches
+  /live                   Game Day loop: session → players → matchups → scoring → recap
+  /board                  Leaderboard
+  /history                Match history + "Add Match" (manual past matches)
+  /players, /players/[id] Roster and player profiles
+  /sessions/[id]          Session detail
+  /belts                  Belt reigns
+  /settings               Group info, game defaults, privacy, members, invites
+/api/belts/backfill       Belt backfill endpoint
 ```
 
 ---
 
-## Key Documents
+## Auth & Access Model (V2 — replaced the V1 host PIN)
 
-| Document | Purpose |
-|----------|---------|
-| `docs/superpowers/specs/2026-05-29-picklepal-v1-design.md` | **Full product spec** — scope, data model, scoring rules, UI direction, access model |
-| `docs/DEVELOPMENT-PLAN.md` | **Build plan** — 8 phases, 34 subphases, dependencies, acceptance criteria |
-| `.kiro/steering/coding-style.md` | Immutability rules, file organization, error handling |
-| `.kiro/steering/patterns.md` | Repository pattern, API response format, skeleton approach |
-| `.kiro/steering/testing.md` | Testing requirements (80% coverage, TDD workflow) |
-| `.kiro/steering/security.md` | Security practices |
+- **Middleware** only protects `/app` and `/onboarding`. Group pages are open at the middleware layer.
+- **Reads:** gated in-app per group `privacy_mode` — `public_link` groups are viewable by anyone with the URL; `private` groups require membership (`getViewerAccess`, `PrivateGroupGate`).
+- **Writes:** every write server action starts with `authorizeGroupWrite()` from `src/lib/auth` — resolves the group, checks Clerk `currentUser()`, requires `owner` or `admin` membership. The old `host_pin_hash` was dropped in migration 010.
+- **Roles:** `owner` and `admin` only. Players are not users.
+- Server actions use the Supabase service-role client (bypasses RLS), so **the auth check in the action is the security boundary** — never skip it.
 
 ---
 
 ## Architecture Principles
 
-### 1. Scoring Engine Is Pure TypeScript
-
-The scoring engine (`src/lib/engine/`) has **zero dependencies** on React, the database, or any framework. It is:
-
-- **Pure functions** — `processRally(state, rallyWinner) → newState`
-- **Immutable** — never mutates input state, always returns new objects
-- **Testable in isolation** — unit tests run without any infrastructure
-- **The highest-risk piece** — must be proven correct before UI work
-
-### 2. Matches Are the Source of Truth
-
-- Leaderboards, player stats, duo stats, and awards are **derived** from completed matches
-- Nothing is stored as "permanent truth" except match records and rally events
-- If performance requires caching later, caches must be rebuildable from matches
-
-### 3. Append-Only Rally Events
-
-- Every rally produces a `RallyEvent` appended to the match history
-- Undo = pop the last event and recompute state
-- Enables: undo, replay, audit trail, offline queue, future analytics
-
-### 4. Public Read, PIN-Protected Write
-
-- All viewing is frictionless (no login)
-- Write actions (scoring, session management, player edits) require a host PIN
-- PIN is verified server-side against a hash, then remembered in the browser for a session
-
-### 5. Offline-Resilient (Not Offline-First)
-
-- If the scoring screen is already open, it continues working when internet drops
-- Rally events queue locally and sync when connection returns
-- One device is the scorer — no multi-device conflict resolution in V1
+1. **Scoring engine is pure TypeScript** — `src/lib/engine/` has zero React/DB dependencies. Pure, immutable functions; the highest-risk domain logic; keep coverage high.
+2. **Matches are the source of truth** — leaderboards, stats, awards, and belts are all derived from completed matches. Belt reigns are a rebuildable cache (`recomputeBelts` + backfill route).
+3. **Append-only rally events** — every rally appends a `RallyEvent`; undo pops and recomputes. Enables replay, audit, and the offline queue.
+4. **Deterministic matchmaking** — seeded by hash (`sessionId:round:playerId`), never `Math.random()`, so matchups are reproducible from state.
+5. **Offline-resilient, not offline-first** — an open scoring screen keeps working through connection drops (localStorage queue + sync retry). One scorer device at a time, enforced by scorer lock + heartbeat (stale after ~30s → takeover allowed).
 
 ---
 
 ## Data Model (Key Entities)
 
 ```
-Group → Players → Sessions → Matches → RallyEvents
-                                     → MatchQueueItems
-                           → RecapCards
+profiles (Clerk users) → group_memberships (owner|admin) → groups
+groups → players → sessions → matches → rally events
+      → admin_invites                 → belt_reigns
 ```
 
-- **Group** — the friend group (has `hostPinHash`)
-- **Player** — roster entry (not a user account), has `displayName`, `color`, `isActive`
-- **Session** — a Game Day (status: active/completed/cancelled)
-- **Match** — singles or doubles game (status: queued/active/completed/cancelled)
-- **RallyEvent** — append-only record of each rally (sequence number, scores, server state)
-- **MatchQueueItem** — upcoming match queue for a session
-- **RecapCard** — generated share card config for a completed session
+- **Group** — has `slug`, `privacy_mode`, game-default settings
+- **Player** — roster entry (not an account): `displayName`, `color`, `isActive`
+- **Session** — a Game Day; `source` may be `manual_bucket` (auto-created per group/date for manual matches)
+- **Match** — singles/doubles; `played_at`, `duration_seconds`, active-match snapshot + `scorer_clerk_user_id` + `scorer_heartbeat_at` for live scoring
+- **BeltReign** — time-ranged title holds per belt type
+
+Migrations live in `picklepal/supabase/migrations/` (numbered, currently 001–017). Schema changes = new numbered migration + update `src/lib/supabase/types.ts`.
 
 ---
 
 ## Scoring Rules (Critical Domain Logic)
 
-### Doubles (Default)
-
-- **Side-out scoring** — only the serving team can score
-- **First-service-sequence** — game starts at 0-0-2 (only one server before first side-out)
-- **Server rotation** — server 1 → server 2 → side-out → other team's server 1
-- **Position swaps** — serving team players swap sides when they score
-- **Win condition** — first to target (default 11), must win by 2
+### Doubles (default)
+- Side-out scoring — only the serving team scores
+- First-service sequence — game starts 0-0-2
+- Server rotation: server 1 → server 2 → side-out → other team's server 1
+- Serving team players swap sides when they score
+- Win: first to target (default 11), win by 2
 
 ### Singles
+- Side-out scoring; server's score parity determines court side (even = right)
+- Win condition same as doubles
 
-- **Side-out scoring** — only server scores
-- **Court side** — determined by server's score parity (even = right, odd = left)
-- **No server number** — always one server per side
-- **Win condition** — same as doubles
-
-### Game Settings (Host-Configurable)
-
-- Match type: singles/doubles (default: doubles)
-- Target score: 11 (configurable to 15, 21)
-- Win by: 2 (configurable)
-- Starting server: selectable
+Host-configurable per group/match: singles/doubles, target score (11/15/21), win-by, starting server.
 
 ---
 
-## Awards & Stats Formulas
+## Stats & Awards Formulas
 
-### Leaderboard Ranking
-```
-Primary: win rate (qualified players only, min 3 games)
-Tiebreaker 1: more games played
-Tiebreaker 2: point differential
-```
-
-### MVP of the Day (Per Session)
-```
-MVP score = (session wins × 3) + session point differential + session games played
-Eligibility: min 2 games in session
-```
-
-### Hottest Duo
-```
-Primary: duo win rate together (min 3 games together)
-Tiebreaker 1: more wins together
-Tiebreaker 2: duo point differential
-```
-
-### Best Match
-```
-Primary: lowest absolute score difference
-Tiebreaker: highest combined score
-```
+- **Leaderboard:** win rate (min 3 games) → games played → point differential
+- **MVP of the Day:** `(session wins × 3) + point diff + games played`, min 2 games
+- **Hottest Duo:** duo win rate (min 3 games together) → wins → point diff
+- **Best Match:** lowest score difference → highest combined score
+- **Belts:** King of the Kitchen, Poacher, Pickler — derived title reigns, see `src/lib/belts/`
 
 ---
 
-## Matchmaking Rules
+## Current Status (as of 2026-07-03)
 
-For **doubles** (4 players per match, rest sit):
-- Balance games played during the session
-- Minimize repeated teammates
-- Minimize repeated opponent pairings
-- Rotate sit-outs fairly (no one sits twice before everyone has sat once)
+V2 launch plan (`docs/PICKLEPAL-V2-LAUNCH-PLAN.md`) Phases 0–5 are **done** (brand, Clerk auth, memberships/invites/privacy, PIN removal, multi-group). Phases 6–8 (live-scoring resilience, UX refresh, manual past matches) are **largely implemented** — the plan doc's checkmarks lag the code. Phases 9–10 (recap/SEO refresh, launch hardening incl. Playwright E2E) are **pending**.
 
-For **singles** (2 players per match):
-- Avoid immediate rematches
-- Balance games played
-- Rotate sit-outs fairly
+Active branch: `feat/smarter-matchmaking` — rewritten matchmaking engine for smarter sit-out rotation and queueing.
 
 ---
 
-## Current Build Status
+## Testing (Actual State)
 
-**Phase:** Planning (not yet started)  
-**Next step:** Phase 1a — Next.js + TypeScript + Tailwind scaffold
-
-See `docs/DEVELOPMENT-PLAN.md` for the full phase breakdown and recommended build order.
-
----
-
-## Development Conventions
-
-### Code Style (from steering files)
-
-- **Immutability is critical** — never mutate, always return new objects
-- **Small files** — 200–400 lines typical, 800 max
-- **Small functions** — under 50 lines
-- **No deep nesting** — max 4 levels
-- **Explicit error handling** — never swallow errors silently
-- **Validate at boundaries** — all user input, all external data
-
-### Git Workflow
-
-- Feature branches off `main`
-- Conventional commits (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`)
-- PR required for merge to main
-- Never push directly to main
-
-### Testing
-
-- Scoring engine: 95%+ coverage (unit tests, Vitest)
-- Overall target: 80%+ coverage
-- E2E: Playwright for the full Game Day flow
-- Tests must pass before merge
-
----
-
-## UI/UX Design Direction
-
-- **Mobile/tablet-first**, responsive on desktop
-- **Sporty, clean, social** — friendly at its core, competitive energy layered in
-- **Court visualization** for live scoring with players in position
-- **High-contrast** for outdoor readability (direct sunlight)
-- **Green/blue sport palette** with white/light surfaces
-- **Celebratory** post-game and recap screens
-- **Desktop Live layout:** 3 columns (queue | court | leaderboard)
-
-### Design System Tool
-
-The project has **UI UX Pro Max** installed (`.kiro/steering/ui-ux-pro-max/`). Before building UI components, generate a design system:
-
-```bash
-python3 .kiro/steering/ui-ux-pro-max/scripts/search.py "pickleball sport social mobile scoring" --design-system -p "PicklePal"
-```
-
----
-
-## Navigation Structure
-
-Mobile bottom nav:
-```
-Home | Live | Board | History | Players
-```
-
-Routes (all under `/g/[slug]/`):
-- `/` — Home/Dashboard
-- `/live` — Game Day loop (session, scoring)
-- `/board` — Leaderboard
-- `/history` — Match history
-- `/players` — Roster
-- `/players/[id]` — Player detail
-- `/sessions/[id]` — Session detail
-- `/sessions/[id]/recap` — Public recap page
-
----
-
-## What's NOT in V1
-
-- Individual user accounts / login wall
-- Elo, DUPR, or skill ratings
-- Tournament brackets
-- Full offline-first (app launch without internet)
-- Direct Instagram API posting
-- Multi-device scoring for same match
-- Advanced charts and social feeds
-
----
-
-## Quick Reference for Common Tasks
-
-### "I need to work on the scoring engine"
-→ Read `docs/superpowers/specs/2026-05-29-picklepal-v1-design.md` § Scoring Rules  
-→ Work in `src/lib/engine/` — pure TypeScript, no imports from React or Supabase  
-→ Run tests with `pnpm test`
-
-### "I need to add a new page/route"
-→ Add under `src/app/g/[slug]/`  
-→ Public pages need no auth gate  
-→ Write actions need the PIN wrapper from `src/lib/utils/pin.ts`
-
-### "I need to update the database schema"
-→ Create a Supabase migration  
-→ Update TypeScript types in `src/lib/supabase/types.ts`  
-→ Ensure RLS: public SELECT, restricted writes
-
-### "I need to work on the UI"
-→ Run the design system generator first (see UI/UX section above)  
-→ Use Tailwind + shadcn patterns  
-→ Mobile-first, test at 375px minimum  
-→ High contrast for outdoor use
-
-### "I need to understand the Game Day flow"
-→ Read the Core Game Day Flow in the design spec  
-→ The Live screen owns the entire loop: start → select players → matchups → score → save → next
-
----
-
-## File Naming Conventions
-
-- Components: `PascalCase.tsx` (e.g., `CourtView.tsx`, `RallyButton.tsx`)
-- Utilities/lib: `camelCase.ts` (e.g., `engine.ts`, `leaderboard.ts`)
-- Test files: `*.test.ts` colocated in `__tests__/` directories
-- Types: colocated `types.ts` per module
+- Vitest unit tests, colocated in `__tests__/` dirs (~11 files, ~146 tests)
+- Well covered: `engine/` (doubles, singles, undo, edge cases), `offline/`, `matchmaking/`, `matches/validation`, history session summary
+- Thin: `stats/` (only `rivalryStats` has direct tests)
+- Playwright: installed but **no config or specs exist yet** (planned for Phase 10)
+- Run: `pnpm test` (from `picklepal/`)
 
 ---
 
 ## Environment Variables
 
-```env
-NEXT_PUBLIC_SUPABASE_URL=        # Supabase project URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY=   # Supabase anon/public key
-SUPABASE_SERVICE_ROLE_KEY=       # Server-only, for write operations
-```
+See `picklepal/.env.local.example`:
 
-Never expose `SUPABASE_SERVICE_ROLE_KEY` to the client bundle.
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=        # server-only, never in client bundle
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
+# Optional — Sentry disabled when unset:
+NEXT_PUBLIC_SENTRY_DSN= / SENTRY_DSN= / SENTRY_ORG= / SENTRY_PROJECT= / SENTRY_AUTH_TOKEN=
+```
 
 ---
 
-*Last updated: 2026-05-29*
+## Quick Reference for Common Tasks
+
+- **Scoring engine** → `src/lib/engine/`, pure TS only, no React/Supabase imports. `pnpm test` must stay green.
+- **New group page/route** → under `src/app/g/[slug]/`. Reads: check `getViewerAccess`. Writes: server action starting with `authorizeGroupWrite()`.
+- **Schema change** → new numbered migration in `picklepal/supabase/migrations/` + update `src/lib/supabase/types.ts`. Public read via RLS; writes go through service-role server actions.
+- **UI work** → Tailwind, mobile-first (test at 375px), high contrast for outdoor use, DinkDay palette per `docs/DINKDAY-BRAND-KIT.md` (court green + sky blue, warm-yellow celebration accent).
+- **Stats/awards change** → `src/lib/stats/`; remember belts may need `recomputeBelts`/backfill after formula changes.
+
+---
+
+## What's NOT in Scope (V2 non-goals)
+
+- Player accounts (players stay roster records)
+- Clerk Organizations, billing
+- Elo/DUPR ratings, tournament brackets
+- Full offline-first app launch
+- Multi-device scoring of the same match
+- Public group directory
+
+---
+
+## File Naming Conventions
+
+- Components: `PascalCase.tsx` — Utilities/lib: `camelCase.ts`
+- Tests: `*.test.ts` in colocated `__tests__/` dirs
+- Types: colocated `types.ts` per module
+
+---
+
+*Last updated: 2026-07-03*

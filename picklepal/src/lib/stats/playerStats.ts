@@ -46,23 +46,49 @@ export function computePlayerStats(
   const winRate = gamesPlayed > 0 ? wins / gamesPlayed : 0;
   const pointDifferential = pointsFor - pointsAgainst;
 
-  // Recent matches sorted by completion time (newest first)
+  // Duration stats — only from matches with a non-null duration
+  const matchesWithDuration = playerMatches.filter(
+    (m) => (m as { duration_seconds?: number | null }).duration_seconds != null,
+  );
+  const avgMatchDurationSeconds =
+    matchesWithDuration.length > 0
+      ? Math.round(
+          matchesWithDuration.reduce(
+            (sum, m) =>
+              sum + ((m as { duration_seconds?: number | null }).duration_seconds ?? 0),
+            0,
+          ) / matchesWithDuration.length,
+        )
+      : null;
+  const longestMatchSeconds =
+    matchesWithDuration.length > 0
+      ? Math.max(
+          ...matchesWithDuration.map(
+            (m) => (m as { duration_seconds?: number | null }).duration_seconds ?? 0,
+          ),
+        )
+      : null;
+
+  // Recent matches sorted by played date (newest first)
   const recentMatches: readonly MatchSummary[] = playerMatches
     .sort((a, b) => {
-      const aTime = a.completed_at ?? a.created_at;
-      const bTime = b.completed_at ?? b.created_at;
+      const aTime = (a as { played_at?: string }).played_at ?? a.completed_at ?? a.created_at;
+      const bTime = (b as { played_at?: string }).played_at ?? b.completed_at ?? b.created_at;
       return bTime.localeCompare(aTime);
     })
     .slice(0, recentLimit)
     .map((m) => ({
       matchId: m.id,
       matchType: m.match_type,
+      source: m.source,
       teamAPlayerIds: m.team_a_player_ids,
       teamBPlayerIds: m.team_b_player_ids,
       teamAScore: m.team_a_score,
       teamBScore: m.team_b_score,
       winningTeam: m.winning_team,
+      playedAt: (m as { played_at?: string }).played_at ?? null,
       completedAt: m.completed_at,
+      durationSeconds: (m as { duration_seconds?: number | null }).duration_seconds ?? null,
     }));
 
   return {
@@ -74,6 +100,8 @@ export function computePlayerStats(
     gamesPlayed,
     winRate,
     pointDifferential,
+    avgMatchDurationSeconds,
+    longestMatchSeconds,
     recentMatches,
   };
 }

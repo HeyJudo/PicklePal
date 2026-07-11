@@ -2,6 +2,7 @@ export {
   clearRecoverableMatch,
   getRecoverableMatch,
   rebuildHistoryFromRecovery,
+  rebuildHistoryFromWinners,
   saveRecoverableMatch,
 } from "./recovery";
 export {

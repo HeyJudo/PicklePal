@@ -33,10 +33,20 @@ export interface BestMatchAward {
   readonly combinedScore: number;
 }
 
+export interface LongestMatchAward {
+  readonly matchId: string;
+  readonly teamAPlayerIds: readonly string[];
+  readonly teamBPlayerIds: readonly string[];
+  readonly teamAScore: number;
+  readonly teamBScore: number;
+  readonly durationSeconds: number;
+}
+
 export interface SessionAwards {
   readonly mvp: MvpAward | null;
   readonly hottestDuo: HottestDuoAward | null;
   readonly bestMatch: BestMatchAward | null;
+  readonly longestMatch: LongestMatchAward | null;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -224,6 +234,33 @@ function computeBestMatch(sessionMatches: readonly Match[]): BestMatchAward | nu
   return best;
 }
 
+// ─── Longest Match ───────────────────────────────────────────────────────────
+
+/**
+ * Longest Match: pick max duration_seconds, ignoring NULL.
+ */
+function computeLongestMatch(sessionMatches: readonly Match[]): LongestMatchAward | null {
+  let best: LongestMatchAward | null = null;
+
+  for (const match of sessionMatches) {
+    const dur = (match as { duration_seconds?: number | null }).duration_seconds;
+    if (dur == null) continue;
+
+    if (!best || dur > best.durationSeconds) {
+      best = {
+        matchId: match.id,
+        teamAPlayerIds: match.team_a_player_ids,
+        teamBPlayerIds: match.team_b_player_ids,
+        teamAScore: match.team_a_score,
+        teamBScore: match.team_b_score,
+        durationSeconds: dur,
+      };
+    }
+  }
+
+  return best;
+}
+
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 /**
@@ -239,6 +276,7 @@ export function computeSessionAwards(
     mvp: computeMvp(players, completed),
     hottestDuo: computeHottestDuo(players, completed),
     bestMatch: computeBestMatch(completed),
+    longestMatch: computeLongestMatch(completed),
   };
 }
 

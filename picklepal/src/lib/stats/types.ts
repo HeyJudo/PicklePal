@@ -23,6 +23,8 @@ export interface PlayerStats {
   readonly gamesPlayed: number;
   readonly winRate: number;
   readonly pointDifferential: number;
+  readonly avgMatchDurationSeconds: number | null;
+  readonly longestMatchSeconds: number | null;
   readonly recentMatches: readonly MatchSummary[];
 }
 
@@ -30,12 +32,15 @@ export interface PlayerStats {
 export interface MatchSummary {
   readonly matchId: string;
   readonly matchType: string;
+  readonly source: string;
   readonly teamAPlayerIds: readonly string[];
   readonly teamBPlayerIds: readonly string[];
   readonly teamAScore: number;
   readonly teamBScore: number;
   readonly winningTeam: string | null;
+  readonly playedAt: string | null;
   readonly completedAt: string | null;
+  readonly durationSeconds: number | null;
 }
 
 /** Duo pairing stats */
@@ -47,6 +52,19 @@ export interface DuoStats {
   readonly wins: number;
   readonly losses: number;
   readonly gamesPlayed: number;
+  readonly winRate: number;
+  readonly pointDifferential: number;
+}
+
+/** Head-to-head rivalry stats between this player and a specific opponent */
+export interface RivalryStats {
+  readonly opponentId: string;
+  readonly opponentName: string;
+  readonly opponentColor: string | null;
+  readonly opponentAvatarUrl: string | null;
+  readonly gamesPlayed: number;
+  readonly wins: number;
+  readonly losses: number;
   readonly winRate: number;
   readonly pointDifferential: number;
 }

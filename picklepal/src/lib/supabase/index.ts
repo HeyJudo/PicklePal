@@ -12,8 +12,10 @@ export type {
   MatchQueueItem,
   RecapCard,
   SessionStatus,
+  SessionSource,
   MatchStatus,
   MatchType,
+  MatchSource,
   QueueItemStatus,
   SessionPlayerStatus,
 } from "./types";

@@ -2,11 +2,13 @@ import { createClient } from "@supabase/supabase-js";
 import { randomBytes, createHash } from "crypto";
 
 export type InviteStatus = "pending" | "accepted" | "revoked" | "expired";
+export type InviteKind = "email" | "link";
 
 export interface AdminInvite {
   id: string;
   groupId: string;
-  email: string;
+  email: string | null;
+  kind: InviteKind;
   role: "owner" | "admin";
   status: InviteStatus;
   invitedBy: string;
@@ -213,16 +215,19 @@ export async function acceptInvite(
     return { success: false, error: "This invite has expired" };
   }
 
-  // Verify the accepting user owns the invited email
-  const inviteEmailLower = invite.email.toLowerCase();
-  const ownsEmail = verifiedEmails.some(
-    (e) => e.toLowerCase() === inviteEmailLower,
-  );
-  if (!ownsEmail) {
-    return {
-      success: false,
-      error: "This invite was sent to a different email address",
-    };
+  // For email invites, verify the accepting user owns the invited email.
+  // Link invites (kind = 'link' / email = null) skip this check — they are open.
+  if (invite.email !== null) {
+    const inviteEmailLower = invite.email.toLowerCase();
+    const ownsEmail = verifiedEmails.some(
+      (e) => e.toLowerCase() === inviteEmailLower,
+    );
+    if (!ownsEmail) {
+      return {
+        success: false,
+        error: "This invite was sent to a different email address",
+      };
+    }
   }
 
   // Get or create profile for the accepting user
@@ -247,11 +252,13 @@ export async function acceptInvite(
     .maybeSingle();
 
   if (existingMembership) {
-    // Mark invite as accepted anyway
-    await supabase
-      .from("admin_invites")
-      .update({ status: "accepted", accepted_at: new Date().toISOString() })
-      .eq("id", invite.id);
+    // For email invites, mark as accepted. Link invites stay pending (reusable).
+    if (invite.kind !== "link") {
+      await supabase
+        .from("admin_invites")
+        .update({ status: "accepted", accepted_at: new Date().toISOString() })
+        .eq("id", invite.id);
+    }
 
     const group = invite.groups as { name: string; slug: string } | null;
     return { success: true, groupSlug: group?.slug, groupName: group?.name };
@@ -268,11 +275,13 @@ export async function acceptInvite(
     return { success: false, error: "Failed to join group" };
   }
 
-  // Mark invite as accepted
-  await supabase
-    .from("admin_invites")
-    .update({ status: "accepted", accepted_at: new Date().toISOString() })
-    .eq("id", invite.id);
+  // For email invites, mark as accepted. Link invites stay pending (reusable).
+  if (invite.kind !== "link") {
+    await supabase
+      .from("admin_invites")
+      .update({ status: "accepted", accepted_at: new Date().toISOString() })
+      .eq("id", invite.id);
+  }
 
   const group = invite.groups as { name: string; slug: string } | null;
   return { success: true, groupSlug: group?.slug, groupName: group?.name };
@@ -303,6 +312,95 @@ export async function revokeInvite(
 }
 
 /**
+ * Create a shareable open-link invite for a group.
+ * Unlike email invites, anyone who opens this link can accept it.
+ * If an active link invite already exists, returns it instead of creating a duplicate.
+ */
+export async function createInviteLink(
+  groupId: string,
+  inviterProfileId: string,
+): Promise<CreateInviteResult> {
+  const supabase = getSupabase();
+
+  // Check for existing pending link invite to avoid duplicates
+  const { data: existing } = await supabase
+    .from("admin_invites")
+    .select("*, profiles!invited_by(display_name)")
+    .eq("group_id", groupId)
+    .eq("kind", "link")
+    .eq("status", "pending")
+    .maybeSingle();
+
+  if (existing) {
+    // Return the token by generating a fresh one won't work — we only store the hash.
+    // Instead we revoke the old one and create a new one so we can return the raw token.
+    await supabase
+      .from("admin_invites")
+      .update({ status: "revoked" })
+      .eq("id", existing.id);
+  }
+
+  const { token, tokenHash } = generateToken();
+
+  // Link invites expire in 30 days
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: invite, error } = await supabase
+    .from("admin_invites")
+    .insert({
+      group_id: groupId,
+      email: null,
+      kind: "link",
+      role: "admin",
+      token_hash: tokenHash,
+      invited_by: inviterProfileId,
+      status: "pending",
+      expires_at: expiresAt,
+    })
+    .select("*, profiles!invited_by(display_name)")
+    .single();
+
+  if (error || !invite) {
+    return { success: false, error: "Failed to create invite link" };
+  }
+
+  return {
+    success: true,
+    invite: mapInviteRow(invite),
+    token,
+  };
+}
+
+/**
+ * Get the active (pending, non-expired) link invite for a group, if one exists.
+ * Returns the invite row but NOT the raw token (it was already given to the caller on creation).
+ */
+export async function getActiveLinkInvite(groupId: string): Promise<AdminInvite | null> {
+  const supabase = getSupabase();
+
+  const { data } = await supabase
+    .from("admin_invites")
+    .select("*, profiles!invited_by(display_name)")
+    .eq("group_id", groupId)
+    .eq("kind", "link")
+    .eq("status", "pending")
+    .maybeSingle();
+
+  if (!data) return null;
+
+  // Auto-expire if past expiry
+  if (new Date(data.expires_at) < new Date()) {
+    await supabase
+      .from("admin_invites")
+      .update({ status: "expired" })
+      .eq("id", data.id);
+    return null;
+  }
+
+  return mapInviteRow(data);
+}
+
+/**
  * Map a DB row to our AdminInvite interface.
  */
 function mapInviteRow(row: Record<string, unknown>): AdminInvite {
@@ -310,7 +408,8 @@ function mapInviteRow(row: Record<string, unknown>): AdminInvite {
   return {
     id: row.id as string,
     groupId: row.group_id as string,
-    email: row.email as string,
+    email: (row.email as string | null) ?? null,
+    kind: (row.kind as InviteKind) ?? "email",
     role: row.role as "owner" | "admin",
     status: row.status as InviteStatus,
     invitedBy: row.invited_by as string,

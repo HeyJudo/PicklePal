@@ -1,6 +1,8 @@
-import { currentUser } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
+import { UserButton } from "@clerk/nextjs";
 import { BottomNav, DesktopNav } from "@/components/navigation";
 import { canViewGroup } from "@/lib/privacy";
+import { getGroupPrivacyBySlug } from "@/lib/privacy";
 import { PrivateGroupGate } from "./PrivateGroupGate";
 
 interface GroupLayoutProps {
@@ -8,30 +10,38 @@ interface GroupLayoutProps {
   readonly params: Promise<{ slug: string }>;
 }
 
-export default async function GroupLayout({
-  children,
-  params,
-}: GroupLayoutProps) {
+export default async function GroupLayout({ children, params }: GroupLayoutProps) {
   const { slug } = await params;
 
-  const user = await currentUser();
-  const access = await canViewGroup(slug, user?.id ?? null);
+  const privacy = await getGroupPrivacyBySlug(slug);
 
-  if (!access.canView) {
-    return <PrivateGroupGate reason={access.reason} />;
+  if (!privacy) {
+    return <PrivateGroupGate reason="Group not found" />;
+  }
+
+  if (privacy.privacyMode === "private") {
+    const { userId } = await auth();
+    const access = await canViewGroup(slug, userId);
+
+    if (!access.canView) {
+      return <PrivateGroupGate reason={access.reason} />;
+    }
   }
 
   return (
     <div className="flex min-h-dvh">
       <DesktopNav groupSlug={slug} />
 
-      <main className="flex-1 md:ml-56 lg:ml-64 pb-20 md:pb-0">
+      <main className="flex-1 min-w-0 md:ml-56 lg:ml-64 pb-20 md:pb-0">
         {/* Mobile top header */}
-        <header className="sticky top-0 z-40 flex items-center h-14 px-4 border-b border-court-green/15 bg-surface/98 backdrop-blur-md md:hidden">
+        <header className="sticky top-0 z-40 flex items-center justify-between h-14 px-4 border-b border-court-green/15 bg-surface/98 backdrop-blur-md md:hidden">
           {/* Wordmark — Outfit bold, DinkDay brand treatment */}
           <span className="text-[17px] font-bold tracking-tight leading-none text-text-primary">
             Dink<span className="text-court-green">Day</span>
           </span>
+          <div className="shrink-0">
+            <UserButton />
+          </div>
         </header>
 
         <div className="px-4 py-5 lg:px-8">{children}</div>
